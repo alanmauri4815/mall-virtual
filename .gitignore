@@ -3,12 +3,25 @@
 .vscode
 node_modules
 dist
+backups/
+backups_sensitive/
+SENSITIVE_DO_NOT_SHARE*/
+.tmp_*
+_script_*.js
 # Evitar subir copias de seguridad del Mall
 index_pro_BKP_*.html
+index_BKP*.html
+index.backup*.html
+index_BACKUP*.html
 index_ESTABLE.html
 index_pro_ESTABLE.html
+index_clean.html
+index_fixed.html
+index_OLD.html
+js/**/*.backup*.js
 # Documentos personales
 *.docx
+*.xlsx
 *.pdf
 # Logs
 npm-debug.log*

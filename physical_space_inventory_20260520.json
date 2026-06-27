@@ -1,0 +1,3002 @@
+[
+  {
+    "physicalSpaceId": "phys_anchor_e",
+    "kind": "anchor",
+    "floor": "2-niveles",
+    "axis": "anchor",
+    "quadrant": "E",
+    "slotIndex": 1,
+    "sourceCode": "E",
+    "displayCode": "E",
+    "y1": 0,
+    "y2": 15,
+    "corners": [
+      {
+        "x": -125,
+        "z": 35
+      },
+      {
+        "x": -125,
+        "z": -35
+      },
+      {
+        "x": -90.95,
+        "z": -35
+      },
+      {
+        "x": -90.95,
+        "z": 35
+      }
+    ]
+  },
+  {
+    "physicalSpaceId": "phys_anchor_n",
+    "kind": "anchor",
+    "floor": "2-niveles",
+    "axis": "anchor",
+    "quadrant": "N",
+    "slotIndex": 1,
+    "sourceCode": "N",
+    "displayCode": "N",
+    "y1": 0,
+    "y2": 15,
+    "corners": [
+      {
+        "x": 35,
+        "z": 125
+      },
+      {
+        "x": -35,
+        "z": 125
+      },
+      {
+        "x": -35,
+        "z": 90.95
+      },
+      {
+        "x": 35,
+        "z": 90.95
+      }
+    ]
+  },
+  {
+    "physicalSpaceId": "phys_anchor_o",
+    "kind": "anchor",
+    "floor": "2-niveles",
+    "axis": "anchor",
+    "quadrant": "O",
+    "slotIndex": 1,
+    "sourceCode": "O",
+    "displayCode": "O",
+    "y1": 0,
+    "y2": 15,
+    "corners": [
+      {
+        "x": 125,
+        "z": -35
+      },
+      {
+        "x": 125,
+        "z": 35
+      },
+      {
+        "x": 90.95,
+        "z": 35
+      },
+      {
+        "x": 90.95,
+        "z": -35
+      }
+    ]
+  },
+  {
+    "physicalSpaceId": "phys_anchor_s",
+    "kind": "anchor",
+    "floor": "2-niveles",
+    "axis": "anchor",
+    "quadrant": "S",
+    "slotIndex": 1,
+    "sourceCode": "S",
+    "displayCode": "S",
+    "y1": 0,
+    "y2": 15,
+    "corners": [
+      {
+        "x": -35,
+        "z": -125
+      },
+      {
+        "x": 35,
+        "z": -125
+      },
+      {
+        "x": 35,
+        "z": -90.95
+      },
+      {
+        "x": -35,
+        "z": -90.95
+      }
+    ]
+  },
+  {
+    "physicalSpaceId": "phys_b_f1_xn_zn_horizontal_01",
+    "kind": "boutique",
+    "floor": 1,
+    "axis": "horizontal",
+    "quadrant": "xn_zn",
+    "slotIndex": 1,
+    "sourceCode": "S101",
+    "displayCode": "OS-10",
+    "y1": 0,
+    "y2": 5.2,
+    "corners": [
+      {
+        "x": -29,
+        "z": -35
+      },
+      {
+        "x": -17,
+        "z": -35
+      },
+      {
+        "x": -17,
+        "z": -17
+      },
+      {
+        "x": -29,
+        "z": -17
+      }
+    ]
+  },
+  {
+    "physicalSpaceId": "phys_b_f1_xn_zn_horizontal_02",
+    "kind": "boutique",
+    "floor": 1,
+    "axis": "horizontal",
+    "quadrant": "xn_zn",
+    "slotIndex": 2,
+    "sourceCode": "S102",
+    "displayCode": "O-107",
+    "y1": 0,
+    "y2": 5.2,
+    "corners": [
+      {
+        "x": -41,
+        "z": -35
+      },
+      {
+        "x": -29,
+        "z": -35
+      },
+      {
+        "x": -29,
+        "z": -17
+      },
+      {
+        "x": -41,
+        "z": -17
+      }
+    ]
+  },
+  {
+    "physicalSpaceId": "phys_b_f1_xn_zn_horizontal_03",
+    "kind": "boutique",
+    "floor": 1,
+    "axis": "horizontal",
+    "quadrant": "xn_zn",
+    "slotIndex": 3,
+    "sourceCode": "S103",
+    "displayCode": "O-105",
+    "y1": 0,
+    "y2": 5.2,
+    "corners": [
+      {
+        "x": -53,
+        "z": -35
+      },
+      {
+        "x": -41,
+        "z": -35
+      },
+      {
+        "x": -41,
+        "z": -17
+      },
+      {
+        "x": -53,
+        "z": -17
+      }
+    ]
+  },
+  {
+    "physicalSpaceId": "phys_b_f1_xn_zn_horizontal_04",
+    "kind": "boutique",
+    "floor": 1,
+    "axis": "horizontal",
+    "quadrant": "xn_zn",
+    "slotIndex": 4,
+    "sourceCode": "S104",
+    "displayCode": "O-103",
+    "y1": 0,
+    "y2": 5.2,
+    "corners": [
+      {
+        "x": -71,
+        "z": -35
+      },
+      {
+        "x": -59,
+        "z": -35
+      },
+      {
+        "x": -59,
+        "z": -17
+      },
+      {
+        "x": -71,
+        "z": -17
+      }
+    ]
+  },
+  {
+    "physicalSpaceId": "phys_b_f1_xn_zn_horizontal_05",
+    "kind": "boutique",
+    "floor": 1,
+    "axis": "horizontal",
+    "quadrant": "xn_zn",
+    "slotIndex": 5,
+    "sourceCode": "S105",
+    "displayCode": "O-101",
+    "y1": 0,
+    "y2": 5.2,
+    "corners": [
+      {
+        "x": -83,
+        "z": -35
+      },
+      {
+        "x": -71,
+        "z": -35
+      },
+      {
+        "x": -71,
+        "z": -17
+      },
+      {
+        "x": -83,
+        "z": -17
+      }
+    ]
+  },
+  {
+    "physicalSpaceId": "phys_b_f1_xn_zn_vertical_01",
+    "kind": "boutique",
+    "floor": 1,
+    "axis": "vertical",
+    "quadrant": "xn_zn",
+    "slotIndex": 1,
+    "sourceCode": "E101",
+    "displayCode": "SE-10",
+    "y1": 0,
+    "y2": 5.2,
+    "corners": [
+      {
+        "x": -35,
+        "z": -29
+      },
+      {
+        "x": -17,
+        "z": -29
+      },
+      {
+        "x": -17,
+        "z": -17
+      },
+      {
+        "x": -35,
+        "z": -17
+      }
+    ]
+  },
+  {
+    "physicalSpaceId": "phys_b_f1_xn_zn_vertical_02",
+    "kind": "boutique",
+    "floor": 1,
+    "axis": "vertical",
+    "quadrant": "xn_zn",
+    "slotIndex": 2,
+    "sourceCode": "E102",
+    "displayCode": "S-107",
+    "y1": 0,
+    "y2": 5.2,
+    "corners": [
+      {
+        "x": -35,
+        "z": -41
+      },
+      {
+        "x": -17,
+        "z": -41
+      },
+      {
+        "x": -17,
+        "z": -29
+      },
+      {
+        "x": -35,
+        "z": -29
+      }
+    ]
+  },
+  {
+    "physicalSpaceId": "phys_b_f1_xn_zn_vertical_03",
+    "kind": "boutique",
+    "floor": 1,
+    "axis": "vertical",
+    "quadrant": "xn_zn",
+    "slotIndex": 3,
+    "sourceCode": "E103",
+    "displayCode": "S-105",
+    "y1": 0,
+    "y2": 5.2,
+    "corners": [
+      {
+        "x": -35,
+        "z": -53
+      },
+      {
+        "x": -17,
+        "z": -53
+      },
+      {
+        "x": -17,
+        "z": -41
+      },
+      {
+        "x": -35,
+        "z": -41
+      }
+    ]
+  },
+  {
+    "physicalSpaceId": "phys_b_f1_xn_zn_vertical_04",
+    "kind": "boutique",
+    "floor": 1,
+    "axis": "vertical",
+    "quadrant": "xn_zn",
+    "slotIndex": 4,
+    "sourceCode": "E104",
+    "displayCode": "S-103",
+    "y1": 0,
+    "y2": 5.2,
+    "corners": [
+      {
+        "x": -35,
+        "z": -71
+      },
+      {
+        "x": -17,
+        "z": -71
+      },
+      {
+        "x": -17,
+        "z": -59
+      },
+      {
+        "x": -35,
+        "z": -59
+      }
+    ]
+  },
+  {
+    "physicalSpaceId": "phys_b_f1_xn_zn_vertical_05",
+    "kind": "boutique",
+    "floor": 1,
+    "axis": "vertical",
+    "quadrant": "xn_zn",
+    "slotIndex": 5,
+    "sourceCode": "E105",
+    "displayCode": "S-101",
+    "y1": 0,
+    "y2": 5.2,
+    "corners": [
+      {
+        "x": -35,
+        "z": -83
+      },
+      {
+        "x": -17,
+        "z": -83
+      },
+      {
+        "x": -17,
+        "z": -71
+      },
+      {
+        "x": -35,
+        "z": -71
+      }
+    ]
+  },
+  {
+    "physicalSpaceId": "phys_b_f1_xn_zp_horizontal_01",
+    "kind": "boutique",
+    "floor": 1,
+    "axis": "horizontal",
+    "quadrant": "xn_zp",
+    "slotIndex": 1,
+    "sourceCode": "N101",
+    "displayCode": "N101",
+    "y1": 0,
+    "y2": 5.2,
+    "corners": [
+      {
+        "x": -29,
+        "z": 17
+      },
+      {
+        "x": -17,
+        "z": 17
+      },
+      {
+        "x": -17,
+        "z": 35
+      },
+      {
+        "x": -29,
+        "z": 35
+      }
+    ]
+  },
+  {
+    "physicalSpaceId": "phys_b_f1_xn_zp_horizontal_02",
+    "kind": "boutique",
+    "floor": 1,
+    "axis": "horizontal",
+    "quadrant": "xn_zp",
+    "slotIndex": 2,
+    "sourceCode": "N102",
+    "displayCode": "O-108",
+    "y1": 0,
+    "y2": 5.2,
+    "corners": [
+      {
+        "x": -41,
+        "z": 17
+      },
+      {
+        "x": -29,
+        "z": 17
+      },
+      {
+        "x": -29,
+        "z": 35
+      },
+      {
+        "x": -41,
+        "z": 35
+      }
+    ]
+  },
+  {
+    "physicalSpaceId": "phys_b_f1_xn_zp_horizontal_03",
+    "kind": "boutique",
+    "floor": 1,
+    "axis": "horizontal",
+    "quadrant": "xn_zp",
+    "slotIndex": 3,
+    "sourceCode": "N103",
+    "displayCode": "O-106",
+    "y1": 0,
+    "y2": 5.2,
+    "corners": [
+      {
+        "x": -53,
+        "z": 17
+      },
+      {
+        "x": -41,
+        "z": 17
+      },
+      {
+        "x": -41,
+        "z": 35
+      },
+      {
+        "x": -53,
+        "z": 35
+      }
+    ]
+  },
+  {
+    "physicalSpaceId": "phys_b_f1_xn_zp_horizontal_04",
+    "kind": "boutique",
+    "floor": 1,
+    "axis": "horizontal",
+    "quadrant": "xn_zp",
+    "slotIndex": 4,
+    "sourceCode": "N104",
+    "displayCode": "O-104",
+    "y1": 0,
+    "y2": 5.2,
+    "corners": [
+      {
+        "x": -71,
+        "z": 17
+      },
+      {
+        "x": -59,
+        "z": 17
+      },
+      {
+        "x": -59,
+        "z": 35
+      },
+      {
+        "x": -71,
+        "z": 35
+      }
+    ]
+  },
+  {
+    "physicalSpaceId": "phys_b_f1_xn_zp_horizontal_05",
+    "kind": "boutique",
+    "floor": 1,
+    "axis": "horizontal",
+    "quadrant": "xn_zp",
+    "slotIndex": 5,
+    "sourceCode": "N105",
+    "displayCode": "O-102",
+    "y1": 0,
+    "y2": 5.2,
+    "corners": [
+      {
+        "x": -83,
+        "z": 17
+      },
+      {
+        "x": -71,
+        "z": 17
+      },
+      {
+        "x": -71,
+        "z": 35
+      },
+      {
+        "x": -83,
+        "z": 35
+      }
+    ]
+  },
+  {
+    "physicalSpaceId": "phys_b_f1_xn_zp_vertical_01",
+    "kind": "boutique",
+    "floor": 1,
+    "axis": "vertical",
+    "quadrant": "xn_zp",
+    "slotIndex": 1,
+    "sourceCode": "E101",
+    "displayCode": "SE-10",
+    "y1": 0,
+    "y2": 5.2,
+    "corners": [
+      {
+        "x": -35,
+        "z": 17
+      },
+      {
+        "x": -17,
+        "z": 17
+      },
+      {
+        "x": -17,
+        "z": 29
+      },
+      {
+        "x": -35,
+        "z": 29
+      }
+    ]
+  },
+  {
+    "physicalSpaceId": "phys_b_f1_xn_zp_vertical_02",
+    "kind": "boutique",
+    "floor": 1,
+    "axis": "vertical",
+    "quadrant": "xn_zp",
+    "slotIndex": 2,
+    "sourceCode": "E102",
+    "displayCode": "S-107",
+    "y1": 0,
+    "y2": 5.2,
+    "corners": [
+      {
+        "x": -35,
+        "z": 29
+      },
+      {
+        "x": -17,
+        "z": 29
+      },
+      {
+        "x": -17,
+        "z": 41
+      },
+      {
+        "x": -35,
+        "z": 41
+      }
+    ]
+  },
+  {
+    "physicalSpaceId": "phys_b_f1_xn_zp_vertical_03",
+    "kind": "boutique",
+    "floor": 1,
+    "axis": "vertical",
+    "quadrant": "xn_zp",
+    "slotIndex": 3,
+    "sourceCode": "E103",
+    "displayCode": "S-105",
+    "y1": 0,
+    "y2": 5.2,
+    "corners": [
+      {
+        "x": -35,
+        "z": 41
+      },
+      {
+        "x": -17,
+        "z": 41
+      },
+      {
+        "x": -17,
+        "z": 53
+      },
+      {
+        "x": -35,
+        "z": 53
+      }
+    ]
+  },
+  {
+    "physicalSpaceId": "phys_b_f1_xn_zp_vertical_04",
+    "kind": "boutique",
+    "floor": 1,
+    "axis": "vertical",
+    "quadrant": "xn_zp",
+    "slotIndex": 4,
+    "sourceCode": "E104",
+    "displayCode": "S-103",
+    "y1": 0,
+    "y2": 5.2,
+    "corners": [
+      {
+        "x": -35,
+        "z": 59
+      },
+      {
+        "x": -17,
+        "z": 59
+      },
+      {
+        "x": -17,
+        "z": 71
+      },
+      {
+        "x": -35,
+        "z": 71
+      }
+    ]
+  },
+  {
+    "physicalSpaceId": "phys_b_f1_xn_zp_vertical_05",
+    "kind": "boutique",
+    "floor": 1,
+    "axis": "vertical",
+    "quadrant": "xn_zp",
+    "slotIndex": 5,
+    "sourceCode": "E105",
+    "displayCode": "S-101",
+    "y1": 0,
+    "y2": 5.2,
+    "corners": [
+      {
+        "x": -35,
+        "z": 71
+      },
+      {
+        "x": -17,
+        "z": 71
+      },
+      {
+        "x": -17,
+        "z": 83
+      },
+      {
+        "x": -35,
+        "z": 83
+      }
+    ]
+  },
+  {
+    "physicalSpaceId": "phys_b_f1_xp_zn_horizontal_01",
+    "kind": "boutique",
+    "floor": 1,
+    "axis": "horizontal",
+    "quadrant": "xp_zn",
+    "slotIndex": 1,
+    "sourceCode": "S101",
+    "displayCode": "OS-10",
+    "y1": 0,
+    "y2": 5.2,
+    "corners": [
+      {
+        "x": 17,
+        "z": -35
+      },
+      {
+        "x": 29,
+        "z": -35
+      },
+      {
+        "x": 29,
+        "z": -17
+      },
+      {
+        "x": 17,
+        "z": -17
+      }
+    ]
+  },
+  {
+    "physicalSpaceId": "phys_b_f1_xp_zn_horizontal_02",
+    "kind": "boutique",
+    "floor": 1,
+    "axis": "horizontal",
+    "quadrant": "xp_zn",
+    "slotIndex": 2,
+    "sourceCode": "S102",
+    "displayCode": "O-107",
+    "y1": 0,
+    "y2": 5.2,
+    "corners": [
+      {
+        "x": 29,
+        "z": -35
+      },
+      {
+        "x": 41,
+        "z": -35
+      },
+      {
+        "x": 41,
+        "z": -17
+      },
+      {
+        "x": 29,
+        "z": -17
+      }
+    ]
+  },
+  {
+    "physicalSpaceId": "phys_b_f1_xp_zn_horizontal_03",
+    "kind": "boutique",
+    "floor": 1,
+    "axis": "horizontal",
+    "quadrant": "xp_zn",
+    "slotIndex": 3,
+    "sourceCode": "S103",
+    "displayCode": "O-105",
+    "y1": 0,
+    "y2": 5.2,
+    "corners": [
+      {
+        "x": 41,
+        "z": -35
+      },
+      {
+        "x": 53,
+        "z": -35
+      },
+      {
+        "x": 53,
+        "z": -17
+      },
+      {
+        "x": 41,
+        "z": -17
+      }
+    ]
+  },
+  {
+    "physicalSpaceId": "phys_b_f1_xp_zn_horizontal_04",
+    "kind": "boutique",
+    "floor": 1,
+    "axis": "horizontal",
+    "quadrant": "xp_zn",
+    "slotIndex": 4,
+    "sourceCode": "S104",
+    "displayCode": "O-103",
+    "y1": 0,
+    "y2": 5.2,
+    "corners": [
+      {
+        "x": 59,
+        "z": -35
+      },
+      {
+        "x": 71,
+        "z": -35
+      },
+      {
+        "x": 71,
+        "z": -17
+      },
+      {
+        "x": 59,
+        "z": -17
+      }
+    ]
+  },
+  {
+    "physicalSpaceId": "phys_b_f1_xp_zn_horizontal_05",
+    "kind": "boutique",
+    "floor": 1,
+    "axis": "horizontal",
+    "quadrant": "xp_zn",
+    "slotIndex": 5,
+    "sourceCode": "S105",
+    "displayCode": "O-101",
+    "y1": 0,
+    "y2": 5.2,
+    "corners": [
+      {
+        "x": 71,
+        "z": -35
+      },
+      {
+        "x": 83,
+        "z": -35
+      },
+      {
+        "x": 83,
+        "z": -17
+      },
+      {
+        "x": 71,
+        "z": -17
+      }
+    ]
+  },
+  {
+    "physicalSpaceId": "phys_b_f1_xp_zn_vertical_01",
+    "kind": "boutique",
+    "floor": 1,
+    "axis": "vertical",
+    "quadrant": "xp_zn",
+    "slotIndex": 1,
+    "sourceCode": "O101",
+    "displayCode": "OS-10",
+    "y1": 0,
+    "y2": 5.2,
+    "corners": [
+      {
+        "x": 17,
+        "z": -29
+      },
+      {
+        "x": 35,
+        "z": -29
+      },
+      {
+        "x": 35,
+        "z": -17
+      },
+      {
+        "x": 17,
+        "z": -17
+      }
+    ]
+  },
+  {
+    "physicalSpaceId": "phys_b_f1_xp_zn_vertical_02",
+    "kind": "boutique",
+    "floor": 1,
+    "axis": "vertical",
+    "quadrant": "xp_zn",
+    "slotIndex": 2,
+    "sourceCode": "O102",
+    "displayCode": "S-108",
+    "y1": 0,
+    "y2": 5.2,
+    "corners": [
+      {
+        "x": 17,
+        "z": -41
+      },
+      {
+        "x": 35,
+        "z": -41
+      },
+      {
+        "x": 35,
+        "z": -29
+      },
+      {
+        "x": 17,
+        "z": -29
+      }
+    ]
+  },
+  {
+    "physicalSpaceId": "phys_b_f1_xp_zn_vertical_03",
+    "kind": "boutique",
+    "floor": 1,
+    "axis": "vertical",
+    "quadrant": "xp_zn",
+    "slotIndex": 3,
+    "sourceCode": "O103",
+    "displayCode": "S-106",
+    "y1": 0,
+    "y2": 5.2,
+    "corners": [
+      {
+        "x": 17,
+        "z": -53
+      },
+      {
+        "x": 35,
+        "z": -53
+      },
+      {
+        "x": 35,
+        "z": -41
+      },
+      {
+        "x": 17,
+        "z": -41
+      }
+    ]
+  },
+  {
+    "physicalSpaceId": "phys_b_f1_xp_zn_vertical_04",
+    "kind": "boutique",
+    "floor": 1,
+    "axis": "vertical",
+    "quadrant": "xp_zn",
+    "slotIndex": 4,
+    "sourceCode": "O104",
+    "displayCode": "S-104",
+    "y1": 0,
+    "y2": 5.2,
+    "corners": [
+      {
+        "x": 17,
+        "z": -71
+      },
+      {
+        "x": 35,
+        "z": -71
+      },
+      {
+        "x": 35,
+        "z": -59
+      },
+      {
+        "x": 17,
+        "z": -59
+      }
+    ]
+  },
+  {
+    "physicalSpaceId": "phys_b_f1_xp_zn_vertical_05",
+    "kind": "boutique",
+    "floor": 1,
+    "axis": "vertical",
+    "quadrant": "xp_zn",
+    "slotIndex": 5,
+    "sourceCode": "O105",
+    "displayCode": "S-102",
+    "y1": 0,
+    "y2": 5.2,
+    "corners": [
+      {
+        "x": 17,
+        "z": -83
+      },
+      {
+        "x": 35,
+        "z": -83
+      },
+      {
+        "x": 35,
+        "z": -71
+      },
+      {
+        "x": 17,
+        "z": -71
+      }
+    ]
+  },
+  {
+    "physicalSpaceId": "phys_b_f1_xp_zp_horizontal_01",
+    "kind": "boutique",
+    "floor": 1,
+    "axis": "horizontal",
+    "quadrant": "xp_zp",
+    "slotIndex": 1,
+    "sourceCode": "N101",
+    "displayCode": "N101",
+    "y1": 0,
+    "y2": 5.2,
+    "corners": [
+      {
+        "x": 17,
+        "z": 17
+      },
+      {
+        "x": 29,
+        "z": 17
+      },
+      {
+        "x": 29,
+        "z": 35
+      },
+      {
+        "x": 17,
+        "z": 35
+      }
+    ]
+  },
+  {
+    "physicalSpaceId": "phys_b_f1_xp_zp_horizontal_02",
+    "kind": "boutique",
+    "floor": 1,
+    "axis": "horizontal",
+    "quadrant": "xp_zp",
+    "slotIndex": 2,
+    "sourceCode": "N102",
+    "displayCode": "O-108",
+    "y1": 0,
+    "y2": 5.2,
+    "corners": [
+      {
+        "x": 29,
+        "z": 17
+      },
+      {
+        "x": 41,
+        "z": 17
+      },
+      {
+        "x": 41,
+        "z": 35
+      },
+      {
+        "x": 29,
+        "z": 35
+      }
+    ]
+  },
+  {
+    "physicalSpaceId": "phys_b_f1_xp_zp_horizontal_03",
+    "kind": "boutique",
+    "floor": 1,
+    "axis": "horizontal",
+    "quadrant": "xp_zp",
+    "slotIndex": 3,
+    "sourceCode": "N103",
+    "displayCode": "O-106",
+    "y1": 0,
+    "y2": 5.2,
+    "corners": [
+      {
+        "x": 41,
+        "z": 17
+      },
+      {
+        "x": 53,
+        "z": 17
+      },
+      {
+        "x": 53,
+        "z": 35
+      },
+      {
+        "x": 41,
+        "z": 35
+      }
+    ]
+  },
+  {
+    "physicalSpaceId": "phys_b_f1_xp_zp_horizontal_04",
+    "kind": "boutique",
+    "floor": 1,
+    "axis": "horizontal",
+    "quadrant": "xp_zp",
+    "slotIndex": 4,
+    "sourceCode": "N104",
+    "displayCode": "O-104",
+    "y1": 0,
+    "y2": 5.2,
+    "corners": [
+      {
+        "x": 59,
+        "z": 17
+      },
+      {
+        "x": 71,
+        "z": 17
+      },
+      {
+        "x": 71,
+        "z": 35
+      },
+      {
+        "x": 59,
+        "z": 35
+      }
+    ]
+  },
+  {
+    "physicalSpaceId": "phys_b_f1_xp_zp_horizontal_05",
+    "kind": "boutique",
+    "floor": 1,
+    "axis": "horizontal",
+    "quadrant": "xp_zp",
+    "slotIndex": 5,
+    "sourceCode": "N105",
+    "displayCode": "O-102",
+    "y1": 0,
+    "y2": 5.2,
+    "corners": [
+      {
+        "x": 71,
+        "z": 17
+      },
+      {
+        "x": 83,
+        "z": 17
+      },
+      {
+        "x": 83,
+        "z": 35
+      },
+      {
+        "x": 71,
+        "z": 35
+      }
+    ]
+  },
+  {
+    "physicalSpaceId": "phys_b_f1_xp_zp_vertical_01",
+    "kind": "boutique",
+    "floor": 1,
+    "axis": "vertical",
+    "quadrant": "xp_zp",
+    "slotIndex": 1,
+    "sourceCode": "O101",
+    "displayCode": "OS-10",
+    "y1": 0,
+    "y2": 5.2,
+    "corners": [
+      {
+        "x": 17,
+        "z": 17
+      },
+      {
+        "x": 35,
+        "z": 17
+      },
+      {
+        "x": 35,
+        "z": 29
+      },
+      {
+        "x": 17,
+        "z": 29
+      }
+    ]
+  },
+  {
+    "physicalSpaceId": "phys_b_f1_xp_zp_vertical_02",
+    "kind": "boutique",
+    "floor": 1,
+    "axis": "vertical",
+    "quadrant": "xp_zp",
+    "slotIndex": 2,
+    "sourceCode": "O102",
+    "displayCode": "S-108",
+    "y1": 0,
+    "y2": 5.2,
+    "corners": [
+      {
+        "x": 17,
+        "z": 29
+      },
+      {
+        "x": 35,
+        "z": 29
+      },
+      {
+        "x": 35,
+        "z": 41
+      },
+      {
+        "x": 17,
+        "z": 41
+      }
+    ]
+  },
+  {
+    "physicalSpaceId": "phys_b_f1_xp_zp_vertical_03",
+    "kind": "boutique",
+    "floor": 1,
+    "axis": "vertical",
+    "quadrant": "xp_zp",
+    "slotIndex": 3,
+    "sourceCode": "O103",
+    "displayCode": "S-106",
+    "y1": 0,
+    "y2": 5.2,
+    "corners": [
+      {
+        "x": 17,
+        "z": 41
+      },
+      {
+        "x": 35,
+        "z": 41
+      },
+      {
+        "x": 35,
+        "z": 53
+      },
+      {
+        "x": 17,
+        "z": 53
+      }
+    ]
+  },
+  {
+    "physicalSpaceId": "phys_b_f1_xp_zp_vertical_04",
+    "kind": "boutique",
+    "floor": 1,
+    "axis": "vertical",
+    "quadrant": "xp_zp",
+    "slotIndex": 4,
+    "sourceCode": "O104",
+    "displayCode": "S-104",
+    "y1": 0,
+    "y2": 5.2,
+    "corners": [
+      {
+        "x": 17,
+        "z": 59
+      },
+      {
+        "x": 35,
+        "z": 59
+      },
+      {
+        "x": 35,
+        "z": 71
+      },
+      {
+        "x": 17,
+        "z": 71
+      }
+    ]
+  },
+  {
+    "physicalSpaceId": "phys_b_f1_xp_zp_vertical_05",
+    "kind": "boutique",
+    "floor": 1,
+    "axis": "vertical",
+    "quadrant": "xp_zp",
+    "slotIndex": 5,
+    "sourceCode": "O105",
+    "displayCode": "S-102",
+    "y1": 0,
+    "y2": 5.2,
+    "corners": [
+      {
+        "x": 17,
+        "z": 71
+      },
+      {
+        "x": 35,
+        "z": 71
+      },
+      {
+        "x": 35,
+        "z": 83
+      },
+      {
+        "x": 17,
+        "z": 83
+      }
+    ]
+  },
+  {
+    "physicalSpaceId": "phys_b_f2_xn_zn_horizontal_01",
+    "kind": "boutique",
+    "floor": 2,
+    "axis": "horizontal",
+    "quadrant": "xn_zn",
+    "slotIndex": 1,
+    "sourceCode": "S201",
+    "displayCode": "S201",
+    "y1": 5.5,
+    "y2": 10.7,
+    "corners": [
+      {
+        "x": -29,
+        "z": -35
+      },
+      {
+        "x": -17,
+        "z": -35
+      },
+      {
+        "x": -17,
+        "z": -17
+      },
+      {
+        "x": -29,
+        "z": -17
+      }
+    ]
+  },
+  {
+    "physicalSpaceId": "phys_b_f2_xn_zn_horizontal_02",
+    "kind": "boutique",
+    "floor": 2,
+    "axis": "horizontal",
+    "quadrant": "xn_zn",
+    "slotIndex": 2,
+    "sourceCode": "S202",
+    "displayCode": "S202",
+    "y1": 5.5,
+    "y2": 10.7,
+    "corners": [
+      {
+        "x": -41,
+        "z": -35
+      },
+      {
+        "x": -29,
+        "z": -35
+      },
+      {
+        "x": -29,
+        "z": -17
+      },
+      {
+        "x": -41,
+        "z": -17
+      }
+    ]
+  },
+  {
+    "physicalSpaceId": "phys_b_f2_xn_zn_horizontal_03",
+    "kind": "boutique",
+    "floor": 2,
+    "axis": "horizontal",
+    "quadrant": "xn_zn",
+    "slotIndex": 3,
+    "sourceCode": "S203",
+    "displayCode": "S203",
+    "y1": 5.5,
+    "y2": 10.7,
+    "corners": [
+      {
+        "x": -53,
+        "z": -35
+      },
+      {
+        "x": -41,
+        "z": -35
+      },
+      {
+        "x": -41,
+        "z": -17
+      },
+      {
+        "x": -53,
+        "z": -17
+      }
+    ]
+  },
+  {
+    "physicalSpaceId": "phys_b_f2_xn_zn_horizontal_04",
+    "kind": "boutique",
+    "floor": 2,
+    "axis": "horizontal",
+    "quadrant": "xn_zn",
+    "slotIndex": 4,
+    "sourceCode": "S204",
+    "displayCode": "S204",
+    "y1": 5.5,
+    "y2": 10.7,
+    "corners": [
+      {
+        "x": -65,
+        "z": -35
+      },
+      {
+        "x": -53,
+        "z": -35
+      },
+      {
+        "x": -53,
+        "z": -17
+      },
+      {
+        "x": -65,
+        "z": -17
+      }
+    ]
+  },
+  {
+    "physicalSpaceId": "phys_b_f2_xn_zn_horizontal_05",
+    "kind": "boutique",
+    "floor": 2,
+    "axis": "horizontal",
+    "quadrant": "xn_zn",
+    "slotIndex": 5,
+    "sourceCode": "S205",
+    "displayCode": "S205",
+    "y1": 5.5,
+    "y2": 10.7,
+    "corners": [
+      {
+        "x": -77,
+        "z": -35
+      },
+      {
+        "x": -65,
+        "z": -35
+      },
+      {
+        "x": -65,
+        "z": -17
+      },
+      {
+        "x": -77,
+        "z": -17
+      }
+    ]
+  },
+  {
+    "physicalSpaceId": "phys_b_f2_xn_zn_horizontal_06",
+    "kind": "boutique",
+    "floor": 2,
+    "axis": "horizontal",
+    "quadrant": "xn_zn",
+    "slotIndex": 6,
+    "sourceCode": "S206",
+    "displayCode": "S206",
+    "y1": 5.5,
+    "y2": 10.7,
+    "corners": [
+      {
+        "x": -89,
+        "z": -35
+      },
+      {
+        "x": -77,
+        "z": -35
+      },
+      {
+        "x": -77,
+        "z": -17
+      },
+      {
+        "x": -89,
+        "z": -17
+      }
+    ]
+  },
+  {
+    "physicalSpaceId": "phys_b_f2_xn_zn_horizontal_07",
+    "kind": "boutique",
+    "floor": 2,
+    "axis": "horizontal",
+    "quadrant": "xn_zn",
+    "slotIndex": 7,
+    "sourceCode": "S207",
+    "displayCode": "S207",
+    "y1": 5.5,
+    "y2": 10.7,
+    "corners": [
+      {
+        "x": -95,
+        "z": -35
+      },
+      {
+        "x": -83,
+        "z": -35
+      },
+      {
+        "x": -83,
+        "z": -17
+      },
+      {
+        "x": -95,
+        "z": -17
+      }
+    ]
+  },
+  {
+    "physicalSpaceId": "phys_b_f2_xn_zn_vertical_01",
+    "kind": "boutique",
+    "floor": 2,
+    "axis": "vertical",
+    "quadrant": "xn_zn",
+    "slotIndex": 1,
+    "sourceCode": "E201",
+    "displayCode": "E201",
+    "y1": 5.5,
+    "y2": 10.7,
+    "corners": [
+      {
+        "x": -35,
+        "z": -29
+      },
+      {
+        "x": -17,
+        "z": -29
+      },
+      {
+        "x": -17,
+        "z": -17
+      },
+      {
+        "x": -35,
+        "z": -17
+      }
+    ]
+  },
+  {
+    "physicalSpaceId": "phys_b_f2_xn_zn_vertical_02",
+    "kind": "boutique",
+    "floor": 2,
+    "axis": "vertical",
+    "quadrant": "xn_zn",
+    "slotIndex": 2,
+    "sourceCode": "E202",
+    "displayCode": "E202",
+    "y1": 5.5,
+    "y2": 10.7,
+    "corners": [
+      {
+        "x": -35,
+        "z": -41
+      },
+      {
+        "x": -17,
+        "z": -41
+      },
+      {
+        "x": -17,
+        "z": -29
+      },
+      {
+        "x": -35,
+        "z": -29
+      }
+    ]
+  },
+  {
+    "physicalSpaceId": "phys_b_f2_xn_zn_vertical_03",
+    "kind": "boutique",
+    "floor": 2,
+    "axis": "vertical",
+    "quadrant": "xn_zn",
+    "slotIndex": 3,
+    "sourceCode": "E203",
+    "displayCode": "E203",
+    "y1": 5.5,
+    "y2": 10.7,
+    "corners": [
+      {
+        "x": -35,
+        "z": -53
+      },
+      {
+        "x": -17,
+        "z": -53
+      },
+      {
+        "x": -17,
+        "z": -41
+      },
+      {
+        "x": -35,
+        "z": -41
+      }
+    ]
+  },
+  {
+    "physicalSpaceId": "phys_b_f2_xn_zn_vertical_04",
+    "kind": "boutique",
+    "floor": 2,
+    "axis": "vertical",
+    "quadrant": "xn_zn",
+    "slotIndex": 4,
+    "sourceCode": "E204",
+    "displayCode": "E204",
+    "y1": 5.5,
+    "y2": 10.7,
+    "corners": [
+      {
+        "x": -35,
+        "z": -65
+      },
+      {
+        "x": -17,
+        "z": -65
+      },
+      {
+        "x": -17,
+        "z": -53
+      },
+      {
+        "x": -35,
+        "z": -53
+      }
+    ]
+  },
+  {
+    "physicalSpaceId": "phys_b_f2_xn_zn_vertical_05",
+    "kind": "boutique",
+    "floor": 2,
+    "axis": "vertical",
+    "quadrant": "xn_zn",
+    "slotIndex": 5,
+    "sourceCode": "E205",
+    "displayCode": "E205",
+    "y1": 5.5,
+    "y2": 10.7,
+    "corners": [
+      {
+        "x": -35,
+        "z": -77
+      },
+      {
+        "x": -17,
+        "z": -77
+      },
+      {
+        "x": -17,
+        "z": -65
+      },
+      {
+        "x": -35,
+        "z": -65
+      }
+    ]
+  },
+  {
+    "physicalSpaceId": "phys_b_f2_xn_zn_vertical_06",
+    "kind": "boutique",
+    "floor": 2,
+    "axis": "vertical",
+    "quadrant": "xn_zn",
+    "slotIndex": 6,
+    "sourceCode": "E206",
+    "displayCode": "E206",
+    "y1": 5.5,
+    "y2": 10.7,
+    "corners": [
+      {
+        "x": -35,
+        "z": -89
+      },
+      {
+        "x": -17,
+        "z": -89
+      },
+      {
+        "x": -17,
+        "z": -77
+      },
+      {
+        "x": -35,
+        "z": -77
+      }
+    ]
+  },
+  {
+    "physicalSpaceId": "phys_b_f2_xn_zn_vertical_07",
+    "kind": "boutique",
+    "floor": 2,
+    "axis": "vertical",
+    "quadrant": "xn_zn",
+    "slotIndex": 7,
+    "sourceCode": "E207",
+    "displayCode": "E207",
+    "y1": 5.5,
+    "y2": 10.7,
+    "corners": [
+      {
+        "x": -35,
+        "z": -95
+      },
+      {
+        "x": -17,
+        "z": -95
+      },
+      {
+        "x": -17,
+        "z": -83
+      },
+      {
+        "x": -35,
+        "z": -83
+      }
+    ]
+  },
+  {
+    "physicalSpaceId": "phys_b_f2_xn_zp_horizontal_01",
+    "kind": "boutique",
+    "floor": 2,
+    "axis": "horizontal",
+    "quadrant": "xn_zp",
+    "slotIndex": 1,
+    "sourceCode": "N201",
+    "displayCode": "N201",
+    "y1": 5.5,
+    "y2": 10.7,
+    "corners": [
+      {
+        "x": -29,
+        "z": 17
+      },
+      {
+        "x": -17,
+        "z": 17
+      },
+      {
+        "x": -17,
+        "z": 35
+      },
+      {
+        "x": -29,
+        "z": 35
+      }
+    ]
+  },
+  {
+    "physicalSpaceId": "phys_b_f2_xn_zp_horizontal_02",
+    "kind": "boutique",
+    "floor": 2,
+    "axis": "horizontal",
+    "quadrant": "xn_zp",
+    "slotIndex": 2,
+    "sourceCode": "N202",
+    "displayCode": "N202",
+    "y1": 5.5,
+    "y2": 10.7,
+    "corners": [
+      {
+        "x": -41,
+        "z": 17
+      },
+      {
+        "x": -29,
+        "z": 17
+      },
+      {
+        "x": -29,
+        "z": 35
+      },
+      {
+        "x": -41,
+        "z": 35
+      }
+    ]
+  },
+  {
+    "physicalSpaceId": "phys_b_f2_xn_zp_horizontal_03",
+    "kind": "boutique",
+    "floor": 2,
+    "axis": "horizontal",
+    "quadrant": "xn_zp",
+    "slotIndex": 3,
+    "sourceCode": "N203",
+    "displayCode": "N203",
+    "y1": 5.5,
+    "y2": 10.7,
+    "corners": [
+      {
+        "x": -53,
+        "z": 17
+      },
+      {
+        "x": -41,
+        "z": 17
+      },
+      {
+        "x": -41,
+        "z": 35
+      },
+      {
+        "x": -53,
+        "z": 35
+      }
+    ]
+  },
+  {
+    "physicalSpaceId": "phys_b_f2_xn_zp_horizontal_04",
+    "kind": "boutique",
+    "floor": 2,
+    "axis": "horizontal",
+    "quadrant": "xn_zp",
+    "slotIndex": 4,
+    "sourceCode": "N204",
+    "displayCode": "N204",
+    "y1": 5.5,
+    "y2": 10.7,
+    "corners": [
+      {
+        "x": -65,
+        "z": 17
+      },
+      {
+        "x": -53,
+        "z": 17
+      },
+      {
+        "x": -53,
+        "z": 35
+      },
+      {
+        "x": -65,
+        "z": 35
+      }
+    ]
+  },
+  {
+    "physicalSpaceId": "phys_b_f2_xn_zp_horizontal_05",
+    "kind": "boutique",
+    "floor": 2,
+    "axis": "horizontal",
+    "quadrant": "xn_zp",
+    "slotIndex": 5,
+    "sourceCode": "N205",
+    "displayCode": "N205",
+    "y1": 5.5,
+    "y2": 10.7,
+    "corners": [
+      {
+        "x": -77,
+        "z": 17
+      },
+      {
+        "x": -65,
+        "z": 17
+      },
+      {
+        "x": -65,
+        "z": 35
+      },
+      {
+        "x": -77,
+        "z": 35
+      }
+    ]
+  },
+  {
+    "physicalSpaceId": "phys_b_f2_xn_zp_horizontal_06",
+    "kind": "boutique",
+    "floor": 2,
+    "axis": "horizontal",
+    "quadrant": "xn_zp",
+    "slotIndex": 6,
+    "sourceCode": "N206",
+    "displayCode": "N206",
+    "y1": 5.5,
+    "y2": 10.7,
+    "corners": [
+      {
+        "x": -89,
+        "z": 17
+      },
+      {
+        "x": -77,
+        "z": 17
+      },
+      {
+        "x": -77,
+        "z": 35
+      },
+      {
+        "x": -89,
+        "z": 35
+      }
+    ]
+  },
+  {
+    "physicalSpaceId": "phys_b_f2_xn_zp_horizontal_07",
+    "kind": "boutique",
+    "floor": 2,
+    "axis": "horizontal",
+    "quadrant": "xn_zp",
+    "slotIndex": 7,
+    "sourceCode": "N207",
+    "displayCode": "N207",
+    "y1": 5.5,
+    "y2": 10.7,
+    "corners": [
+      {
+        "x": -95,
+        "z": 17
+      },
+      {
+        "x": -83,
+        "z": 17
+      },
+      {
+        "x": -83,
+        "z": 35
+      },
+      {
+        "x": -95,
+        "z": 35
+      }
+    ]
+  },
+  {
+    "physicalSpaceId": "phys_b_f2_xn_zp_vertical_01",
+    "kind": "boutique",
+    "floor": 2,
+    "axis": "vertical",
+    "quadrant": "xn_zp",
+    "slotIndex": 1,
+    "sourceCode": "E201",
+    "displayCode": "E201",
+    "y1": 5.5,
+    "y2": 10.7,
+    "corners": [
+      {
+        "x": -35,
+        "z": 17
+      },
+      {
+        "x": -17,
+        "z": 17
+      },
+      {
+        "x": -17,
+        "z": 29
+      },
+      {
+        "x": -35,
+        "z": 29
+      }
+    ]
+  },
+  {
+    "physicalSpaceId": "phys_b_f2_xn_zp_vertical_02",
+    "kind": "boutique",
+    "floor": 2,
+    "axis": "vertical",
+    "quadrant": "xn_zp",
+    "slotIndex": 2,
+    "sourceCode": "E202",
+    "displayCode": "E202",
+    "y1": 5.5,
+    "y2": 10.7,
+    "corners": [
+      {
+        "x": -35,
+        "z": 29
+      },
+      {
+        "x": -17,
+        "z": 29
+      },
+      {
+        "x": -17,
+        "z": 41
+      },
+      {
+        "x": -35,
+        "z": 41
+      }
+    ]
+  },
+  {
+    "physicalSpaceId": "phys_b_f2_xn_zp_vertical_03",
+    "kind": "boutique",
+    "floor": 2,
+    "axis": "vertical",
+    "quadrant": "xn_zp",
+    "slotIndex": 3,
+    "sourceCode": "E203",
+    "displayCode": "E203",
+    "y1": 5.5,
+    "y2": 10.7,
+    "corners": [
+      {
+        "x": -35,
+        "z": 41
+      },
+      {
+        "x": -17,
+        "z": 41
+      },
+      {
+        "x": -17,
+        "z": 53
+      },
+      {
+        "x": -35,
+        "z": 53
+      }
+    ]
+  },
+  {
+    "physicalSpaceId": "phys_b_f2_xn_zp_vertical_04",
+    "kind": "boutique",
+    "floor": 2,
+    "axis": "vertical",
+    "quadrant": "xn_zp",
+    "slotIndex": 4,
+    "sourceCode": "E204",
+    "displayCode": "E204",
+    "y1": 5.5,
+    "y2": 10.7,
+    "corners": [
+      {
+        "x": -35,
+        "z": 53
+      },
+      {
+        "x": -17,
+        "z": 53
+      },
+      {
+        "x": -17,
+        "z": 65
+      },
+      {
+        "x": -35,
+        "z": 65
+      }
+    ]
+  },
+  {
+    "physicalSpaceId": "phys_b_f2_xn_zp_vertical_05",
+    "kind": "boutique",
+    "floor": 2,
+    "axis": "vertical",
+    "quadrant": "xn_zp",
+    "slotIndex": 5,
+    "sourceCode": "E205",
+    "displayCode": "E205",
+    "y1": 5.5,
+    "y2": 10.7,
+    "corners": [
+      {
+        "x": -35,
+        "z": 65
+      },
+      {
+        "x": -17,
+        "z": 65
+      },
+      {
+        "x": -17,
+        "z": 77
+      },
+      {
+        "x": -35,
+        "z": 77
+      }
+    ]
+  },
+  {
+    "physicalSpaceId": "phys_b_f2_xn_zp_vertical_06",
+    "kind": "boutique",
+    "floor": 2,
+    "axis": "vertical",
+    "quadrant": "xn_zp",
+    "slotIndex": 6,
+    "sourceCode": "E206",
+    "displayCode": "E206",
+    "y1": 5.5,
+    "y2": 10.7,
+    "corners": [
+      {
+        "x": -35,
+        "z": 77
+      },
+      {
+        "x": -17,
+        "z": 77
+      },
+      {
+        "x": -17,
+        "z": 89
+      },
+      {
+        "x": -35,
+        "z": 89
+      }
+    ]
+  },
+  {
+    "physicalSpaceId": "phys_b_f2_xn_zp_vertical_07",
+    "kind": "boutique",
+    "floor": 2,
+    "axis": "vertical",
+    "quadrant": "xn_zp",
+    "slotIndex": 7,
+    "sourceCode": "E207",
+    "displayCode": "E207",
+    "y1": 5.5,
+    "y2": 10.7,
+    "corners": [
+      {
+        "x": -35,
+        "z": 83
+      },
+      {
+        "x": -17,
+        "z": 83
+      },
+      {
+        "x": -17,
+        "z": 95
+      },
+      {
+        "x": -35,
+        "z": 95
+      }
+    ]
+  },
+  {
+    "physicalSpaceId": "phys_b_f2_xp_zn_horizontal_01",
+    "kind": "boutique",
+    "floor": 2,
+    "axis": "horizontal",
+    "quadrant": "xp_zn",
+    "slotIndex": 1,
+    "sourceCode": "S201",
+    "displayCode": "S201",
+    "y1": 5.5,
+    "y2": 10.7,
+    "corners": [
+      {
+        "x": 17,
+        "z": -35
+      },
+      {
+        "x": 29,
+        "z": -35
+      },
+      {
+        "x": 29,
+        "z": -17
+      },
+      {
+        "x": 17,
+        "z": -17
+      }
+    ]
+  },
+  {
+    "physicalSpaceId": "phys_b_f2_xp_zn_horizontal_02",
+    "kind": "boutique",
+    "floor": 2,
+    "axis": "horizontal",
+    "quadrant": "xp_zn",
+    "slotIndex": 2,
+    "sourceCode": "S202",
+    "displayCode": "S202",
+    "y1": 5.5,
+    "y2": 10.7,
+    "corners": [
+      {
+        "x": 29,
+        "z": -35
+      },
+      {
+        "x": 41,
+        "z": -35
+      },
+      {
+        "x": 41,
+        "z": -17
+      },
+      {
+        "x": 29,
+        "z": -17
+      }
+    ]
+  },
+  {
+    "physicalSpaceId": "phys_b_f2_xp_zn_horizontal_03",
+    "kind": "boutique",
+    "floor": 2,
+    "axis": "horizontal",
+    "quadrant": "xp_zn",
+    "slotIndex": 3,
+    "sourceCode": "S203",
+    "displayCode": "S203",
+    "y1": 5.5,
+    "y2": 10.7,
+    "corners": [
+      {
+        "x": 41,
+        "z": -35
+      },
+      {
+        "x": 53,
+        "z": -35
+      },
+      {
+        "x": 53,
+        "z": -17
+      },
+      {
+        "x": 41,
+        "z": -17
+      }
+    ]
+  },
+  {
+    "physicalSpaceId": "phys_b_f2_xp_zn_horizontal_04",
+    "kind": "boutique",
+    "floor": 2,
+    "axis": "horizontal",
+    "quadrant": "xp_zn",
+    "slotIndex": 4,
+    "sourceCode": "S204",
+    "displayCode": "S204",
+    "y1": 5.5,
+    "y2": 10.7,
+    "corners": [
+      {
+        "x": 53,
+        "z": -35
+      },
+      {
+        "x": 65,
+        "z": -35
+      },
+      {
+        "x": 65,
+        "z": -17
+      },
+      {
+        "x": 53,
+        "z": -17
+      }
+    ]
+  },
+  {
+    "physicalSpaceId": "phys_b_f2_xp_zn_horizontal_05",
+    "kind": "boutique",
+    "floor": 2,
+    "axis": "horizontal",
+    "quadrant": "xp_zn",
+    "slotIndex": 5,
+    "sourceCode": "S205",
+    "displayCode": "S205",
+    "y1": 5.5,
+    "y2": 10.7,
+    "corners": [
+      {
+        "x": 65,
+        "z": -35
+      },
+      {
+        "x": 77,
+        "z": -35
+      },
+      {
+        "x": 77,
+        "z": -17
+      },
+      {
+        "x": 65,
+        "z": -17
+      }
+    ]
+  },
+  {
+    "physicalSpaceId": "phys_b_f2_xp_zn_horizontal_06",
+    "kind": "boutique",
+    "floor": 2,
+    "axis": "horizontal",
+    "quadrant": "xp_zn",
+    "slotIndex": 6,
+    "sourceCode": "S206",
+    "displayCode": "S206",
+    "y1": 5.5,
+    "y2": 10.7,
+    "corners": [
+      {
+        "x": 77,
+        "z": -35
+      },
+      {
+        "x": 89,
+        "z": -35
+      },
+      {
+        "x": 89,
+        "z": -17
+      },
+      {
+        "x": 77,
+        "z": -17
+      }
+    ]
+  },
+  {
+    "physicalSpaceId": "phys_b_f2_xp_zn_horizontal_07",
+    "kind": "boutique",
+    "floor": 2,
+    "axis": "horizontal",
+    "quadrant": "xp_zn",
+    "slotIndex": 7,
+    "sourceCode": "S207",
+    "displayCode": "S207",
+    "y1": 5.5,
+    "y2": 10.7,
+    "corners": [
+      {
+        "x": 83,
+        "z": -35
+      },
+      {
+        "x": 95,
+        "z": -35
+      },
+      {
+        "x": 95,
+        "z": -17
+      },
+      {
+        "x": 83,
+        "z": -17
+      }
+    ]
+  },
+  {
+    "physicalSpaceId": "phys_b_f2_xp_zn_vertical_01",
+    "kind": "boutique",
+    "floor": 2,
+    "axis": "vertical",
+    "quadrant": "xp_zn",
+    "slotIndex": 1,
+    "sourceCode": "O201",
+    "displayCode": "O201",
+    "y1": 5.5,
+    "y2": 10.7,
+    "corners": [
+      {
+        "x": 17,
+        "z": -29
+      },
+      {
+        "x": 35,
+        "z": -29
+      },
+      {
+        "x": 35,
+        "z": -17
+      },
+      {
+        "x": 17,
+        "z": -17
+      }
+    ]
+  },
+  {
+    "physicalSpaceId": "phys_b_f2_xp_zn_vertical_02",
+    "kind": "boutique",
+    "floor": 2,
+    "axis": "vertical",
+    "quadrant": "xp_zn",
+    "slotIndex": 2,
+    "sourceCode": "O202",
+    "displayCode": "O202",
+    "y1": 5.5,
+    "y2": 10.7,
+    "corners": [
+      {
+        "x": 17,
+        "z": -41
+      },
+      {
+        "x": 35,
+        "z": -41
+      },
+      {
+        "x": 35,
+        "z": -29
+      },
+      {
+        "x": 17,
+        "z": -29
+      }
+    ]
+  },
+  {
+    "physicalSpaceId": "phys_b_f2_xp_zn_vertical_03",
+    "kind": "boutique",
+    "floor": 2,
+    "axis": "vertical",
+    "quadrant": "xp_zn",
+    "slotIndex": 3,
+    "sourceCode": "O203",
+    "displayCode": "O203",
+    "y1": 5.5,
+    "y2": 10.7,
+    "corners": [
+      {
+        "x": 17,
+        "z": -53
+      },
+      {
+        "x": 35,
+        "z": -53
+      },
+      {
+        "x": 35,
+        "z": -41
+      },
+      {
+        "x": 17,
+        "z": -41
+      }
+    ]
+  },
+  {
+    "physicalSpaceId": "phys_b_f2_xp_zn_vertical_04",
+    "kind": "boutique",
+    "floor": 2,
+    "axis": "vertical",
+    "quadrant": "xp_zn",
+    "slotIndex": 4,
+    "sourceCode": "O204",
+    "displayCode": "O204",
+    "y1": 5.5,
+    "y2": 10.7,
+    "corners": [
+      {
+        "x": 17,
+        "z": -65
+      },
+      {
+        "x": 35,
+        "z": -65
+      },
+      {
+        "x": 35,
+        "z": -53
+      },
+      {
+        "x": 17,
+        "z": -53
+      }
+    ]
+  },
+  {
+    "physicalSpaceId": "phys_b_f2_xp_zn_vertical_05",
+    "kind": "boutique",
+    "floor": 2,
+    "axis": "vertical",
+    "quadrant": "xp_zn",
+    "slotIndex": 5,
+    "sourceCode": "O205",
+    "displayCode": "O205",
+    "y1": 5.5,
+    "y2": 10.7,
+    "corners": [
+      {
+        "x": 17,
+        "z": -77
+      },
+      {
+        "x": 35,
+        "z": -77
+      },
+      {
+        "x": 35,
+        "z": -65
+      },
+      {
+        "x": 17,
+        "z": -65
+      }
+    ]
+  },
+  {
+    "physicalSpaceId": "phys_b_f2_xp_zn_vertical_06",
+    "kind": "boutique",
+    "floor": 2,
+    "axis": "vertical",
+    "quadrant": "xp_zn",
+    "slotIndex": 6,
+    "sourceCode": "O206",
+    "displayCode": "O206",
+    "y1": 5.5,
+    "y2": 10.7,
+    "corners": [
+      {
+        "x": 17,
+        "z": -89
+      },
+      {
+        "x": 35,
+        "z": -89
+      },
+      {
+        "x": 35,
+        "z": -77
+      },
+      {
+        "x": 17,
+        "z": -77
+      }
+    ]
+  },
+  {
+    "physicalSpaceId": "phys_b_f2_xp_zn_vertical_07",
+    "kind": "boutique",
+    "floor": 2,
+    "axis": "vertical",
+    "quadrant": "xp_zn",
+    "slotIndex": 7,
+    "sourceCode": "O207",
+    "displayCode": "O207",
+    "y1": 5.5,
+    "y2": 10.7,
+    "corners": [
+      {
+        "x": 17,
+        "z": -95
+      },
+      {
+        "x": 35,
+        "z": -95
+      },
+      {
+        "x": 35,
+        "z": -83
+      },
+      {
+        "x": 17,
+        "z": -83
+      }
+    ]
+  },
+  {
+    "physicalSpaceId": "phys_b_f2_xp_zp_horizontal_01",
+    "kind": "boutique",
+    "floor": 2,
+    "axis": "horizontal",
+    "quadrant": "xp_zp",
+    "slotIndex": 1,
+    "sourceCode": "N201",
+    "displayCode": "N201",
+    "y1": 5.5,
+    "y2": 10.7,
+    "corners": [
+      {
+        "x": 17,
+        "z": 17
+      },
+      {
+        "x": 29,
+        "z": 17
+      },
+      {
+        "x": 29,
+        "z": 35
+      },
+      {
+        "x": 17,
+        "z": 35
+      }
+    ]
+  },
+  {
+    "physicalSpaceId": "phys_b_f2_xp_zp_horizontal_02",
+    "kind": "boutique",
+    "floor": 2,
+    "axis": "horizontal",
+    "quadrant": "xp_zp",
+    "slotIndex": 2,
+    "sourceCode": "N202",
+    "displayCode": "N202",
+    "y1": 5.5,
+    "y2": 10.7,
+    "corners": [
+      {
+        "x": 29,
+        "z": 17
+      },
+      {
+        "x": 41,
+        "z": 17
+      },
+      {
+        "x": 41,
+        "z": 35
+      },
+      {
+        "x": 29,
+        "z": 35
+      }
+    ]
+  },
+  {
+    "physicalSpaceId": "phys_b_f2_xp_zp_horizontal_03",
+    "kind": "boutique",
+    "floor": 2,
+    "axis": "horizontal",
+    "quadrant": "xp_zp",
+    "slotIndex": 3,
+    "sourceCode": "N203",
+    "displayCode": "N203",
+    "y1": 5.5,
+    "y2": 10.7,
+    "corners": [
+      {
+        "x": 41,
+        "z": 17
+      },
+      {
+        "x": 53,
+        "z": 17
+      },
+      {
+        "x": 53,
+        "z": 35
+      },
+      {
+        "x": 41,
+        "z": 35
+      }
+    ]
+  },
+  {
+    "physicalSpaceId": "phys_b_f2_xp_zp_horizontal_04",
+    "kind": "boutique",
+    "floor": 2,
+    "axis": "horizontal",
+    "quadrant": "xp_zp",
+    "slotIndex": 4,
+    "sourceCode": "N204",
+    "displayCode": "N204",
+    "y1": 5.5,
+    "y2": 10.7,
+    "corners": [
+      {
+        "x": 53,
+        "z": 17
+      },
+      {
+        "x": 65,
+        "z": 17
+      },
+      {
+        "x": 65,
+        "z": 35
+      },
+      {
+        "x": 53,
+        "z": 35
+      }
+    ]
+  },
+  {
+    "physicalSpaceId": "phys_b_f2_xp_zp_horizontal_05",
+    "kind": "boutique",
+    "floor": 2,
+    "axis": "horizontal",
+    "quadrant": "xp_zp",
+    "slotIndex": 5,
+    "sourceCode": "N205",
+    "displayCode": "N205",
+    "y1": 5.5,
+    "y2": 10.7,
+    "corners": [
+      {
+        "x": 65,
+        "z": 17
+      },
+      {
+        "x": 77,
+        "z": 17
+      },
+      {
+        "x": 77,
+        "z": 35
+      },
+      {
+        "x": 65,
+        "z": 35
+      }
+    ]
+  },
+  {
+    "physicalSpaceId": "phys_b_f2_xp_zp_horizontal_06",
+    "kind": "boutique",
+    "floor": 2,
+    "axis": "horizontal",
+    "quadrant": "xp_zp",
+    "slotIndex": 6,
+    "sourceCode": "N206",
+    "displayCode": "N206",
+    "y1": 5.5,
+    "y2": 10.7,
+    "corners": [
+      {
+        "x": 77,
+        "z": 17
+      },
+      {
+        "x": 89,
+        "z": 17
+      },
+      {
+        "x": 89,
+        "z": 35
+      },
+      {
+        "x": 77,
+        "z": 35
+      }
+    ]
+  },
+  {
+    "physicalSpaceId": "phys_b_f2_xp_zp_horizontal_07",
+    "kind": "boutique",
+    "floor": 2,
+    "axis": "horizontal",
+    "quadrant": "xp_zp",
+    "slotIndex": 7,
+    "sourceCode": "N207",
+    "displayCode": "N207",
+    "y1": 5.5,
+    "y2": 10.7,
+    "corners": [
+      {
+        "x": 83,
+        "z": 17
+      },
+      {
+        "x": 95,
+        "z": 17
+      },
+      {
+        "x": 95,
+        "z": 35
+      },
+      {
+        "x": 83,
+        "z": 35
+      }
+    ]
+  },
+  {
+    "physicalSpaceId": "phys_b_f2_xp_zp_vertical_01",
+    "kind": "boutique",
+    "floor": 2,
+    "axis": "vertical",
+    "quadrant": "xp_zp",
+    "slotIndex": 1,
+    "sourceCode": "O201",
+    "displayCode": "O201",
+    "y1": 5.5,
+    "y2": 10.7,
+    "corners": [
+      {
+        "x": 17,
+        "z": 17
+      },
+      {
+        "x": 35,
+        "z": 17
+      },
+      {
+        "x": 35,
+        "z": 29
+      },
+      {
+        "x": 17,
+        "z": 29
+      }
+    ]
+  },
+  {
+    "physicalSpaceId": "phys_b_f2_xp_zp_vertical_02",
+    "kind": "boutique",
+    "floor": 2,
+    "axis": "vertical",
+    "quadrant": "xp_zp",
+    "slotIndex": 2,
+    "sourceCode": "O202",
+    "displayCode": "O202",
+    "y1": 5.5,
+    "y2": 10.7,
+    "corners": [
+      {
+        "x": 17,
+        "z": 29
+      },
+      {
+        "x": 35,
+        "z": 29
+      },
+      {
+        "x": 35,
+        "z": 41
+      },
+      {
+        "x": 17,
+        "z": 41
+      }
+    ]
+  },
+  {
+    "physicalSpaceId": "phys_b_f2_xp_zp_vertical_03",
+    "kind": "boutique",
+    "floor": 2,
+    "axis": "vertical",
+    "quadrant": "xp_zp",
+    "slotIndex": 3,
+    "sourceCode": "O203",
+    "displayCode": "O203",
+    "y1": 5.5,
+    "y2": 10.7,
+    "corners": [
+      {
+        "x": 17,
+        "z": 41
+      },
+      {
+        "x": 35,
+        "z": 41
+      },
+      {
+        "x": 35,
+        "z": 53
+      },
+      {
+        "x": 17,
+        "z": 53
+      }
+    ]
+  },
+  {
+    "physicalSpaceId": "phys_b_f2_xp_zp_vertical_04",
+    "kind": "boutique",
+    "floor": 2,
+    "axis": "vertical",
+    "quadrant": "xp_zp",
+    "slotIndex": 4,
+    "sourceCode": "O204",
+    "displayCode": "O204",
+    "y1": 5.5,
+    "y2": 10.7,
+    "corners": [
+      {
+        "x": 17,
+        "z": 53
+      },
+      {
+        "x": 35,
+        "z": 53
+      },
+      {
+        "x": 35,
+        "z": 65
+      },
+      {
+        "x": 17,
+        "z": 65
+      }
+    ]
+  },
+  {
+    "physicalSpaceId": "phys_b_f2_xp_zp_vertical_05",
+    "kind": "boutique",
+    "floor": 2,
+    "axis": "vertical",
+    "quadrant": "xp_zp",
+    "slotIndex": 5,
+    "sourceCode": "O205",
+    "displayCode": "O205",
+    "y1": 5.5,
+    "y2": 10.7,
+    "corners": [
+      {
+        "x": 17,
+        "z": 65
+      },
+      {
+        "x": 35,
+        "z": 65
+      },
+      {
+        "x": 35,
+        "z": 77
+      },
+      {
+        "x": 17,
+        "z": 77
+      }
+    ]
+  },
+  {
+    "physicalSpaceId": "phys_b_f2_xp_zp_vertical_06",
+    "kind": "boutique",
+    "floor": 2,
+    "axis": "vertical",
+    "quadrant": "xp_zp",
+    "slotIndex": 6,
+    "sourceCode": "O206",
+    "displayCode": "O206",
+    "y1": 5.5,
+    "y2": 10.7,
+    "corners": [
+      {
+        "x": 17,
+        "z": 77
+      },
+      {
+        "x": 35,
+        "z": 77
+      },
+      {
+        "x": 35,
+        "z": 89
+      },
+      {
+        "x": 17,
+        "z": 89
+      }
+    ]
+  },
+  {
+    "physicalSpaceId": "phys_b_f2_xp_zp_vertical_07",
+    "kind": "boutique",
+    "floor": 2,
+    "axis": "vertical",
+    "quadrant": "xp_zp",
+    "slotIndex": 7,
+    "sourceCode": "O207",
+    "displayCode": "O207",
+    "y1": 5.5,
+    "y2": 10.7,
+    "corners": [
+      {
+        "x": 17,
+        "z": 83
+      },
+      {
+        "x": 35,
+        "z": 83
+      },
+      {
+        "x": 35,
+        "z": 95
+      },
+      {
+        "x": 17,
+        "z": 95
+      }
+    ]
+  }
+]

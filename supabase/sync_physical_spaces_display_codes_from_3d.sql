@@ -1,0 +1,92 @@
+begin;
+
+with code_map (physical_space_id, display_code) as (
+    values
+        ('phys_b_f1_xn_zn_horizontal_02', 'E-108'),
+        ('phys_b_f1_xn_zn_horizontal_03', 'E-106'),
+        ('phys_b_f1_xn_zn_horizontal_04', 'E-104'),
+        ('phys_b_f1_xn_zn_horizontal_05', 'E-102'),
+        ('phys_b_f1_xn_zp_horizontal_01', 'EN-10'),
+        ('phys_b_f1_xn_zp_horizontal_02', 'E-107'),
+        ('phys_b_f1_xn_zp_horizontal_03', 'E-105'),
+        ('phys_b_f1_xn_zp_horizontal_04', 'E-103'),
+        ('phys_b_f1_xn_zp_horizontal_05', 'E-101'),
+        ('phys_b_f1_xn_zp_vertical_01', 'EN-10'),
+        ('phys_b_f1_xn_zp_vertical_02', 'N-108'),
+        ('phys_b_f1_xn_zp_vertical_03', 'N-106'),
+        ('phys_b_f1_xn_zp_vertical_04', 'N-104'),
+        ('phys_b_f1_xn_zp_vertical_05', 'N-102'),
+        ('phys_b_f1_xp_zp_horizontal_01', 'NO-10'),
+        ('phys_b_f1_xp_zp_vertical_01', 'NO-10'),
+        ('phys_b_f1_xp_zp_vertical_02', 'N-107'),
+        ('phys_b_f1_xp_zp_vertical_03', 'N-105'),
+        ('phys_b_f1_xp_zp_vertical_04', 'N-103'),
+        ('phys_b_f1_xp_zp_vertical_05', 'N-101'),
+        ('phys_b_f2_xn_zn_horizontal_01', 'SE-20'),
+        ('phys_b_f2_xn_zn_horizontal_02', 'E-210'),
+        ('phys_b_f2_xn_zn_horizontal_03', 'E-208'),
+        ('phys_b_f2_xn_zn_horizontal_04', 'E-206'),
+        ('phys_b_f2_xn_zn_horizontal_05', 'E-204'),
+        ('phys_b_f2_xn_zn_horizontal_06', 'E-202'),
+        ('phys_b_f2_xn_zn_horizontal_07', 'E-202'),
+        ('phys_b_f2_xn_zn_vertical_01', 'SE-20'),
+        ('phys_b_f2_xn_zn_vertical_02', 'S-209'),
+        ('phys_b_f2_xn_zn_vertical_03', 'S-207'),
+        ('phys_b_f2_xn_zn_vertical_04', 'S-205'),
+        ('phys_b_f2_xn_zn_vertical_05', 'S-203'),
+        ('phys_b_f2_xn_zn_vertical_06', 'S-201'),
+        ('phys_b_f2_xn_zn_vertical_07', 'S-201'),
+        ('phys_b_f2_xn_zp_horizontal_01', 'EN-20'),
+        ('phys_b_f2_xn_zp_horizontal_02', 'E-209'),
+        ('phys_b_f2_xn_zp_horizontal_03', 'E-207'),
+        ('phys_b_f2_xn_zp_horizontal_04', 'E-205'),
+        ('phys_b_f2_xn_zp_horizontal_05', 'E-203'),
+        ('phys_b_f2_xn_zp_horizontal_06', 'E-201'),
+        ('phys_b_f2_xn_zp_horizontal_07', 'E-201'),
+        ('phys_b_f2_xn_zp_vertical_01', 'EN-20'),
+        ('phys_b_f2_xn_zp_vertical_02', 'N-210'),
+        ('phys_b_f2_xn_zp_vertical_03', 'N-208'),
+        ('phys_b_f2_xn_zp_vertical_04', 'N-206'),
+        ('phys_b_f2_xn_zp_vertical_05', 'N-204'),
+        ('phys_b_f2_xn_zp_vertical_06', 'N-202'),
+        ('phys_b_f2_xn_zp_vertical_07', 'N-202'),
+        ('phys_b_f2_xp_zn_horizontal_01', 'OS-20'),
+        ('phys_b_f2_xp_zn_horizontal_02', 'O-209'),
+        ('phys_b_f2_xp_zn_horizontal_03', 'O-207'),
+        ('phys_b_f2_xp_zn_horizontal_04', 'O-205'),
+        ('phys_b_f2_xp_zn_horizontal_05', 'O-203'),
+        ('phys_b_f2_xp_zn_horizontal_06', 'O-201'),
+        ('phys_b_f2_xp_zn_horizontal_07', 'O-201'),
+        ('phys_b_f2_xp_zn_vertical_01', 'OS-20'),
+        ('phys_b_f2_xp_zn_vertical_02', 'S-210'),
+        ('phys_b_f2_xp_zn_vertical_03', 'S-208'),
+        ('phys_b_f2_xp_zn_vertical_04', 'S-206'),
+        ('phys_b_f2_xp_zn_vertical_05', 'S-204'),
+        ('phys_b_f2_xp_zn_vertical_06', 'S-202'),
+        ('phys_b_f2_xp_zn_vertical_07', 'S-202'),
+        ('phys_b_f2_xp_zp_horizontal_02', 'O-210'),
+        ('phys_b_f2_xp_zp_horizontal_03', 'O-208'),
+        ('phys_b_f2_xp_zp_horizontal_04', 'O-206'),
+        ('phys_b_f2_xp_zp_horizontal_05', 'O-204'),
+        ('phys_b_f2_xp_zp_horizontal_06', 'O-202'),
+        ('phys_b_f2_xp_zp_horizontal_07', 'O-202'),
+        ('phys_b_f2_xp_zp_vertical_01', 'NO-20'),
+        ('phys_b_f2_xp_zp_vertical_02', 'N-209'),
+        ('phys_b_f2_xp_zp_vertical_03', 'N-207'),
+        ('phys_b_f2_xp_zp_vertical_04', 'N-205'),
+        ('phys_b_f2_xp_zp_vertical_05', 'N-203'),
+        ('phys_b_f2_xp_zp_vertical_06', 'N-201'),
+        ('phys_b_f2_xp_zp_vertical_07', 'N-201')
+)
+update public.physical_spaces ps
+set display_code = cm.display_code,
+    updated_at = now()
+from code_map cm
+where ps.physical_space_id = cm.physical_space_id
+  and coalesce(trim(ps.display_code), '') <> coalesce(trim(cm.display_code), '');
+
+commit;
+
+-- Verificaciones sugeridas:
+-- 1. select physical_space_id, source_code, display_code from public.physical_spaces order by physical_space_id;
+-- 2. select * from public.physical_spaces where floor_label = '2' order by quadrant, axis, slot_index;

@@ -1,0 +1,2527 @@
+﻿
+        // --- MOTOR DE COLISIONES PRO (CON ALTURA) ---
+        const colliders = [];
+        function registerCollider(x, z, w, d, minY = -5, maxY = 50) {
+            colliders.push({
+                minX: x - w / 2, maxX: x + w / 2,
+                minZ: z - d / 2, maxZ: z + d / 2,
+                minY, maxY
+            });
+        }
+        function checkCollision(nx, ny, nz) {
+            for (let c of colliders) {
+                if (nx > c.minX && nx < c.maxX && nz > c.minZ && nz < c.maxZ && ny > c.minY && ny < c.maxY) return true;
+            }
+            return false;
+        }
+
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0xaabbcc);
+        scene.fog = new THREE.Fog(0xaabbcc, 40, 600);
+
+        const camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 1500);
+        camera.position.set(45, 45, 45);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.toneMapping = THREE.ReinhardToneMapping;
+        renderer.setPixelRatio(window.devicePixelRatio);
+        document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+        let isWalking = false;
+        window.toggleWalkMode = function () {
+            isWalking = !isWalking;
+            const btn = document.getElementById('walk-btn-ctrl');
+            if (isWalking) {
+                btn.innerText = "Modo A├®reo";
+                camera.position.set(0, 1.7, -82); // Entrada Sur (Frente al T├│tem)
+                controls.target.set(0, 1.80, -78); // Mirando al T├│tem (Un pelito arriba)
+                controls.enablePan = false;
+                controls.minPolarAngle = Math.PI / 2 - 0.7;
+                controls.maxPolarAngle = Math.PI / 2 + 0.5;
+                controls.minDistance = 0.01; controls.maxDistance = 0.05;
+
+                if (window.innerWidth <= 768) {
+                    document.getElementById('mobile-controls-container').style.display = 'flex';
+                }
+            } else {
+                btn.innerText = "Modo Paseo";
+                camera.position.set(45, 45, 45);
+                controls.target.set(0, 0, 0);
+                controls.enablePan = true;
+                controls.minPolarAngle = 0; controls.maxPolarAngle = Math.PI;
+                controls.minDistance = 1; controls.maxDistance = 500;
+                document.getElementById('mobile-controls-container').style.display = 'none';
+            }
+        };
+
+        console.log("­ƒÄ« Controles de ├│rbita...");
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+
+        scene.add(new THREE.AmbientLight(0xffffff, 2.0));
+        scene.add(new THREE.HemisphereLight(0xffffff, 0x444444, 2.5));
+        const sun = new THREE.DirectionalLight(0xffffff, 3.0); sun.position.set(150, 200, 150); scene.add(sun);
+
+        const glassMat = new THREE.MeshPhysicalMaterial({ color: 0xffffff, transmission: 0.3, transparent: true, opacity: 0.7, metalness: 0.2, roughness: 0.05 });
+        const whiteMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5 });
+        const goldMat = new THREE.MeshStandardMaterial({ color: 0xc9a66b, metalness: 0.9, roughness: 0.1 });
+        const darkMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.1, metalness: 0.5 });
+        var storeGroups = {}; // Registro global de tiendas y anclas para mobiliario 3D
+
+
+        function createSignTexture(text, isID = false) {
+            const canvas = document.createElement('canvas'); canvas.width = 1024; canvas.height = 256;
+            const ctx = canvas.getContext('2d');
+            if (isID) {
+                ctx.fillStyle = '#000000'; ctx.font = 'bold 200px "Inter"';
+            } else {
+                ctx.fillStyle = '#c9a66b'; ctx.font = 'bold 120px "Cormorant Garamond"';
+            }
+            ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            ctx.fillText(text, canvas.width / 2, canvas.height / 2);
+            return new THREE.CanvasTexture(canvas);
+        }
+
+        // --- CENTRAL STRUCTURE PARAMETERS ---
+        const VAULT_RADIUS = 17;
+        const VAULT_LENGTH = 78;
+        const VAULT_CENTER_OFFSET = 56.5;
+        const DOME_CENTER_Y = 25.5; // Elevado para mayor lujo y espacio
+        const CENTRAL_DOME_RADIUS = 28.0;
+        const LONGITUDINAL_BEAM_LEVELS = [-16, -13, -10, -7, -4, 0, 4, 7, 10, 13, 16]; // A├▒adido el 0 para el cenit
+        const RING_FAMILY_LEVELS = [0, 4, 7, 10, 13, 16];
+
+        function getVaultAngleForLevel(level) {
+            return (level / VAULT_RADIUS) * (Math.PI / 2);
+        }
+
+        function getVaultHeightForLevel(level) {
+            return DOME_CENTER_Y + Math.cos(getVaultAngleForLevel(level)) * VAULT_RADIUS;
+        }
+
+        function getDomeRingRadiusForHeight(height) {
+            const verticalDelta = height - DOME_CENTER_Y;
+            return Math.sqrt(Math.max((CENTRAL_DOME_RADIUS ** 2) - (verticalDelta ** 2), 0));
+        }
+
+        const DOME_RING_TARGETS = RING_FAMILY_LEVELS.map((level) => ({
+            level,
+            height: getVaultHeightForLevel(level),
+            radius: getDomeRingRadiusForHeight(getVaultHeightForLevel(level))
+        }));
+
+        function addArchitecturalShell(group, r, l, wingLabel) {
+            const innerSign = (wingLabel === 'N' || wingLabel === 'E') ? -1 : 1;
+            const outerZ = -innerSign * (l / 2);
+
+            const segments = 16;
+            const geometry = new THREE.BufferGeometry();
+            const vertices = [];
+            const indices = [];
+
+            // Generar v├®rtices para el arco exterior (Z = outerZ, radio = 17) y el arco interior (conexi├│n con domo)
+            for (let i = 0; i <= segments; i++) {
+                const anglePos = -16 + (32 * i / segments); // De -16 a 16 (niveles de fierros)
+                const angle = (anglePos / r) * (Math.PI / 2);
+
+                // Punto Exterior
+                const xOut = Math.sin(angle) * r;
+                const yOut = Math.cos(angle) * r;
+                vertices.push(xOut, yOut, outerZ);
+
+                // Punto Interior (Cierre con anillos del domo)
+                const familyLevel = Math.abs(anglePos);
+                const ringTarget = DOME_RING_TARGETS.find(t => t.level === Math.round(familyLevel)) || DOME_RING_TARGETS[0];
+                const innerY = ringTarget.height - DOME_CENTER_Y;
+                const innerAxisAbs = Math.sqrt(Math.max((CENTRAL_DOME_RADIUS ** 2) - (xOut ** 2) - (innerY ** 2), 0));
+                const innerZ = innerSign * (VAULT_CENTER_OFFSET - innerAxisAbs);
+                vertices.push(xOut, innerY, innerZ);
+            }
+
+            // Crear caras (Quads as Triangles)
+            for (let i = 0; i < segments; i++) {
+                const v0 = i * 2;
+                const v1 = i * 2 + 1;
+                const v2 = (i + 1) * 2;
+                const v3 = (i + 1) * 2 + 1;
+                indices.push(v0, v2, v1);
+                indices.push(v1, v2, v3);
+            }
+            geometry.setIndex(indices);
+            geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+            geometry.computeVertexNormals();
+
+            const mesh = new THREE.Mesh(geometry, glassMat);
+            mesh.side = THREE.DoubleSide;
+            group.add(mesh);
+        }
+
+        function addVaultShell(group, r, l) {
+            const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, l, 32, 1, true, 0, Math.PI), glassMat);
+            m.rotation.x = Math.PI / 2; m.rotation.z = -Math.PI / 2; group.add(m);
+        }
+        function addTransverseRibs(group, r, l, wingLabel) {
+            const pillarH = DOME_CENTER_Y - 11.5;
+            for (let i = -l / 2; i <= l / 2; i += 4) {
+                const rib = new THREE.Mesh(new THREE.TorusGeometry(r, 0.10, 16, 64, Math.PI), darkMat);
+                let zPos = i;
+                if (wingLabel === 'N' || wingLabel === 'E') zPos = i + 2;
+                rib.position.z = zPos; group.add(rib);
+                [r, -r].forEach(xSide => {
+                    const p = new THREE.Mesh(new THREE.CylinderGeometry(0.10, 0.10, pillarH), darkMat);
+                    p.position.set(xSide, -pillarH / 2, zPos);
+                    group.add(p);
+                });
+            }
+        }
+        function addLongitudinalGirders(group, r, l, wingLabel) {
+            const innerSign = (wingLabel === 'N' || wingLabel === 'E') ? -1 : 1;
+            const outerLocalZ = -innerSign * (l / 2);
+            LONGITUDINAL_BEAM_LEVELS.forEach((anglePos, index) => {
+                const familyLevel = Math.abs(anglePos);
+                const ringTarget = DOME_RING_TARGETS.find((target) => target.level === familyLevel);
+                const actualRingHeight = ringTarget.height;
+                const innerY = actualRingHeight - DOME_CENTER_Y;
+                const angle = (anglePos / r) * (Math.PI / 2);
+                const xLocal = Math.sin(angle) * r;
+                const outerY = Math.cos(angle) * r;
+                const innerAxisAbs = Math.sqrt(Math.max((CENTRAL_DOME_RADIUS ** 2) - (xLocal ** 2) - (innerY ** 2), 0));
+                const innerLocalZ = innerSign * (VAULT_CENTER_OFFSET - innerAxisAbs);
+                const start = new THREE.Vector3(xLocal, outerY, outerLocalZ);
+                const end = new THREE.Vector3(xLocal, innerY, innerLocalZ);
+                const direction = new THREE.Vector3().subVectors(end, start);
+                const beamLen = direction.length();
+                const midPoint = new THREE.Vector3().addVectors(start, end).multiplyScalar(0.5);
+                const beam = new THREE.Mesh(new THREE.BoxGeometry(0.10, 0.10, beamLen), darkMat);
+                beam.position.copy(midPoint);
+                beam.lookAt(end);
+                group.add(beam);
+            });
+        }
+        function addEndCap(group, r, l, p, rx, ry, rz, wingLabel) {
+            const capG = new THREE.Group();
+            const innerSign = (wingLabel === 'N' || wingLabel === 'E') ? -1 : 1;
+            const zStart = -innerSign * (l / 2);
+            capG.position.set(0, 0, zStart);
+            const convergeZ = -innerSign * 4.5;
+            const convergeY = 16.5 - DOME_CENTER_Y; // Elevado para que quede sobre el techo de las tiendas (15m)
+            const targetPoint = new THREE.Vector3(0, convergeY, convergeZ);
+            const beamLevels = [-16, -13, -10, -7, -4, 0, 4, 7, 10, 13, 16];
+            beamLevels.forEach(anglePos => {
+                const angle = (anglePos / r) * (Math.PI / 2);
+                const xLocal = Math.sin(angle) * r;
+                const yLocal = Math.cos(angle) * r;
+                const startPoint = new THREE.Vector3(xLocal, yLocal, 0);
+                const controlPoint = new THREE.Vector3(xLocal, yLocal, convergeZ);
+                const curve = new THREE.QuadraticBezierCurve3(startPoint, controlPoint, targetPoint);
+                const points = curve.getPoints(20);
+                const geometry = new THREE.BufferGeometry().setFromPoints(points);
+                const meridian = new THREE.Line(geometry, darkMat);
+                capG.add(meridian);
+                for (let j = 0; j < points.length - 1; j++) {
+                    const segStart = points[j]; const segEnd = points[j + 1];
+                    const dist = segStart.distanceTo(segEnd);
+                    const beamSeg = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.15, dist), darkMat);
+                    beamSeg.position.copy(segStart).add(segEnd).multiplyScalar(0.5);
+                    beamSeg.lookAt(segEnd);
+                    capG.add(beamSeg);
+                }
+            });
+            group.add(capG);
+        }
+
+        function createVaultedRoof(x, z, length, wingLabel, rot = false, capPos = 1, capX = 0, capY = 0, capZ = 0, showCap = true) {
+            const vaultG = new THREE.Group(); vaultG.position.set(x, DOME_CENTER_Y, z);
+            if (rot) vaultG.rotation.y = Math.PI / 2;
+            addArchitecturalShell(vaultG, VAULT_RADIUS, length, wingLabel);
+            addTransverseRibs(vaultG, VAULT_RADIUS, length, wingLabel);
+            addLongitudinalGirders(vaultG, VAULT_RADIUS, length, wingLabel);
+            if (showCap) addEndCap(vaultG, 17, length, capPos, capX, capY, capZ, wingLabel);
+            scene.add(vaultG);
+        }
+
+        // TIENDAS ANCLA E IDENTIFICADORES Giant N,S,E,O
+        function createAnchorStore(posX, posZ, width, height, name = "ANCLA", idLetter = "") {
+            const g = new THREE.Group(); g.position.set(posX, 0, posZ);
+            g.userData = { isAnchor: true, shopCode: idLetter, name: name };
+            if (idLetter !== "") {
+                const idTex = createSignTexture(idLetter, true);
+                const idM = new THREE.Mesh(new THREE.PlaneGeometry(15, 15), new THREE.MeshBasicMaterial({ map: idTex, transparent: true }));
+                idM.userData.isSign = true;
+                idM.position.set(0, height + 0.1, -14); idM.rotation.x = -Math.PI / 2; g.add(idM);
+            }
+
+            const m = (w, h, d, x, y, z, mat) => { const mw = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat); mw.position.set(x, y, z); g.add(mw); };
+            m(width, 0.2, 30, 0, 0.02, -10, whiteMat); // Suelo elevado 2cm para evitar z-fighting
+            m(width + 2, 0.2, 30, 0, height, -10, whiteMat); // Techo s├│lido
+
+            // Paredes laterales
+            m(0.2, height, 30, -width / 2, height / 2, -10, whiteMat);
+            m(0.2, height, 30, width / 2, height / 2, -10, whiteMat);
+
+            // Muro trasero SEPARADO: Planta Baja (con hueco) y Planta Alta (CERRADO)
+            // 1. Planta Baja (Puerta de 12m de ancho y 5.4m de alto)
+            m(width / 2 - 6, 5.4, 0.2, -(width / 4 + 3), 5.4 / 2, -25, whiteMat);
+            m(width / 2 - 6, 5.4, 0.2, (width / 4 + 3), 5.4 / 2, -25, whiteMat);
+            m(12, 1.4, 0.2, 0, 5.4 - 0.7, -25, whiteMat); // Dintel de la puerta
+
+            // 2. Planta Alta (MURO TOTALMENTE CERRADO para seguridad)
+            m(width, height - 5.4, 0.2, 0, 5.4 + (height - 5.4) / 2, -25, whiteMat);
+
+            m(width + 2, 2.5, 0.8, 0, height + 1.25, 5, goldMat);
+            const sM = new THREE.Mesh(new THREE.PlaneGeometry(width, 2), new THREE.MeshBasicMaterial({ map: createSignTexture(name), transparent: true }));
+            sM.position.set(0, height + 1.25, 5.45); g.add(sM);
+            return g;
+        }
+        // --- TIENDAS ANCLA (RESTAURACI├ôN ESTRUCTURAL CON SALIDAS) ---
+        const sAnchor = createAnchorStore(0, -100, 70, 15, "MALL SUR", "S");
+        storeGroups["S"] = sAnchor;
+        scene.add(sAnchor);
+        registerCollider(-20.5, -125, 29, 1, 0, 15); // Muro Frontal Izq (Sur)
+        registerCollider(20.5, -125, 29, 1, 0, 15);  // Muro Frontal Der (Sur)
+
+        const nAnchor = createAnchorStore(0, 100, 70, 15, "MALL NORTE", "N");
+        storeGroups["N"] = nAnchor;
+        nAnchor.rotateY(Math.PI); scene.add(nAnchor);
+        registerCollider(-20.5, 125, 29, 1, 0, 15); // Muro Frontal Izq (Norte - Puerta Boulevard)
+        registerCollider(20.5, 125, 29, 1, 0, 15);  // Muro Frontal Der (Norte - Puerta Boulevard)
+
+        const eAnchor = createAnchorStore(100, 0, 70, 15, "MALL ESTE", "E");
+        storeGroups["E"] = eAnchor;
+        eAnchor.rotateY(-Math.PI / 2); scene.add(eAnchor);
+        registerCollider(125, -20.5, 1, 29, 0, 15); // Muro Frontal (Este)
+        registerCollider(125, 20.5, 1, 29, 0, 15);
+
+        const wAnchor = createAnchorStore(-100, 0, 70, 15, "MALL OESTE", "O");
+        storeGroups["O"] = wAnchor;
+        wAnchor.rotateY(Math.PI / 2); scene.add(wAnchor);
+        registerCollider(-125, -20.5, 1, 29, 0, 15); // Muro Frontal (Oeste)
+        registerCollider(-125, 20.5, 1, 29, 0, 15);
+
+        // --- ANEXO: BOULEVARD & FOOD COURT (ALA NORTE RE-VINCULADA) ---
+        function createBoulevardArea() {
+            const bX = 0, bZ = 170;
+            // 1. Suelo del Boulevard (Terracota)
+            const floorGeo = new THREE.PlaneGeometry(120, 90);
+            const floorMat = new THREE.MeshStandardMaterial({ color: 0xd2691e, roughness: 0.8 });
+            const floor = new THREE.Mesh(floorGeo, floorMat);
+            floor.rotation.x = -Math.PI / 2; floor.position.set(bX, 0.1, bZ); scene.add(floor);
+
+            // Conector con el Mall (Ajustado para atravesar la tienda norte)
+            const conn = new THREE.Mesh(new THREE.PlaneGeometry(20, 30), floorMat);
+            conn.rotation.x = -Math.PI / 2; conn.position.set(0, 0.1, 110); scene.add(conn);
+
+            // 2. Torre de Publicidad Central PRO
+            const towerG = new THREE.Group(); towerG.position.set(bX, 0, bZ);
+            const adLogos = ["BINANCE", "HONEYGAIN", "QUANTUM", "TRADING"];
+            const adColors = [0xf3ba2f, 0xffa500, 0x00ffff, 0xff00ff];
+            for (let i = 0; i < 4; i++) {
+                const screen = new THREE.Mesh(new THREE.BoxGeometry(7, 5, 7), new THREE.MeshStandardMaterial({ color: adColors[i], metalness: 0.5, roughness: 0.2 }));
+                screen.position.y = 2.5 + (i * 6); towerG.add(screen);
+
+                // Pantallas en las 4 caras
+                for (let j = 0; j < 4; j++) {
+                    const idTex = createSignTexture(adLogos[i], true);
+                    const p = new THREE.Mesh(new THREE.PlaneGeometry(6, 4), new THREE.MeshBasicMaterial({ map: idTex, transparent: true }));
+                    p.rotation.y = (Math.PI / 2) * j;
+                    p.position.set(
+                        Math.sin((Math.PI / 2) * j) * 3.51,
+                        2.5 + (i * 6),
+                        Math.cos((Math.PI / 2) * j) * 3.51
+                    );
+                    towerG.add(p);
+                }
+            }
+            scene.add(towerG);
+            registerCollider(bX, bZ, 8, 8, 0, 30);
+
+            // 3. Mesas con Parasoles Azules (Food Court)
+            function createParasolSet(px, pz) {
+                const gr = new THREE.Group(); gr.position.set(px, 0.1, pz);
+                const table = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.2, 0.1), whiteMat); table.position.y = 0.9; gr.add(table);
+                const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 3.5), darkMat); pole.position.y = 1.75; gr.add(pole);
+                const canopy = new THREE.Mesh(new THREE.CylinderGeometry(0, 3, 1, 16), new THREE.MeshStandardMaterial({ color: 0x0000ff }));
+                canopy.position.y = 3.5; gr.add(canopy);
+                scene.add(gr);
+                registerCollider(px, pz, 2.5, 2.5, 0, 5);
+            }
+            [[25, 140], [-25, 140], [25, 180], [-25, 180], [40, 160], [-40, 160]].forEach(p => createParasolSet(p[0], p[1]));
+
+            // 4. Tiendas del Boulevard (Colores Planos y Vivos como pidi├│ el usuario)
+            const bLabels = ["BURGER", "TACO", "PIZZA", "SUSHI", "CAFE"];
+            const bCols = [0xff0055, 0x00ff77, 0x0088ff, 0xffaa00, 0x9955ff];
+            for (let i = -2; i <= 2; i++) {
+                const sX = i * 25; const sZ = 205;
+                const shop = new THREE.Group(); shop.position.set(sX, 0, sZ);
+                const box = new THREE.Mesh(new THREE.BoxGeometry(20, 10, 12), new THREE.MeshStandardMaterial({ color: bCols[i + 2] }));
+                box.position.y = 5; shop.add(box);
+
+                const sign = new THREE.Mesh(new THREE.PlaneGeometry(12, 3), new THREE.MeshBasicMaterial({ map: createSignTexture(bLabels[i + 2]) }));
+                sign.position.set(0, 8, 6.01); shop.add(sign);
+
+                scene.add(shop);
+                registerCollider(sX, sZ, 20, 12, 0, 10);
+            }
+        }
+        createBoulevardArea();
+
+        // --- COLISI├ôN TORRE CENTRAL Y FUENTE ---
+        registerCollider(0, 0, 8, 8, 0, 30); // El n├║cleo central es s├│lido
+
+        // --- MUEBLES PLAZA CENTRAL (S├│lidos) ---
+        function createTableSet(x, z) {
+            const gr = new THREE.Group(); gr.position.set(x, 0.1, z);
+            const table = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 0.1), whiteMat); table.position.y = 1.0; gr.add(table);
+            const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 1), darkMat); pole.position.y = 0.5; gr.add(pole);
+            scene.add(gr);
+            registerCollider(x, z, 2.2, 2.2, 0, 3);
+        }
+        createTableSet(10, 10); createTableSet(-10, 10); createTableSet(10, -10); createTableSet(-10, -10);
+
+        // --- URBANISMO Y PAISAJISMO EXTERIOR ---
+        const grassMat = new THREE.MeshStandardMaterial({ color: 0x228b22, roughness: 0.8 }); // Verde pasto
+        const asphaltMat = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.9 }); // Gris asfalto
+        const roadLineMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+
+        function createExterior() {
+            // Plano de Pasto General
+            const grass = new THREE.Mesh(new THREE.PlaneGeometry(800, 800), grassMat);
+            grass.rotation.x = -Math.PI / 2;
+            grass.position.y = -0.05; // Ligeramente bajo el suelo del mall
+            scene.add(grass);
+
+            // Veredas Perimetrales (Anillo de Asfalto Unificado)
+            const sidewalk = new THREE.Mesh(new THREE.PlaneGeometry(300, 300), asphaltMat);
+            sidewalk.rotation.x = -Math.PI / 2;
+            sidewalk.position.y = -0.02;
+            scene.add(sidewalk);
+
+
+            // Estacionamientos (4 Esquinas)
+            const pkgPos = [[70, 70], [-70, 70], [70, -70], [-70, -70]];
+            pkgPos.forEach(p => {
+                const pkg = new THREE.Mesh(new THREE.BoxGeometry(60, 0.2, 60), asphaltMat);
+                pkg.position.set(p[0] * 1.8, 0, p[1] * 1.8);
+                scene.add(pkg);
+                // L├¡neas de parqueo b├ísicas
+                for (let i = -25; i <= 25; i += 5) {
+                    const line = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.1, 10), roadLineMat);
+                    line.position.set(pkg.position.x + i, 0.15, pkg.position.z); scene.add(line);
+                }
+            });
+
+            // --- PALMAS TROPICALES EXTERIORES ---
+            const createPalm = (x, z) => {
+                const p = new THREE.Group(); p.position.set(x, 0, z);
+                
+                // Tronco de Palma (Segmentado para realismo)
+                const trunkMat = new THREE.MeshStandardMaterial({ color: 0x5c4033, roughness: 1.0 });
+                for(let i=0; i<10; i++) {
+                    const radius = 0.35 - (i * 0.015);
+                    const segment = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius+0.05, 1.0, 8), trunkMat);
+                    segment.position.y = 0.5 + i * 0.9;
+                    segment.rotation.y = i * 0.8; 
+                    p.add(segment);
+                }
+
+                // Hojas de Palma (Frondas arqueadas)
+                const palmLeafMat = new THREE.MeshStandardMaterial({ color: 0x2e5a1c, roughness: 0.7 });
+                for (let i = 0; i < 14; i++) {
+                    const leafGroup = new THREE.Group();
+                    leafGroup.position.y = 9.2;
+                    leafGroup.rotation.y = (i * Math.PI * 2) / 14;
+                    
+                    const leaf = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.05, 5.5), palmLeafMat);
+                    leaf.position.z = 2.5;
+                    leaf.rotation.x = -0.4 - (Math.random() * 0.2); 
+                    leafGroup.add(leaf);
+                    p.add(leafGroup);
+                }
+                scene.add(p);
+            };
+
+            // Plantaci├│n sim├®trica de Palmas
+            for (let i = -120; i <= 120; i += 40) {
+                if (Math.abs(i) < 20) continue;
+                createPalm(i, 130); createPalm(i, -130);
+                createPalm(130, i); createPalm(-130, i);
+            }
+        }
+        createExterior();
+
+        function createSmallIDTexture(text) {
+            const canvas = document.createElement('canvas'); canvas.width = 512; canvas.height = 128;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#c9a66b'; ctx.fillRect(0, 0, 512, 128); // Fondo Oro
+            ctx.strokeStyle = '#222222'; ctx.lineWidth = 10; ctx.strokeRect(5, 5, 502, 118);
+            ctx.fillStyle = '#000000'; ctx.font = 'bold 80px "Inter"';
+            ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            ctx.fillText(text, 256, 64);
+            return new THREE.CanvasTexture(canvas);
+        }
+
+        // ­ƒÅ║ URBANISMO INTERIOR: Maceteros con ├ürboles Estilizados
+        function createPlanter(x, z) {
+            const gr = new THREE.Group(); gr.position.set(x, 0.1, z);
+            
+            // Macetero de Lujo
+            const box = new THREE.Mesh(new THREE.BoxGeometry(2.5, 0.8, 2.5), goldMat); 
+            box.position.y = 0.4; gr.add(box);
+            
+            // Tierra / Sustrato
+            const dirt = new THREE.Mesh(new THREE.BoxGeometry(2.3, 0.1, 2.3), new THREE.MeshStandardMaterial({ color: 0x3d2b1f }));
+            dirt.position.y = 0.8; gr.add(dirt);
+
+            // Tronco Tapered
+            const trunkMat = new THREE.MeshStandardMaterial({ color: 0x4d3319, roughness: 0.9 });
+            const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.15, 3, 8), trunkMat); 
+            trunk.position.y = 2.2; gr.add(trunk);
+
+            // Follaje Org├ínico (Agrupaci├│n de esferas)
+            const leafMat = new THREE.MeshStandardMaterial({ color: 0x2d5a27, roughness: 0.8 });
+            const leafMatDark = new THREE.MeshStandardMaterial({ color: 0x1a3a16, roughness: 0.8 });
+            
+            const foliageConfig = [
+                { p: [0, 3.8, 0], s: 0.9 },
+                { p: [0.5, 3.5, 0.5], s: 0.65 },
+                { p: [-0.5, 3.4, -0.4], s: 0.6 },
+                { p: [0.4, 3.3, -0.5], s: 0.7 },
+                { p: [-0.4, 3.6, 0.4], s: 0.55 }
+            ];
+            
+            foliageConfig.forEach((f, idx) => {
+                const blob = new THREE.Mesh(new THREE.SphereGeometry(f.s, 12, 12), idx % 2 === 0 ? leafMat : leafMatDark);
+                blob.position.set(f.p[0], f.p[1], f.p[2]);
+                blob.scale.set(1, 0.8, 1); // Ligeramente achatadas para look m├ís arb├│reo
+                gr.add(blob);
+            });
+
+            scene.add(gr);
+            registerCollider(x, z, 2.5, 2.5, 0, 4);
+        }
+        function createBench(x, z, rot) {
+            const gr = new THREE.Group(); gr.position.set(x, 0.1, z); gr.rotation.y = rot;
+            const base = new THREE.Mesh(new THREE.BoxGeometry(4, 0.2, 1.5), darkMat); base.position.y = 0.1; gr.add(base);
+            const seat = new THREE.Mesh(new THREE.BoxGeometry(4.2, 0.4, 1.7), new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.1 })); seat.position.y = 0.4; gr.add(seat);
+            scene.add(gr);
+        }
+
+        // Ôø▓ FUENTE CENTRAL
+        function createCentralFountain() {
+            const gr = new THREE.Group(); gr.position.set(0, 0.1, 0);
+            const basin = new THREE.Mesh(new THREE.CylinderGeometry(7, 7.5, 0.8, 32), new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.5 })); gr.add(basin);
+            const water = new THREE.Mesh(new THREE.CylinderGeometry(6.5, 6.5, 0.1, 32), new THREE.MeshPhysicalMaterial({ color: 0x88ccff, transmission: 0.5, transparent: true, opacity: 0.6, roughness: 0 }));
+            water.position.y = 0.4; gr.add(water);
+            const monolith = new THREE.Mesh(new THREE.BoxGeometry(2, 6, 2), goldMat); monolith.position.y = 3; gr.add(monolith);
+            scene.add(gr);
+        }
+
+        // ­ƒô║ PANTALLAS DIGITALES LED CON ROTACI├ôN
+        const adTexts = [
+            { t: "ROLEX: EXCELLENCE", c: "#000000", tc: "#c9a66b" },
+            { t: "GUCCI: SPRING 2026", c: "#4a148c", tc: "#ffffff" },
+            { t: "TESLA: NEW GEN", c: "#1a237e", tc: "#ffffff" },
+            { t: "SAMSUNG: QUANTUM", c: "#004d40", tc: "#00ffcc" },
+            { t: "NESPRESSO: COFFEE", c: "#3e2723", tc: "#ecd0a4" }
+        ];
+        const adTextures = adTexts.map(ad => {
+            const canvas = document.createElement('canvas'); canvas.width = 1024; canvas.height = 512;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = ad.c; ctx.fillRect(0, 0, 1024, 512); // Fondo Marca
+            ctx.strokeStyle = ad.tc; ctx.lineWidth = 30; ctx.strokeRect(20, 20, 984, 472);
+            ctx.fillStyle = ad.tc; ctx.font = 'bold 85px "Inter"'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            ctx.fillText(ad.t, 512, 256);
+            return new THREE.CanvasTexture(canvas);
+        });
+
+        const screenMeshes = [];
+        function createDigitalScreen(x, y, z, rot) {
+            const gr = new THREE.Group(); gr.position.set(x, y, z); gr.rotation.y = rot;
+            const frame = new THREE.Mesh(new THREE.BoxGeometry(10.2, 5.2, 0.4), darkMat); gr.add(frame);
+            const screen = new THREE.Mesh(new THREE.PlaneGeometry(10, 5), new THREE.MeshBasicMaterial({ map: adTextures[0] }));
+            screen.position.z = 0.21; gr.add(screen);
+            screenMeshes.push(screen);
+            scene.add(gr);
+        }
+
+        function createEscalatorTexture() {
+            const canvas = document.createElement('canvas'); canvas.width = 128; canvas.height = 128;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#888888'; ctx.fillRect(0, 0, 128, 128); // Base met├ílica
+            ctx.fillStyle = '#111111';
+            // Franjas longitudinales (ranuras dentadas)
+            for (let i = 0; i < 128; i += 6) {
+                ctx.fillRect(i, 0, 2, 128);
+            }
+            // Bordes amarillos de seguridad (t├¡picos)
+            ctx.fillStyle = '#ffcc00'; ctx.fillRect(0, 0, 5, 128); ctx.fillRect(123, 0, 5, 128);
+            const tex = new THREE.CanvasTexture(canvas);
+            tex.wrapT = tex.wrapS = THREE.RepeatWrapping;
+            tex.repeat.set(1, 15); // Repetici├│n a lo largo de la rampa
+            return tex;
+        }
+
+        function createEscalatorSign(text, color) {
+            const canvas = document.createElement('canvas'); canvas.width = 128; canvas.height = 128;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#111'; ctx.fillRect(0, 0, 128, 128);
+            ctx.fillStyle = color; ctx.font = 'bold 80px "Inter"'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            ctx.fillText(text, 64, 64);
+            ctx.strokeStyle = color; ctx.lineWidth = 10; ctx.strokeRect(5, 5, 118, 118);
+            return new THREE.CanvasTexture(canvas);
+        }
+
+        const escalatorList = [];
+        function createEscalator(x, zStart, zEnd, up = true) {
+            const h = 5.4;
+            let dist = zEnd - zStart;
+            const flatLen = 4;
+            const gr = new THREE.Group(); gr.position.set(x, -0.53, zStart);
+            const dir = Math.sign(dist);
+
+            // Guardar para colisiones (enrasado al suelo -0.53)
+            escalatorList.push({ x, zMin: Math.min(zStart, zEnd), zMax: Math.max(zStart, zEnd), up, yStart: -0.53, yEnd: h - 0.53, zStart, zEnd });
+
+            const matGrey = new THREE.MeshStandardMaterial({ color: 0x888888, roughness: 0.5 });
+            const escText = createEscalatorTexture();
+            const matStep = new THREE.MeshStandardMaterial({ color: 0xaaaaaa, map: escText, metalness: 0.8, roughness: 0.2 });
+
+            const diagLenZ = Math.abs(dist) - (flatLen * 2);
+            const ang = Math.atan2(h, diagLenZ);
+            const diagLenH = Math.sqrt(h * h + diagLenZ * diagLenZ);
+
+            const cw = (w, h_box, d, px, py, pz, mat, rx = 0) => {
+                const b = new THREE.Mesh(new THREE.BoxGeometry(w, h_box, d), mat);
+                b.position.set(px, py, pz); b.rotation.x = rx; gr.add(b);
+            };
+
+            cw(3.5, 1.2, flatLen, 0, 0, flatLen / 2 * dir, matGrey);
+            cw(3.5, 1.2, diagLenH, 0, h / 2, (flatLen + diagLenZ / 2) * dir, matGrey, -ang * dir);
+            cw(3.5, 1.2, flatLen, 0, h, (flatLen + diagLenZ + flatLen / 2) * dir, matGrey);
+
+            cw(2.5, 0.1, flatLen, 0, 0.65, flatLen / 2 * dir, matStep);
+            cw(2.5, 0.1, diagLenH, 0, h / 2 + 0.65, (flatLen + diagLenZ / 2) * dir, matStep, -ang * dir);
+            cw(2.5, 0.1, flatLen, 0, h + 0.65, (flatLen + diagLenZ + flatLen / 2) * dir, matStep);
+
+            // Indicador de direcci├│n
+            const signTex = createEscalatorSign(up ? 'Ôåæ' : 'Ôåô', up ? '#00ff44' : '#ff4400');
+            const sign = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 1.2), new THREE.MeshBasicMaterial({ map: signTex }));
+            sign.position.set(0, 1.5, (dir > 0 ? 0 : -0.2)); gr.add(sign);
+
+            [1.4, -1.4].forEach(side => {
+                cw(0.05, 1.2, flatLen, side, 1.2, flatLen / 2 * dir, glassMat);
+                cw(0.05, 1.2, diagLenH, side, h / 2 + 1.2, (flatLen + diagLenZ / 2) * dir, glassMat, -ang * dir);
+                cw(0.05, 1.2, flatLen, side, h + 1.2, (flatLen + diagLenZ + flatLen / 2) * dir, glassMat);
+                cw(0.15, 0.15, flatLen + 1, side, 1.8, (flatLen / 2 - 0.5) * dir, darkMat);
+                cw(0.15, 0.15, diagLenH, side, h / 2 + 1.8, (flatLen + diagLenZ / 2) * dir, darkMat, -ang * dir);
+                cw(0.15, 0.15, flatLen + 1, side, h + 1.8, (flatLen + diagLenZ + flatLen / 2 + 0.5) * dir, darkMat);
+            });
+            scene.add(gr);
+        }
+
+        function createGlassElevator(x, z) {
+            const gr = new THREE.Group(); gr.position.set(x, 0.1, z);
+            // Columnas Gu├¡a (Oro)
+            [2.5, -2.5].forEach(px => [2.5, -2.5].forEach(pz => {
+                const col = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 22.0), goldMat);
+                col.position.set(px, 11.0, pz); gr.add(col);
+            }));
+            // C├ípsula de Cristal
+            const cab = new THREE.Group(); cab.position.y = 2.7; // Posici├│n est├ítica elegante
+            const body = new THREE.Mesh(new THREE.CylinderGeometry(2.2, 2.2, 4.5, 16, 1, true), glassMat); cab.add(body);
+            const cap = new THREE.Mesh(new THREE.CylinderGeometry(2.3, 2.3, 0.4), goldMat); cap.position.y = 2.25; cab.add(cap);
+            const base = new THREE.Mesh(new THREE.CylinderGeometry(2.3, 2.3, 0.4), goldMat); base.position.y = -2.25; cab.add(base);
+            gr.add(cab);
+            scene.add(gr);
+        }
+
+        function createBoutique(posX, posZ, rotY, walls, posY = 0, shopCode = "") {
+            const sh = new THREE.Group(); sh.position.set(posX, posY, posZ); sh.rotation.y = rotY;
+            sh.userData = { isBoutique: true, shopCode: shopCode };
+            const f = new THREE.Mesh(new THREE.BoxGeometry(12, 0.2, 18), new THREE.MeshPhongMaterial({ color: 0x003366 })); f.position.y = 0.02; sh.add(f);
+            const cw = (w, h, d, x, y, z, m) => { const mw = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); mw.position.set(x, y, z); sh.add(mw); };
+
+            // Iluminaci├│n Techo (Interior)
+            const lightStrip = new THREE.Mesh(new THREE.PlaneGeometry(10, 16), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.35 }));
+            lightStrip.rotation.x = Math.PI / 2; lightStrip.position.y = 4.75; sh.add(lightStrip);
+
+            if (walls.back) cw(12, 4.8, 0.1, 0, 2.4, -9, whiteMat);
+            if (walls.left !== false) cw(0.1, 4.8, 18, -6, 2.4, 0, walls.left === 'glass' ? glassMat : whiteMat);
+            if (walls.right !== false) cw(0.1, 4.8, 18, 6, 2.4, 0, walls.right === 'glass' ? glassMat : whiteMat);
+
+            const doorH = 3.6; const shopH = 4.8; const frM = darkMat;
+            cw(2.8, shopH, 0.05, -4.5, shopH / 2, 9, glassMat);
+            cw(2.8, shopH, 0.05, 4.5, shopH / 2, 9, glassMat);
+            cw(6, shopH - doorH, 0.05, 0, (shopH + doorH) / 2, 9, glassMat);
+            cw(2.9, doorH, 0.05, -1.5, doorH / 2, 9.02, glassMat);
+            cw(2.9, doorH, 0.05, 1.5, doorH / 2, 9.02, glassMat);
+            cw(12.2, 0.2, 0.2, 0, 0.1, 9.05, frM);
+            cw(12.2, 0.2, 0.2, 0, shopH, 9.05, frM);
+            cw(0.2, shopH, 0.2, -6, shopH / 2, 9.05, frM);
+            cw(0.2, shopH, 0.2, 6, shopH / 2, 9.05, frM);
+            cw(0.2, shopH, 0.2, -3, shopH / 2, 9.05, frM);
+            cw(0.2, shopH, 0.2, 3, shopH / 2, 9.05, frM);
+            cw(6, 0.15, 0.2, 0, doorH, 9.05, frM);
+            cw(0.1, 1.4, 0.1, -0.2, 1.8, 9.15, goldMat);
+            cw(0.1, 1.4, 0.1, 0.2, 1.8, 9.15, goldMat);
+
+            if (shopCode !== "") {
+                const idTex = createSmallIDTexture(shopCode);
+                const idPlaque = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 0.4), new THREE.MeshBasicMaterial({ map: idTex, transparent: true }));
+                idPlaque.userData.isSign = true;
+                idPlaque.position.set(-5.0, 4.4, 9.15); sh.add(idPlaque);
+            }
+            const r = new THREE.Mesh(new THREE.BoxGeometry(12.2, 0.3, 18.2), goldMat); r.position.y = 5.2; sh.add(r);
+
+            // --- REGISTRO DE COLISI├ôN (Paredes laterales, trasera y frontal con hueco de puerta) ---
+            const cos = Math.cos(rotY); const sin = Math.sin(rotY);
+            const yB = (posY > 5 ? 5.4 : 0);
+            
+            // 1. Pared Trasera (Fija en profundidad -8.75 para no sobresalir)
+            if (walls.back) {
+                const rx = posX + sin * (-8.75); const rz = posZ + cos * (-8.75);
+                registerCollider(rx, rz, Math.abs(12 * cos) + Math.abs(0.5 * sin), Math.abs(12 * sin) + Math.abs(0.5 * cos), yB, yB + 6);
+            }
+
+            // 2. Paredes Laterales (+/- 5.75)
+            if (walls.left !== false) {
+                const lx = posX + cos * (-5.75); const lz = posZ + sin * (5.75);
+                registerCollider(lx, lz, Math.abs(0.5 * cos) + Math.abs(18 * sin), Math.abs(0.5 * sin) + Math.abs(18 * cos), yB, yB + 6);
+            }
+            if (walls.right !== false) {
+                const rx = posX + cos * (5.75); const rz = posZ + sin * (-5.75);
+                registerCollider(rx, rz, Math.abs(0.5 * cos) + Math.abs(18 * sin), Math.abs(0.5 * sin) + Math.abs(18 * cos), yB, yB + 6);
+            }
+
+            // 3. Pared Frontal (Cristal con puerta de 6m, desplazada 0.25m hacia adentro: 8.75)
+            [4.5, -4.5].forEach(offX => {
+                const fx = posX + cos * offX + sin * 8.75;
+                const fz = posZ + sin * (-offX) + cos * 8.75;
+                registerCollider(fx, fz, Math.abs(3 * cos) + Math.abs(0.5 * sin), Math.abs(3 * sin) + Math.abs(0.5 * cos), yB, yB + 6);
+            });
+
+            return sh;
+        }
+        
+        // --- L├ôGICA DE MOBILIARIO Y PRODUCTOS 3D ---
+        const textureLoader = new THREE.TextureLoader();
+
+        async function updateStoreVisuals(code, storeData, products) {
+            const sh = storeGroups[code];
+            if (!sh) return;
+
+            // Asegurarnos que tenga un contenedor de interior
+            let interior = sh.getObjectByName("interior");
+            if (!interior) {
+                interior = new THREE.Group();
+                interior.name = "interior";
+                sh.add(interior);
+            }
+
+            // Limpiar interior actual
+            while(interior.children.length > 0) interior.remove(interior.children[0]);
+
+            // Definir Material seg├║n Estilo
+            let frameMat = darkMat;
+            let shelfMat = glassMat;
+            const style = storeData.shelf_style || 'madera';
+
+            if (style === 'madera') {
+                frameMat = new THREE.MeshStandardMaterial({ color: 0x3d2b1f, roughness: 0.8 });
+                shelfMat = new THREE.MeshStandardMaterial({ color: 0x4e3629, roughness: 0.7 });
+            } else if (style === 'minimalista') {
+                frameMat = new THREE.MeshStandardMaterial({ color: 0xeeeeee, roughness: 0.3 });
+                shelfMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.1 });
+            } else if (style === 'cristal') {
+                frameMat = goldMat;
+                shelfMat = glassMat;
+            }
+
+            // Crear Estantes (Dos filas laterales)
+            const createShelfUnit = (posX) => {
+                const unit = new THREE.Group();
+                unit.position.set(posX, 0, 0);
+                
+                // Estructura (Postes)
+                [-4, 4].forEach(pz => {
+                    const post = new THREE.Mesh(new THREE.BoxGeometry(0.2, 4.8, 0.2), frameMat);
+                    post.position.set(0, 2.4, pz); unit.add(post);
+                });
+
+                // Repisas (3 niveles)
+                [1.2, 2.6, 4.0].forEach((py, level) => {
+                    const shelf = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.1, 8), shelfMat);
+                    shelf.position.set(0, py, 0); unit.add(shelf);
+
+                    // Colocar productos en esta repisa (m├íx 2 por repisa por lado)
+                    const pIndexStart = (posX < 0 ? 0 : 5) + (level * 2);
+                    for(let i=0; i<2; i++) {
+                        const p = products[pIndexStart + i];
+                        if (p && p.image_url) {
+                            textureLoader.load(p.image_url, (tex) => {
+                                const pMesh = new THREE.Mesh(
+                                    new THREE.BoxGeometry(0.1, 0.8, 0.8),
+                                    new THREE.MeshStandardMaterial({ map: tex })
+                                );
+                                pMesh.position.set(posX < 0 ? 0.3 : -0.3, py + 0.45, (i === 0 ? -1.5 : 1.5));
+                                unit.add(pMesh);
+                            });
+                        }
+                    }
+                });
+                interior.add(unit);
+            };
+
+            createShelfUnit(-5.5); // Izquierda
+            createShelfUnit(5.5);  // Derecha
+
+            // Actualizar Letrero si hay Logo
+            if (storeData.logo_url) {
+                textureLoader.load(storeData.logo_url, (tex) => {
+                    const sign = sh.children.find(c => c.userData.isSign);
+                    if (sign) sign.material.map = tex;
+                });
+            }
+        }
+
+        // ­ƒÅø´©Å T├ôTEMS DE INFORMACI├ôN Y B├ÜSQUEDA
+        function createInfoTexture() {
+            const canvas = document.createElement('canvas'); canvas.width = 512; canvas.height = 512;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#0a0a0a'; ctx.fillRect(0, 0, 512, 512);
+            ctx.fillStyle = '#c5a059'; ctx.font = 'bold 200px "Inter"'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            ctx.fillText('i', 256, 256);
+            ctx.strokeStyle = '#c5a059'; ctx.lineWidth = 20; ctx.strokeRect(10, 10, 492, 492);
+            return new THREE.CanvasTexture(canvas);
+        }
+        const infoTex = createInfoTexture();
+        function createInfoTotem(x, z) {
+            const gr = new THREE.Group(); gr.position.set(x, 0, z);
+            gr.userData = { isTotem: true };
+            // Base Pedestal
+            const base = new THREE.Mesh(new THREE.BoxGeometry(2, 0.4, 2), darkMat); base.position.y = 0.2; gr.add(base);
+            // Cuerpo Negro
+            const body = new THREE.Mesh(new THREE.BoxGeometry(1.5, 4.5, 0.4), darkMat); body.position.y = 2.25; gr.add(body);
+            // Pantalla (Oro/Brillante)
+            const screen = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 3), new THREE.MeshBasicMaterial({ map: infoTex }));
+            screen.position.set(0, 2.5, 0.21); gr.add(screen);
+            const backScreen = screen.clone(); backScreen.rotation.y = Math.PI; backScreen.position.z = -0.21; gr.add(backScreen);
+            // Marco Oro
+            const frame = new THREE.Mesh(new THREE.BoxGeometry(1.6, 3.2, 0.5), goldMat); frame.position.y = 2.5; gr.add(frame);
+            scene.add(gr);
+            registerCollider(x, z, 2, 2, 0, 5);
+        }
+
+        // --- POBLAR T├ôTEMS ---
+        createInfoTotem(0, 10);   // Centro Atrio
+        createInfoTotem(0, 80);   // Ala Norte
+        createInfoTotem(0, -80);  // Ala Sur
+        createInfoTotem(80, 0);   // Ala Este
+        createInfoTotem(-80, 0);  // Ala Oeste
+
+
+        const q = (sx, sz, y) => {
+            const gr = new THREE.Group();
+            const floorNum = (y === 0) ? 1 : 2;
+            const wingH = (sz > 0) ? 'N' : 'S';
+            const wingV = (sx > 0) ? 'E' : 'O';
+
+            // CORRECCI├ôN "MORDIDA DE RAT├ôN": Iniciamos en 23 para cerrar esquinas del atrio
+            let oRows, sideRows;
+            if (y === 0) {
+                // Planta Baja: 5 tiendas, terminan en 83 (71+6 es 77... no, 71+6=77). 
+                // Para GAP 12: ├║ltima debe ser 77.
+                oRows = [23, 35, 47, 59, 77];
+                sideRows = [23, 35, 47, 59, 77];
+            } else {
+                // Planta Alta: 7 tiendas para cerrar hasta la Gran Tienda (89+6=95)
+                oRows = [23, 35, 47, 59, 71, 83, 89];
+                sideRows = [23, 35, 47, 59, 71, 83, 89];
+            }
+
+            oRows.forEach((o, i) => {
+                const code = `${wingH}${floorNum}${String(i + 1).padStart(2, '0')}`;
+                const b = createBoutique(o * sx, 26 * sz, sz > 0 ? Math.PI : 0, { back: true, left: i === 0 ? 'glass' : true, right: i === 0 ? false : true }, y, code);
+                storeGroups[code] = b;
+                gr.add(b);
+            });
+
+            sideRows.forEach((o, i) => {
+                const code = `${wingV}${floorNum}${String(i + 1).padStart(2, '0')}`;
+                const b = createBoutique(26 * sx, o * sz, sx > 0 ? -Math.PI / 2 : Math.PI / 2, { back: true, left: i === 0 ? false : true, right: i === 0 ? 'glass' : true }, y, code);
+                storeGroups[code] = b;
+                gr.add(b);
+            });
+
+            // --- MURO PERIMETRAL EXTERIOR (CIERRA HUECOS CENTRALES, DEJA ENTRADAS LIBRES) ---
+            const wallM = whiteMat;
+            const h = 5.2; const thickness = 0.2;
+            const corridorLen = 48; // Recortado para no sobresalir al pasillo central
+
+            // Muro para oRows (atr├ís de las tiendas en el eje horizontal)
+            const w1 = new THREE.Mesh(new THREE.BoxGeometry(corridorLen, h, thickness), wallM);
+            w1.position.set(59 * sx, y + h / 2, 35 * sz); gr.add(w1);
+
+            // Muro para sideRows (atr├ís de las tiendas en el eje vertical)
+            const w2 = new THREE.Mesh(new THREE.BoxGeometry(thickness, h, corridorLen), wallM);
+            w2.position.set(35 * sx, y + h / 2, 59 * sz); gr.add(w2);
+
+            return gr;
+        };
+
+        // --- POBLAR TRANSPORTES (PARALELOS CON FLUJO INTERCALADO) ---
+        // Ala SUR (Desde entrada Sur hacia el Centro)
+        createEscalator(3, 30, 17, true);    // Derecha: SUBIDA (Viene del pasillo al atrio)
+        createEscalator(-3, 30, 17, false);  // Izquierda: BAJADA (Viene del pasillo al atrio)
+
+        // Ala NORTE (Desde entrada Norte hacia el Centro)
+        createEscalator(-3, -30, -17, true); // Derecha: SUBIDA (Viene del pasillo al atrio)
+        createEscalator(3, -30, -17, false); // Izquierda: BAJADA (Viene del pasillo al atrio)
+
+        // Registro de escaleras (para depuraci├│n y l├│gica)
+        // [Las coordenadas ya est├ín sincronizadas en la lista interna]
+
+
+
+
+        [0, 5.5].forEach(y => { [1, -1].forEach(sx => { [1, -1].forEach(sz => scene.add(q(sx, sz, y))); }); });
+
+        // --- POBLAR URBANISMO ---
+        for (let j = -70; j <= 70; j += 25) { if (Math.abs(j) < 15) continue; createPlanter(0, j); createBench(8, j, 0); createBench(-8, j, 0); }
+        for (let k = -70; k <= 70; k += 25) { if (Math.abs(k) < 15) continue; createPlanter(k, 0); createBench(k, 8, Math.PI / 2); createBench(k, -8, Math.PI / 2); }
+        createCentralFountain(); // La fuente crece visualmente por el espacio
+        createDigitalScreen(0, 22.0, 17, 0);
+        createDigitalScreen(0, 22.0, -17, Math.PI);
+        createDigitalScreen(17, 22.0, 0, -Math.PI / 2);
+        createDigitalScreen(-17, 22.0, 0, Math.PI / 2);
+
+        function createInteriorFloors() {
+            const marbleMat = new THREE.MeshStandardMaterial({ color: 0xb0b0b0, roughness: 0.1, metalness: 0.1 });
+            const bronzeMat = new THREE.MeshStandardMaterial({ color: 0x332211, roughness: 0.2 });
+
+            const drawFloorWithGrid = (w, d, x, y, z) => {
+                const thickness = 0.6; // Grosor estructural de "concreto"
+                const f = new THREE.Mesh(new THREE.BoxGeometry(w, thickness, d), marbleMat);
+                // Ajustamos para que la superficie superior est├® en 'y'
+                f.position.set(x, y - thickness / 2, z); scene.add(f);
+
+                // DISE├æO DE LUJO: Doble l├¡nea (Architectural Grid)
+                const step = 8;
+                const gap = 0.8;
+
+                for (let i = -200 / 2; i <= 200 / 2; i += step) {
+                    if (i >= x - w / 2 - 0.1 && i <= x + w / 2 + 0.1) {
+                        [0, gap].forEach(off => {
+                            const l = new THREE.Mesh(new THREE.PlaneGeometry(0.04, d), bronzeMat);
+                            l.rotation.x = -Math.PI / 2; l.position.set(i + off, y + 0.01, z); scene.add(l);
+                        });
+                    }
+                }
+                for (let j = -200 / 2; j <= 200 / 2; j += step) {
+                    if (j >= z - d / 2 - 0.1 && j <= z + d / 2 + 0.1) {
+                        [0, gap].forEach(off => {
+                            const l = new THREE.Mesh(new THREE.PlaneGeometry(w, 0.04), bronzeMat);
+                            l.rotation.x = -Math.PI / 2; l.position.set(x, y + 0.01, j + off); scene.add(l);
+                        });
+                    }
+                }
+            };
+
+            // PASILLOS EXPANDIDOS (34 de ancho, 190 de largo para tocar Anclas en 95)
+            drawFloorWithGrid(34, 190, 0, 0.1, 0);
+            drawFloorWithGrid(190, 34, 0, 0.1, 0);
+
+            // PASARELAS NORTE-SUR (Alineadas a fachadas, 6 de ancho, 190 de largo)
+            drawFloorWithGrid(6, 190, 14, 5.4, 0);   // ESTE
+            drawFloorWithGrid(6, 190, -14, 5.4, 0);  // OESTE
+
+            // PASARELAS ESTE-OESTE (Mantener contacto, 190 de largo)
+            drawFloorWithGrid(190, 6, 0, 5.4, 14);  // NORTE
+            drawFloorWithGrid(190, 6, 0, 5.4, -14); // SUR
+
+            // PLATAFORMAS DE ACCESO (Vest├¡bulos de 12 de ancho que unen las pasarelas en las entradas a Tiendas Ancla)
+            drawFloorWithGrid(34, 12, 0, 5.4, 89);  // Acceso Norte
+            drawFloorWithGrid(34, 12, 0, 5.4, -89); // Acceso Sur
+            drawFloorWithGrid(12, 34, 89, 5.4, 0);  // Acceso Este
+            drawFloorWithGrid(12, 34, -89, 5.4, 0); // Acceso Oeste
+        }
+        createInteriorFloors();
+
+
+
+
+
+        function createPlainWalkway(w, d, x, z, rotated = false) {
+            // Ya no es necesaria pues tenemos el suelo completo, pero la dejamos por compatibilidad si se llama
+            const m = new THREE.Mesh(new THREE.BoxGeometry(rotated ? d : w, 0.2, rotated ? w : d), whiteMat);
+            m.position.set(x, 5.41, z); scene.add(m);
+        }
+
+
+        function createRail(x, z, len, rot, hasSign = "") {
+            const r = new THREE.Mesh(new THREE.BoxGeometry(rot ? 0.1 : len, 1.2, rot ? len : 0.1), new THREE.MeshStandardMaterial({ color: 0x88ccff, transparent: true, opacity: 0.3 })); r.position.set(x, 6.1, z); scene.add(r);
+            const c = new THREE.Mesh(new THREE.BoxGeometry(rot ? 0.2 : len, 0.1, rot ? len : 0.2), goldMat); c.position.set(x, 6.7, z); scene.add(c);
+            if (hasSign !== "") {
+                const sM = new THREE.Mesh(new THREE.PlaneGeometry(8, 2), new THREE.MeshBasicMaterial({ map: createSignTexture(hasSign), transparent: true }));
+                sM.position.set(x, 6.1, z + (rot ? 0 : 0.06)); if (rot) { sM.rotation.y = -Math.PI / 2; sM.position.x += (x > 0 ? 0.06 : -0.06); }
+                scene.add(sM);
+            }
+            // Barandillas a altura 2.2m o 7.6m (evitar bloqueo primer piso)
+            registerCollider(x, z, rot ? 0.2 : len, rot ? len : 0.2, 5.5, 8);
+        }
+
+
+        // --- SEGURIDAD Y LUJO: BARANDILLAS HUECO SUR (S) ---
+        createRail(8, -17, 6, false); // Segmento derecho
+        createRail(-8, -17, 6, false); // Segmento izquierdo
+        createRail(0, -83, 22, false);
+        createRail(11, -50, 66, true);
+        createRail(-11, -50, 66, true);
+
+        // --- SEGURIDAD Y LUJO: BARANDILLAS HUECO NORTE (N) ---
+        createRail(8, 17, 6, false); // Segmento derecho
+        createRail(-8, 17, 6, false); // Segmento izquierdo
+        createRail(0, 83, 22, false);
+        createRail(-11, 50, 66, true);
+        createRail(11, 50, 66, true);
+
+        // --- SEGURIDAD Y LUJO: BARANDILLAS HUECO OESTE (O) ---
+        createRail(-17, 0, 22, true);
+        createRail(-83, 0, 22, true);
+        createRail(-50, 11, 66, false);
+        createRail(-50, -11, 66, false);
+
+        // --- SEGURIDAD Y LUJO: BARANDILLAS HUECO ESTE (E) ---
+        createRail(17, 0, 22, true);
+        createRail(83, 0, 22, true);
+        createRail(50, 11, 66, false);
+        createRail(50, -11, 66, false);
+
+        // --- SEGURIDAD Y LUJO: ANILLO CENTRAL (ATRIO) ---
+        createRail(0, 11, 22, false);
+        createRail(0, -11, 22, false);
+        createRail(11, 0, 22, true);
+        createRail(-11, 0, 22, true);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        createVaultedRoof(0, VAULT_CENTER_OFFSET, VAULT_LENGTH, 'N', false, 1, 0, Math.PI, Math.PI, true);
+        createVaultedRoof(0, -VAULT_CENTER_OFFSET, VAULT_LENGTH, 'S', false, -1, 0, 0, Math.PI);
+        createVaultedRoof(VAULT_CENTER_OFFSET, 0, VAULT_LENGTH, 'E', true, 1, 0, Math.PI, Math.PI);
+        createVaultedRoof(-VAULT_CENTER_OFFSET, 0, VAULT_LENGTH, 'O', true, -1, 0, 0, Math.PI);
+
+        const centralDome = new THREE.Mesh(new THREE.SphereGeometry(CENTRAL_DOME_RADIUS, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2), glassMat);
+        centralDome.position.set(0, DOME_CENTER_Y, 0); scene.add(centralDome);
+        const lastRingTarget = DOME_RING_TARGETS[DOME_RING_TARGETS.length - 1];
+        const domeRibArc = Math.acos((lastRingTarget.height - DOME_CENTER_Y) / CENTRAL_DOME_RADIUS); // ├üngulo para llegar al ├║ltimo anillo
+        for (let i = 0; i < 8; i++) {
+            const rib = new THREE.Mesh(new THREE.TorusGeometry(CENTRAL_DOME_RADIUS, 0.10, 16, 64, domeRibArc), darkMat);
+            rib.position.set(0, DOME_CENTER_Y, 0);
+            rib.rotation.z = Math.PI / 2; // Orientar verticalmente
+            rib.rotation.y = (Math.PI / 4) * i; // Distribuir radialmente
+            scene.add(rib);
+        }
+        // Rebuild de anillos desde cero (7 niveles):
+        // 1) fierro m├ís alto (0), 2..7) pares siguientes por altura (┬▒4, ┬▒7, ┬▒10, ┬▒13, ┬▒16, ┬▒19).
+        DOME_RING_TARGETS.forEach((target) => {
+            const ring = new THREE.Mesh(new THREE.TorusGeometry(target.radius, 0.10, 16, 128), darkMat);
+            const ringHeight = target.height;
+            ring.position.set(0, ringHeight, 0);
+            ring.rotation.x = Math.PI / 2;
+            ring.userData.familyLevel = target.level;
+            scene.add(ring);
+        });
+
+
+        // --- SISTEMA DE NAVEGACI├ôN REFORZADO (TECLADO + JOYSTICK) ---
+        const keys = { ArrowUp: false, ArrowDown: false, ArrowLeft: false, ArrowRight: false, KeyW: false, KeyS: false, KeyA: false, KeyD: false, ControlLeft: false, ControlRight: false };
+        window.addEventListener('keydown', (e) => { if (keys.hasOwnProperty(e.code)) keys[e.code] = true; });
+        window.addEventListener('keyup', (e) => { if (keys.hasOwnProperty(e.code)) keys[e.code] = false; });
+
+        // --- L├ôGICA DE JOYSTICK VIRTUAL ---
+        let joystickActive = false;
+        let joystickDir = { x: 0, y: 0 };
+        const joyZone = document.getElementById('joystick-zone');
+        const joyKnob = document.getElementById('joystick-knob');
+        const joyRect = joyZone.getBoundingClientRect();
+        const joyRadius = 60;
+
+        function handleJoystick(e) {
+            e.preventDefault();
+            const rect = joyZone.getBoundingClientRect();
+            const touch = e.touches ? e.touches[0] : e;
+            const centerX = rect.left + joyRadius;
+            const centerY = rect.top + joyRadius;
+            let dx = touch.clientX - centerX;
+            let dy = touch.clientY - centerY;
+            const distance = Math.min(Math.sqrt(dx * dx + dy * dy), joyRadius);
+            const angle = Math.atan2(dy, dx);
+
+            const moveX = Math.cos(angle) * distance;
+            const moveY = Math.sin(angle) * distance;
+
+            joyKnob.style.transform = `translate(calc(-50% + ${moveX}px), calc(-50% + ${moveY}px))`;
+
+            joystickDir.x = moveX / joyRadius;
+            joystickDir.y = moveY / joyRadius;
+        }
+
+        joyZone.addEventListener('touchstart', (e) => {
+            joystickActive = true;
+            handleJoystick(e);
+        });
+        joyZone.addEventListener('touchmove', handleJoystick);
+        joyZone.addEventListener('touchend', () => {
+            joystickActive = false;
+            joystickDir = { x: 0, y: 0 };
+            joyKnob.style.transform = `translate(-50%, -50%)`;
+        });
+
+        // Touch simulador de teclado para botones de rotaci├│n
+        const bindKey = (id, key) => {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.addEventListener('touchstart', (e) => { e.preventDefault(); keys[key] = true; el.classList.add('opacity-50'); });
+            el.addEventListener('touchend', (e) => { e.preventDefault(); keys[key] = false; el.classList.remove('opacity-50'); });
+            el.addEventListener('mousedown', (e) => { e.preventDefault(); keys[key] = true; });
+            el.addEventListener('mouseup', (e) => { e.preventDefault(); keys[key] = false; });
+        };
+        bindKey('btn-rotate-left', 'ArrowLeft');
+        bindKey('btn-rotate-right', 'ArrowRight');
+        bindKey('btn-look-up', 'ArrowUp'); // En modo paseo ArrowUp rota hacia arriba si Control est├í presionado, pero aqu├¡ daremos movilidad total
+        bindKey('btn-look-down', 'ArrowDown');
+
+        // L├│gica de Look Up/Down para botones espec├¡ficos
+        let isBtnLookUp = false;
+        let isBtnLookDown = false;
+        document.getElementById('btn-look-up').onpointerdown = () => isBtnLookUp = true;
+        document.getElementById('btn-look-up').onpointerup = () => isBtnLookUp = false;
+        document.getElementById('btn-look-down').onpointerdown = () => isBtnLookDown = true;
+        document.getElementById('btn-look-down').onpointerup = () => isBtnLookDown = false;
+
+
+        let moveSpeed = 0.15;
+        let rotSpeed = 0.02;
+
+        function updateKeyboardNavigation() {
+            const prevY = camera.position.y;
+            const isCtrl = keys.ControlLeft || keys.ControlRight;
+            const dir = new THREE.Vector3();
+            camera.getWorldDirection(dir);
+            const walkDir = dir.clone(); walkDir.y = 0; walkDir.normalize();
+
+            // Vector derecha (perpendicular a la mirada y al eje Y)
+            const right = new THREE.Vector3().crossVectors(new THREE.Vector3(0, 1, 0), walkDir).normalize();
+
+            let moveAccumX = 0;
+            let moveAccumZ = 0;
+
+            // --- DESPLAZAMIENTO (JOYSTICK + TECLADO WASD) ---
+            if (joystickActive) {
+                moveAccumX += walkDir.x * (-joystickDir.y * moveSpeed) + right.x * (-joystickDir.x * moveSpeed);
+                moveAccumZ += walkDir.z * (-joystickDir.y * moveSpeed) + right.z * (-joystickDir.x * moveSpeed);
+            }
+
+            if (isCtrl) {
+                // MODO MIRADA VERTICAL (PITCH)
+                if (keys.ArrowUp) {
+                    if (dir.dot(new THREE.Vector3(0, 1, 0)) < 0.95) {
+                        const relTarget = controls.target.clone().sub(camera.position);
+                        relTarget.applyAxisAngle(right, -rotSpeed);
+                        controls.target.copy(camera.position).add(relTarget);
+                    }
+                }
+                if (keys.ArrowDown) {
+                    if (dir.dot(new THREE.Vector3(0, -1, 0)) < 0.95) {
+                        const relTarget = controls.target.clone().sub(camera.position);
+                        relTarget.applyAxisAngle(right, rotSpeed);
+                        controls.target.copy(camera.position).add(relTarget);
+                    }
+                }
+            } else {
+                // MODO CAMINATA (WALK + YAW)
+                if (keys.ArrowUp) {
+                    moveAccumX += walkDir.x * moveSpeed;
+                    moveAccumZ += walkDir.z * moveSpeed;
+                }
+                if (keys.ArrowDown) {
+                    moveAccumX -= walkDir.x * moveSpeed;
+                    moveAccumZ -= walkDir.z * moveSpeed;
+                }
+
+                // Rotaci├│n Horizontal
+                if (keys.ArrowLeft) {
+                    const relativeTarget = controls.target.clone().sub(camera.position);
+                    relativeTarget.applyAxisAngle(new THREE.Vector3(0, 1, 0), rotSpeed);
+                    controls.target.copy(camera.position).add(relativeTarget);
+                }
+                if (keys.ArrowRight) {
+                    const relativeTarget = controls.target.clone().sub(camera.position);
+                    relativeTarget.applyAxisAngle(new THREE.Vector3(0, 1, 0), -rotSpeed);
+                    controls.target.copy(camera.position).add(relativeTarget);
+                }
+
+                // Mirada Vertical con botones dedicados
+                if (isBtnLookUp) {
+                    if (dir.dot(new THREE.Vector3(0, 1, 0)) < 0.95) {
+                        const relTarget = controls.target.clone().sub(camera.position);
+                        relTarget.applyAxisAngle(right, -rotSpeed);
+                        controls.target.copy(camera.position).add(relTarget);
+                    }
+                }
+                if (isBtnLookDown) {
+                    if (dir.dot(new THREE.Vector3(0, -1, 0)) < 0.95) {
+                        const relTarget = controls.target.clone().sub(camera.position);
+                        relTarget.applyAxisAngle(right, rotSpeed);
+                        controls.target.copy(camera.position).add(relTarget);
+                    }
+                }
+
+                // Teclas WASD (Strafe opcional en teclado)
+                if (keys.KeyD) { moveAccumX += right.x * moveSpeed; moveAccumZ += right.z * moveSpeed; }
+                if (keys.KeyA) { moveAccumX -= right.x * moveSpeed; moveAccumZ -= right.z * moveSpeed; }
+                if (keys.KeyW) { moveAccumX += walkDir.x * moveSpeed; moveAccumZ += walkDir.z * moveSpeed; }
+                if (keys.KeyS) { moveAccumX -= walkDir.x * moveSpeed; moveAccumZ -= walkDir.z * moveSpeed; }
+            }
+
+            // --- APLICACI├ôN DE MOVIMIENTO CON MOTOR DE COLISIONES ---
+            if (Math.abs(moveAccumX) > 0.0001 || Math.abs(moveAccumZ) > 0.0001) {
+                const nx = camera.position.x + moveAccumX;
+                const ny = camera.position.y;
+                const nz = camera.position.z + moveAccumZ;
+
+                // Colisi├│n Eje X (deslizamiento)
+                if (!checkCollision(nx, ny, camera.position.z)) {
+                    camera.position.x = nx;
+                    controls.target.x += moveAccumX;
+                }
+                // Colisi├│n Eje Z (deslizamiento)
+                if (!checkCollision(camera.position.x, ny, nz)) {
+                    camera.position.z = nz;
+                    controls.target.z += moveAccumZ;
+                }
+                isWalking = true;
+            }
+
+            // --- REFUERZO DE TECLADO WASD PARA PC ---
+            if (keys.KeyW) { camera.position.addScaledVector(walkDir, moveSpeed); controls.target.addScaledVector(walkDir, moveSpeed); }
+            if (keys.KeyS) { camera.position.addScaledVector(walkDir, -moveSpeed); controls.target.addScaledVector(walkDir, -moveSpeed); }
+            if (keys.KeyA) { camera.position.addScaledVector(right, -moveSpeed); controls.target.addScaledVector(right, -moveSpeed); }
+            if (keys.KeyD) { camera.position.addScaledVector(right, moveSpeed); controls.target.addScaledVector(right, moveSpeed); }
+
+
+            // --- MOTOR DE ESCALERAS MEC├üNICAS (V3 GEOM├ëTRICA) ---
+            let onEscalator = false;
+            escalatorList.forEach(e => {
+                const dx = Math.abs(camera.position.x - e.x);
+                const dz = (camera.position.z >= e.zMin && camera.position.z <= e.zMax);
+
+                if (dx < 1.8 && dz) {
+                    onEscalator = true;
+
+                    // 1. Tracci├│n Horizontal (Z)
+                    const distDir = Math.sign(e.zEnd - e.zStart);
+                    const speedZ = 0.09;
+                    camera.position.z += distDir * speedZ;
+                    controls.target.z += distDir * speedZ;
+
+                    // 2. Empuje Vertical Constante (Y) - Seg├║n sugerencia del usuario
+                    const speedY = 0.04; // Velocidad de ascenso/descenso
+                    const targetHeight = e.up ? 7.1 : 1.8; // Piso 2 o PB
+
+                    if (e.up && camera.position.y < targetHeight) {
+                        camera.position.y += speedY;
+                        controls.target.y += speedY;
+                    } else if (!e.up && camera.position.y > targetHeight) {
+                        camera.position.y -= speedY;
+                        controls.target.y -= speedY;
+                    }
+                }
+            });
+
+            // BLOQUEO DE ALTURA (SOLO FUERA DE ESCALERAS)
+            if (isWalking && !onEscalator) {
+                const prevFloorY = camera.position.y;
+                const groundY = camera.position.y > 3.0 ? 5.4 : 0.1;
+                camera.position.y = groundY + 1.7;
+                controls.target.y += (camera.position.y - prevFloorY);
+            }
+        }
+
+
+
+        // --- SUPABASE & MULTIJUGADOR OPTIMIZADO ---
+        let supabaseClient = null;
+        try {
+            supabaseClient = supabase.createClient(
+                'https://kcfuixvrwbnizspgtmtr.supabase.co',
+                'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtjZnVpeHZyd2JuaXpzcGd0bXRyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MTI2MTUzMTgsImV4cCI6MjAyODIwNzMxOH0.p-Bf_H23KD1xJafE_DFpBFZlyA_CL9sNlpG'
+            );
+        } catch(e) { console.error("Error inicializando Supabase:", e); }
+
+        // --- L├ôGICA DE GESTI├ôN COMERCIAL (BASE DE DATOS DIN├üMICA) ---
+        const categoryData = {
+            MODA: { giro: "Boutique de Alta Costura", products: [{ n: "Vestido Gala", p: "$1.850" }, { n: "Bolso de Cuero", p: "$2.200" }, { n: "Perfume Signature", p: "$450" }] },
+            TECH: { giro: "Tecnolog├¡a e Innovaci├│n", products: [{ n: "Smartphone PRO Max", p: "$1.299" }, { n: "Laptop Ultraliviana", p: "$2.450" }, { n: "Reloj Inteligente", p: "$590" }] },
+            JOYERIA: { giro: "Alta Joyer├¡a y Relojer├¡a", products: [{ n: "Anillo Diamante", p: "$12.500" }, { n: "Collar Oro 18K", p: "$7.200" }, { n: "Reloj Platino", p: "$18.900" }] },
+            CAFE: { giro: "Caf├® de Especialidad y Bistro", products: [{ n: "Pack Caf├® de Origen", p: "$28" }, { n: "Taza Cer├ímica Autor", p: "$35" }, { n: "Degustaci├│n Gourmet", p: "$65" }] },
+            DEPORTES: { giro: "Equipamiento Deportivo Pro", products: [{ n: "Zapatillas Carbono", p: "$280" }, { n: "Camiseta T├®cnica", p: "$85" }, { n: "Bolso Gym Premium", p: "$145" }] }
+        };
+
+        async function getStoreData(code) {
+            // 1. Intentar cargar desde Supabase
+            if (supabaseClient) {
+                const { data: dbStore } = await supabaseClient.from('stores').select('*').eq('local_code', code).maybeSingle();
+                if (dbStore) {
+                    const { data: dbProducts } = await supabaseClient.from('store_products').select('*').eq('local_code', code).limit(10);
+                    const mappedProducts = (dbProducts || []).map(p => ({ n: p.name, p: p.price }));
+                    return { 
+                        shopCode: code, 
+                        name: dbStore.name, 
+                        category: dbStore.category || "Comercio", 
+                        products: mappedProducts.length > 0 ? mappedProducts : [{n: "Consultar cat├ílogo", p: "-"}],
+                        contactEmail: dbStore.contact_email
+                    };
+                }
+            }
+
+            // 2. Fallback a generador aleatorio si no est├í en DB
+            const hash = code.split("").reduce((a, b) => a + b.charCodeAt(0), 0);
+            const categories = Object.keys(categoryData);
+            const catKey = categories[hash % categories.length];
+            const data = categoryData[catKey];
+
+            let name = "Boutique " + (code.length > 2 ? code.substring(0, 2) : "Premium");
+            if (code === "N") name = "Nordic Emporium";
+            if (code === "S") name = "Southern Luxury";
+            if (code === "E") name = "Eastern Gate Mall";
+            if (code === "O") name = "Occidental Center";
+
+            return { shopCode: code, name: name, category: data.giro, products: data.products };
+        }
+
+        function openModal(data) {
+            currentModalStoreCode = data.shopCode;
+            document.getElementById('modal-title').innerText = data.name;
+            document.getElementById('modal-code').innerText = `LOCAL ${data.shopCode}`;
+            document.getElementById('modal-category').innerText = `Giro Comercial: ${data.category}`;
+            const tbody = document.getElementById('modal-products');
+            tbody.innerHTML = '';
+            data.products.forEach(p => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `<td>${p.n}</td><td class="price">${p.p}</td>`;
+                tbody.appendChild(tr);
+            });
+
+            // Mostrar bot├│n de gesti├│n solo si el usuario logueado es el due├▒o
+            const manageBtn = document.getElementById('btn-manage-store');
+            if (myOwnedStore && myOwnedStore.local_code === data.shopCode) {
+                manageBtn.style.display = 'block';
+            } else {
+                manageBtn.style.display = 'none';
+            }
+
+            // Configurar mailto
+            const mailtoBtn = document.getElementById('store-mailto-btn');
+            if (data.contactEmail) {
+                mailtoBtn.href = `mailto:${data.contactEmail}?subject=Consulta Mall - Local ${data.shopCode}`;
+                mailtoBtn.style.display = 'block';
+            } else {
+                mailtoBtn.style.display = 'none';
+            }
+
+            document.getElementById('modal-overlay').style.display = 'block';
+            document.getElementById('store-modal').style.display = 'block';
+        }
+
+        // --- SISTEMA DE INTERACCI├ôN (RAYCASTING) ---
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+
+        // --- SISTEMA DE B├ÜSQUEDA Y MAPAS ---
+        let fullStoreInventory = [];
+        async function precalculateInventory() {
+            // Recorre c├│digos posibles y precalcula para el buscador
+            const codes = [];
+            ['N', 'S', 'E', 'O'].forEach(w => {
+                [1, 2].forEach(f => {
+                    for (let i = 1; i <= 14; i++) codes.push(`${w}${f}${String(i).padStart(2, '0')}`);
+                });
+            });
+            ['N', 'S', 'E', 'O'].forEach(a => codes.push(a));
+            
+            const promises = codes.map(c => getStoreData(c));
+            fullStoreInventory = await Promise.all(promises);
+        }
+        precalculateInventory();
+
+        window.filterStores = function () {
+            const q = document.getElementById('search-input').value.toLowerCase();
+            const results = document.getElementById('search-results');
+            results.innerHTML = '';
+            if (!q) return;
+            const matches = fullStoreInventory.filter(s => s.name.toLowerCase().includes(q) || s.category.toLowerCase().includes(q) || s.products.some(p => p.n.toLowerCase().includes(q))).slice(0, 8);
+            matches.forEach(m => {
+                const div = document.createElement('div'); div.className = 'search-item';
+                div.innerHTML = `<span><strong>${m.name}</strong> (${m.category})</span> <small>${m.shopCode}</small>`;
+                div.onclick = async () => {
+                    const fullData = await getStoreData(m.shopCode);
+                    showInMap(fullData);
+                };
+                results.appendChild(div);
+            });
+        };
+
+        function showInMap(store) {
+            const floor = store.shopCode.includes('2') ? 2 : 1;
+            document.getElementById('f-btn-1').className = floor === 1 ? 'floor-btn active' : 'floor-btn';
+            document.getElementById('f-btn-2').className = floor === 2 ? 'floor-btn active' : 'floor-btn';
+
+            const mapTarget = document.getElementById('map-target-pos');
+            mapTarget.innerHTML = '';
+
+            // Decodificar c├│digo para mapa 2D (esquem├ítico)
+            let x = 50, y = 50;
+            const wing = store.shopCode[0];
+            const val = parseInt(store.shopCode.substring(2)) || 50; // Para anclas
+            const offset = 10 + (val / 2); // Escala para el SVG de 100x100
+
+            if (wing === 'N') y = 50 - offset;
+            if (wing === 'S') y = 50 + offset;
+            if (wing === 'E') x = 50 + offset;
+            if (wing === 'O') x = 50 - offset;
+
+            if (store.shopCode.length === 1) { // Ancla
+                if (wing === 'N') y = 5; if (wing === 'S') y = 95; if (wing === 'E') x = 95; if (wing === 'O') x = 5;
+            }
+
+            const dot = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+            dot.setAttribute("cx", x); dot.setAttribute("cy", y); dot.setAttribute("r", 4);
+            dot.setAttribute("fill", "#ff0000");
+            const animate = document.createElementNS("http://www.w3.org/2000/svg", "animate");
+            animate.setAttribute("attributeName", "r"); animate.setAttribute("values", "2;5;2"); animate.setAttribute("dur", "1s"); animate.setAttribute("repeatCount", "indefinite");
+            dot.appendChild(animate);
+            mapTarget.appendChild(dot);
+
+            document.getElementById('location-text').innerHTML = `<b style="color:#c5a059;">Ubicaci├│n:</b> Ala ${wing}, Planta ${floor}. Local ${store.shopCode}`;
+        }
+
+        window.openSearch = function () { document.getElementById('search-modal').style.display = 'block'; document.getElementById('modal-overlay').style.display = 'block'; };
+        document.getElementById('search-close-btn').onclick = () => { document.getElementById('search-modal').style.display = 'none'; document.getElementById('modal-overlay').style.display = 'none'; };
+
+        window.addEventListener('click', async (event) => {
+            // No interactuar con el mall si el login o el modal de b├║squeda est├ín abiertos
+            if (document.getElementById('login-overlay').style.display !== 'none' ||
+                document.getElementById('search-modal').style.display === 'block') return;
+
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(scene.children, true);
+            if (intersects.length > 0) {
+                let initialObj = intersects[0].object;
+                let isSign = false;
+                let testSign = initialObj;
+                while(testSign) {
+                    if(testSign.userData.isSign) { isSign = true; break; }
+                    testSign = testSign.parent;
+                }
+
+                let obj = initialObj;
+                let foundStore = null, foundTotem = null, foundPlayer = null;
+                while (obj.parent) {
+                    if (obj.userData.shopCode) foundStore = obj;
+                    if (obj.userData.isTotem) foundTotem = obj;
+                    if (obj.userData.playerId) foundPlayer = obj.userData.playerId;
+                    if (foundStore || foundTotem || foundPlayer) break;
+                    obj = obj.parent;
+                }
+                if (foundPlayer) {
+                    setChatTarget(foundPlayer);
+                    return;
+                }
+                if (foundTotem) openSearch();
+                else if (foundStore && isSign) {
+                    const data = await getStoreData(foundStore.userData.shopCode);
+                    if (foundStore.userData.isAnchor) data.name = foundStore.userData.name;
+                    openModal(data);
+                }
+            }
+        });
+
+        // supabaseClient ya inicializado arriba (antes de getStoreData)
+        let myNickname = "";
+        let myAvatarStyle = "1";
+
+        window.selectAvatar = function (id, el) {
+            myAvatarStyle = id;
+            document.querySelectorAll('.avatar-opt').forEach(btn => btn.classList.remove('selected'));
+            el.classList.add('selected');
+        }
+
+        window.toggleMembershipFields = function() {
+            const checkbox = document.getElementById('membership-checkbox');
+            const fields = document.getElementById('membership-fields');
+            fields.style.display = checkbox.checked ? 'flex' : 'none';
+        }
+
+        // Administradores y Chat
+        const ADMINS = ['javier', 'javi', 'mauri', 'admin'];
+        let chatTarget = "";
+        let isAdmin = false;
+        let isChatOpen = false;
+        let unreadCount = 0;
+
+        window.toggleChat = function () {
+            isChatOpen = !isChatOpen;
+            document.getElementById('mall-chat').style.display = isChatOpen ? 'flex' : 'none';
+            document.getElementById('chat-minimized-btn').style.display = isChatOpen ? 'none' : 'flex';
+            if (isChatOpen) {
+                unreadCount = 0;
+                document.getElementById('chat-badge').style.display = 'none';
+                const msgs = document.getElementById('chat-messages');
+                msgs.scrollTop = msgs.scrollHeight;
+            }
+        };
+
+        window.setChatTarget = function (user) {
+            if (user === myNickname) return;
+            chatTarget = user;
+            document.getElementById('chat-target-text').innerText = `­ƒÆ¼ Privado con: ${user}`;
+            document.getElementById('chat-reset-btn').style.display = isAdmin ? 'inline-block' : 'none';
+        }
+
+        window.resetChatTarget = function () {
+            if (!isAdmin) return;
+            chatTarget = "Todos";
+            document.getElementById('chat-target-text').innerText = "­ƒöè HABLANDO A: TODOS";
+            document.getElementById('chat-reset-btn').style.display = 'none';
+        }
+
+        // --- SISTEMA DE GESTI├ôN DE LOCATARIOS ---
+        let currentTenantUser = null;
+        let myOwnedStore = null; // Informaci├│n de la tienda del locatario logueado
+
+        window.toggleTenantLogin = function() {
+            const modal = document.getElementById('tenant-login-modal');
+            modal.style.display = modal.style.display === 'none' ? 'block' : 'none';
+        }
+
+        // --- DETECTOR AUTOM├üTICO DE SESI├ôN ADMIN ---
+        document.addEventListener('DOMContentLoaded', async () => {
+            setTimeout(async () => {
+                if (!supabaseClient) return;
+                const { data: { user } } = await supabaseClient.auth.getUser();
+                const btn = document.getElementById('super-admin-btn');
+                const btnP = document.getElementById('super-admin-btn-persistent');
+                
+                if (user && user.email === 'alanmauri4815@gmail.com') {
+                    currentTenantUser = user;
+                    if (btn) btn.style.display = 'block';
+                    if (btnP) btnP.style.display = 'block';
+                    
+                    const { data: storeData } = await supabaseClient.from('stores').select('*').eq('owner_id', user.id).maybeSingle();
+                    myOwnedStore = storeData;
+                } else {
+                    if (btn) btn.style.display = 'none';
+                    if (btnP) btnP.style.display = 'none';
+                }
+
+                // CARGAR VISUALES DE TODAS LAS TIENDAS AL INICIO
+                const { data: allStores } = await supabaseClient.from('stores').select('*');
+                if(allStores) {
+                    for(const s of allStores) {
+                        const sCode = s.local_code || s.id;
+                        const { data: prods } = await supabaseClient.from('store_products').select('*').eq('local_code', sCode);
+                        updateStoreVisuals(sCode, s, prods || []);
+                    }
+                }
+            }, 1500);
+        });
+
+        window.adminLogout = async function() {
+            if (supabaseClient) {
+                await supabaseClient.auth.signOut();
+                alert("Sesi├│n cerrada correctamente.");
+                location.reload(); // Recargar para limpiar estado
+            }
+        }
+
+        window.submitTenantApplication = async function() {
+            if (!supabaseClient) return alert("Error de conexi├│n con el mall.");
+            
+            const brand = document.getElementById('apply-brand').value.trim();
+            const category = document.getElementById('apply-category').value.trim();
+            const email = document.getElementById('apply-email').value.trim();
+            const phone = document.getElementById('apply-phone').value.trim();
+            const social = document.getElementById('apply-social').value.trim();
+            
+            if(!brand || !email || !phone) return alert("Por favor completa los campos obligatorios.");
+
+            // 1. Guardar en Supabase (Registro hist├│rico)
+            const { error } = await supabaseClient.from('tenant_applications').insert([
+                { 
+                    brand_name: brand, 
+                    category: category, 
+                    email: email, 
+                    phone: phone, 
+                    social_link: social,
+                    status: 'pending'
+                }
+            ]);
+            
+            if (error) {
+                console.error(error);
+                return alert("Error al registrar en la base de datos: " + error.message);
+            }
+
+            // 2. Enviar Notificaci├│n por Email (v├¡a FormSubmit - Sin claves, directo a tu mail)
+            try {
+                const response = await fetch("https://formsubmit.co/ajax/8cc3291a2642b51af330138fe38da667", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json", "Accept": "application/json" },
+                    body: JSON.stringify({
+                        subject: "NUEVA POSTULACI├ôN MALL: " + brand,
+                        Marca: brand,
+                        Giro: category,
+                        Email: email,
+                        Telefono: phone,
+                        Redes: social,
+                        _replyto: email
+                    })
+                });
+
+                if (response.ok) {
+                    alert("┬íPostulaci├│n enviada con ├®xito! Revisa tu email para activar el sistema (solo la primera vez).");
+                    toggleTenantApply();
+                } else {
+                    alert("Postulaci├│n guardada en Supabase. (Notificaci├│n v├¡a mail pendiente de activaci├│n)");
+                    toggleTenantApply();
+                }
+            } catch (e) {
+                console.error("Error env├¡o mail:", e);
+                alert("Postulaci├│n recibida en base de datos.");
+                toggleTenantApply();
+            }
+        }
+
+        window.toggleTenantApply = function() {
+            const modal = document.getElementById('tenant-apply-modal');
+            modal.style.display = modal.style.display === 'none' ? 'block' : 'none';
+        }
+        window.tenantLogin = async function() {
+            const email = document.getElementById('tenant-email').value;
+            const pass = document.getElementById('tenant-pass').value;
+            
+            if (!supabaseClient) return alert("Error de conexi├│n");
+            
+            const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password: pass });
+            if (error) return alert("Error: " + error.message);
+            
+            currentTenantUser = data.user;
+            
+            // Si es el admin (Alan), mostrar botones de Super Admin, de lo contrario ocultar
+            const btn = document.getElementById('super-admin-btn');
+            const btnP = document.getElementById('super-admin-btn-persistent');
+            if (email === 'alanmauri4815@gmail.com') {
+                if(btn) btn.style.display = 'block';
+                if(btnP) btnP.style.display = 'block';
+            } else {
+                if(btn) btn.style.display = 'none';
+                if(btnP) btnP.style.display = 'none';
+            }
+            
+            toggleTenantLogin();
+            
+            // Buscar la tienda del due├▒o
+            const { data: storeData } = await supabaseClient.from('stores').select('*').eq('owner_id', data.user.id).maybeSingle();
+            myOwnedStore = storeData;
+            
+            alert("┬íSesi├│n iniciada con ├®xito!");
+            if (myOwnedStore) loadTenantData();
+        }
+
+        window.openSuperAdmin = function() {
+            const modal = document.getElementById('super-admin-modal');
+            if (modal) {
+                modal.style.display = 'block';
+                loadAdminData();
+            } else {
+                alert("Error: Modal de administraci├│n no encontrado.");
+            }
+        }
+
+        window.loadAdminData = async function() {
+            // 1. Cargar Postulaciones
+            const { data: apps } = await supabaseClient.from('tenant_applications').select('*').order('created_at', { ascending: false });
+            const listDiv = document.getElementById('admin-apps-list');
+            listDiv.innerHTML = "";
+            
+            apps.forEach(app => {
+                const div = document.createElement('div');
+                div.style.background = "rgba(255,255,255,0.03)";
+                div.style.padding = "15px";
+                div.style.borderRadius = "8px";
+                div.style.marginBottom = "10px";
+                div.style.borderLeft = "4px solid " + (app.status === 'pending' ? '#c5a059' : '#4CAF50');
+                div.innerHTML = `
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <div>
+                            <strong style="color:#fff;">${app.brand_name}</strong> <span style="font-size:10px; color:#888;">(${app.category})</span>
+                            <div style="font-size:11px; color:#666;">${app.email} | ${app.phone}</div>
+                        </div>
+                        <button onclick="assignStorePrompt('${app.email}')" style="background:#c5a059; color:black; border:none; padding:5px 10px; border-radius:3px; font-size:10px; cursor:pointer;">Asignar Local</button>
+                    </div>
+                `;
+                listDiv.appendChild(div);
+            });
+
+            // 2. Cargar Estad├¡sticas de Locales
+            const { data: stores } = await supabaseClient.from('stores').select('id, owner_id');
+            const total = stores.length;
+            const occupied = stores.filter(s => s.owner_id).length;
+            const free = total - occupied;
+            
+            document.getElementById('stat-total-stores').innerText = total;
+            document.getElementById('stat-occupied-stores').innerText = occupied;
+            document.getElementById('stat-free-stores').innerText = free;
+        }
+
+        window.assignStorePrompt = async function(email) {
+            const uid = prompt("Ingresa el UID del usuario (copiado de Supabase Auth) para asignar al local:");
+            if (!uid) return;
+            const code = prompt("Ingresa el C├ôDIGO del local (ej: N101):");
+            if (!code) return;
+            
+            const { error } = await supabaseClient.from('stores').update({ owner_id: uid }).eq('id', code);
+            if (error) alert("Error: " + error.message);
+            else {
+                alert("┬íLocal asignado con ├®xito!");
+                loadAdminData();
+            }
+        }
+
+        window.openTenantAdmin = async function() {
+            if (!myOwnedStore) return alert("No tienes un local asignado.");
+            
+            document.getElementById('edit-store-name').value = myOwnedStore.name;
+            document.getElementById('edit-store-category').value = myOwnedStore.category || "";
+            document.getElementById('edit-store-email').value = myOwnedStore.contact_email || "";
+            document.getElementById('edit-store-logo').value = myOwnedStore.logo_url || "";
+            document.getElementById('edit-store-shelf-style').value = myOwnedStore.shelf_style || "madera";
+            
+            // Cargar productos
+            const { data: products } = await supabaseClient.from('store_products').select('*').eq('local_code', myOwnedStore.local_code).limit(10);
+            
+            const list = document.getElementById('edit-products-list');
+            list.innerHTML = "";
+            for(let i=0; i<10; i++) {
+                const p = (products && products[i]) ? products[i] : { name: "", price: "", image_url: "" };
+                const slot = document.createElement('div');
+                slot.className = "p-slot";
+                slot.style.padding = "10px"; slot.style.background = "#111"; slot.style.borderRadius = "8px";
+                slot.innerHTML = `
+                    <input type="text" placeholder="Nombre" value="${p.name}" class="p-name" style="width:100%; background:#000; border:1px solid #333; color:#fff; font-size:11px; padding:5px; margin-bottom:5px;">
+                    <div style="display:flex; gap:5px;">
+                        <input type="text" placeholder="Precio" value="${p.price}" class="p-price" style="flex:1; background:#000; border:1px solid #333; color:#fff; font-size:11px; padding:5px;">
+                        <input type="text" placeholder="URL Foto" value="${p.image_url}" class="p-image" style="flex:2; background:#000; border:1px solid #333; color:#fff; font-size:11px; padding:5px;">
+                    </div>
+                `;
+                list.appendChild(slot);
+            }
+            
+            document.getElementById('tenant-admin-modal').style.display = 'block';
+            document.getElementById('modal-overlay').style.display = 'block';
+        }
+
+        window.closeTenantAdmin = function() {
+            document.getElementById('tenant-admin-modal').style.display = 'none';
+            document.getElementById('modal-overlay').style.display = 'none';
+        }
+
+        window.previewTenantStore = function() {
+            const data = {
+                name: document.getElementById('edit-store-name').value,
+                shopCode: myOwnedStore.local_code,
+                category: document.getElementById('edit-store-category').value,
+                contactEmail: document.getElementById('edit-store-email').value,
+                products: []
+            };
+            
+            const slots = document.querySelectorAll('.p-slot');
+            slots.forEach(slot => {
+                const n = slot.querySelector('.p-name').value;
+                const p = slot.querySelector('.p-price').value;
+                if(n) data.products.push({ n: n, p: p });
+            });
+            
+            openModal(data);
+        }
+
+        window.saveTenantData = async function() {
+            if (!myOwnedStore || !currentTenantUser) return;
+            
+            const newName = document.getElementById('edit-store-name').value;
+            const newCat = document.getElementById('edit-store-category').value;
+            const newEmail = document.getElementById('edit-store-email').value;
+            const newLogo = document.getElementById('edit-store-logo').value;
+            const newStyle = document.getElementById('edit-store-shelf-style').value;
+            
+            // 1. Actualizar tienda
+            await supabaseClient.from('stores').update({
+                name: newName,
+                category: newCat,
+                contact_email: newEmail,
+                logo_url: newLogo,
+                shelf_style: newStyle
+            }).eq('local_code', myOwnedStore.local_code);
+            
+            // 2. Actualizar productos (limpiar y re-insertar)
+            await supabaseClient.from('store_products').delete().eq('local_code', myOwnedStore.local_code);
+            
+            const productsToInsert = [];
+            const slots = document.querySelectorAll('.p-slot');
+            slots.forEach(slot => {
+                const n = slot.querySelector('.p-name').value;
+                const p = slot.querySelector('.p-price').value;
+                const img = slot.querySelector('.p-image').value;
+                if(n) productsToInsert.push({ local_code: myOwnedStore.local_code, name: n, price: p, image_url: img });
+            });
+            
+            if(productsToInsert.length > 0) {
+                await supabaseClient.from('store_products').insert(productsToInsert);
+            }
+            
+            // Actualizar localmente
+            myOwnedStore.name = newName;
+            myOwnedStore.category = newCat;
+            myOwnedStore.contact_email = newEmail;
+            myOwnedStore.logo_url = newLogo;
+            myOwnedStore.shelf_style = newStyle;
+
+            // 4. Actualizar visuales 3D inmediatamente
+            const { data: updatedProds } = await supabaseClient.from('store_products').select('*').eq('local_code', myOwnedStore.local_code);
+            updateStoreVisuals(myOwnedStore.local_code, myOwnedStore, updatedProds || []);
+            
+            alert("┬íCambios guardados con ├®xito!");
+            closeTenantAdmin();
+        }
+
+        window.updateTenantPassword = async function() {
+            const newPass = document.getElementById('new-tenant-pass').value;
+            if (newPass.length < 6) return alert("La contrase├▒a debe tener al menos 6 caracteres.");
+            
+            const { error } = await supabaseClient.auth.updateUser({ password: newPass });
+            if (error) alert("Error: " + error.message);
+            else {
+                alert("Contrase├▒a actualizada con ├®xito.");
+                document.getElementById('new-tenant-pass').value = "";
+            }
+        }
+
+        window.sendStoreMessage = async function() {
+            const name = document.getElementById('store-contact-name').value;
+            const email = document.getElementById('store-contact-email').value;
+            const msg = document.getElementById('store-contact-msg').value;
+            
+            if(!supabaseClient) return;
+            
+            const { error } = await supabaseClient.from('contact_messages').insert([{
+                name: name,
+                email: email,
+                requirement: msg,
+                store_id: currentModalStoreCode
+            }]);
+            
+            if(error) alert("Error al enviar: " + error.message);
+            else {
+                alert("┬íMensaje enviado al due├▒o del local!");
+                document.getElementById('store-contact-form').reset();
+            }
+        }
+        let otherPlayers = {}; // { sessionId: { mesh, label, targetPos, targetRot } }
+        let presenceChannel = null;
+
+        // Variables de optimizaci├│n (Ahorro de datos)
+        let lastSentPos = new THREE.Vector3();
+        let lastSentRot = 0;
+        const POS_THRESHOLD = 0.3; // No enviar si se mueve menos de 30cm
+        const ROT_THRESHOLD = 0.15; // No enviar si rota menos de ~8 grados
+        // Supabase ya inicializado arriba - no sobreescribir
+
+        window.startMallExperience = async function () {
+            const nick = document.getElementById('nickname-input').value.trim();
+            if (!nick) return alert("Por favor, ingresa tu nombre de visitante");
+            myNickname = nick;
+            isAdmin = ADMINS.includes(myNickname.toLowerCase());
+
+            if (isAdmin) {
+                resetChatTarget();
+            } else {
+                chatTarget = ""; 
+                document.getElementById('chat-target-text').innerText = "­ƒû▒´©Å Clickea un jugador para hablarle";
+            }
+            
+            document.getElementById('login-overlay').style.opacity = '0';
+            setTimeout(() => {
+                document.getElementById('login-overlay').style.display = 'none';
+                document.getElementById('main-header').style.display = 'flex'; // Mostrar cabecera
+                // Forzar posici├│n de inicio al entrar
+                if (!isWalking) {
+                    window.toggleWalkMode();
+                } else {
+                    camera.position.set(0, 1.7, -82);
+                    controls.target.set(0, 1.80, -78);
+                    controls.update();
+                }
+            }, 500);
+
+            // Registro de Socio (Si aplica)
+            const isMember = document.getElementById('membership-checkbox').checked;
+            if (isMember && supabaseClient) {
+                const email = document.getElementById('member-email').value.trim();
+                const phone = document.getElementById('member-phone').value.trim();
+                
+                if (!email || !phone) {
+                    alert("Por favor, completa tu correo y celular para ser socio, o desmarca la opci├│n.");
+                    document.getElementById('login-overlay').style.display = 'flex';
+                    document.getElementById('login-overlay').style.opacity = '1';
+                    return;
+                }
+
+                await supabaseClient.from('mall_members').insert([
+                    { nickname: myNickname, email: email, phone: phone }
+                ]);
+            }
+            
+            initPresence();
+        };
+
+        const HEARTBEAT_LIMIT = 4000; // Enviar cada 4 seg aunque est├® quieto
+        let lastUpdateTime = 0;
+
+        function initPresence() {
+            presenceChannel = supabaseClient.channel('mall_presence', {
+                config: {
+                    presence: { key: myNickname },
+                    broadcast: { self: true }
+                }
+            });
+
+            presenceChannel
+                .on('presence', { event: 'sync' }, () => {
+                    const state = presenceChannel.presenceState();
+                    Object.keys(state).forEach(id => {
+                        if (id === myNickname) return;
+                        if (!otherPlayers[id]) otherPlayers[id] = createAvatar(id);
+                    });
+                })
+                .on('presence', { event: 'leave' }, ({ key }) => {
+                    removePlayer(key);
+                    addChatMessage("Sistema", `${key} ha salido del mall.`);
+                })
+                .on('presence', { event: 'join' }, ({ key }) => {
+                    if (key !== myNickname) {
+                        addChatMessage("Sistema", `${key} ha entrado al mall.`);
+                        broadcastMyPosition(); // Responder inmediatamente al que acaba de entrar
+                    }
+                })
+                .on('broadcast', { event: 'chat_msg' }, payload => {
+                    const { user, text, to } = payload.payload;
+                    if (to !== "Todos" && to !== myNickname && user !== myNickname) return; // Filtrar mensajes que no son para ti
+                    addChatMessage(user, text, to);
+                })
+                .on('broadcast', { event: 'pos_update' }, payload => {
+                    const id = payload.payload.user;
+                    if (id === myNickname) return;
+                    // Pasamos tb el estilo en el payload por si no lo ten├¡amos en presence inicial
+                    if (!otherPlayers[id]) otherPlayers[id] = createAvatar(id, payload.payload.style || "1");
+                    const p = otherPlayers[id];
+                    const pData = payload.payload;
+                    p.targetPos.set(pData.x, pData.y - 1.7, pData.z);
+                    p.targetRot = pData.r;
+                })
+                .subscribe(async (status) => {
+                    if (status === 'SUBSCRIBED') {
+                        await trackMySelf();
+                        document.getElementById('chat-minimized-btn').style.display = 'flex';
+                        // window.toggleChat(); // El chat ahora comienza cerrado por defecto
+                        addChatMessage("Sistema", `┬íHola ${myNickname}! Presiona Enter para enviar mensajes.`);
+                        broadcastMyPosition();
+                    }
+                });
+
+            // Intervalo de Broadcast en lugar de Presence Track
+            setInterval(() => {
+                if (!presenceChannel) return;
+
+                const dist = camera.position.distanceTo(lastSentPos);
+                const rotDiff = Math.abs(camera.rotation.y - lastSentRot);
+                const now = Date.now();
+
+                // L├ôGICA DE OPTIMIZACI├ôN: Solo enviar si hubo cambio o pas├│ el tiempo l├¡mite
+                if (dist > POS_THRESHOLD || rotDiff > ROT_THRESHOLD || (now - lastUpdateTime) > HEARTBEAT_LIMIT) {
+                    broadcastMyPosition();
+                    lastSentPos.copy(camera.position);
+                    lastSentRot = camera.rotation.y;
+                    lastUpdateTime = now;
+                }
+            }, 100);
+        }
+
+        async function trackMySelf() {
+            if (!presenceChannel) return;
+            // Solo registrar presencia b├ísica y qu├® avatar escogimos
+            await presenceChannel.track({ nickname: myNickname, style: myAvatarStyle });
+        }
+
+        function broadcastMyPosition() {
+            if (!presenceChannel) return;
+            presenceChannel.send({
+                type: 'broadcast',
+                event: 'pos_update',
+                payload: {
+                    user: myNickname,
+                    style: myAvatarStyle,
+                    x: camera.position.x,
+                    y: camera.position.y,
+                    z: camera.position.z,
+                    r: camera.rotation.y
+                }
+            });
+        }
+
+        function addChatMessage(user, text, to = "Todos") {
+            const container = document.getElementById('chat-messages');
+            const p = document.createElement('p');
+            p.style.margin = '0'; p.style.fontSize = '12px'; p.style.color = '#fff'; p.style.lineHeight = '1.4'; p.style.wordWrap = 'break-word';
+            let label = to === "Todos" ? `<strong style="color: #c5a059;">${user}</strong>` : `<strong style="color: #6dbcdb;">[Privado] ${user}</strong>`;
+            p.innerHTML = `${label}: ${text.replace(/</g, "&lt;")}`;
+            container.appendChild(p);
+            container.scrollTop = container.scrollHeight;
+
+            if (!isChatOpen && user !== "Sistema" && user !== myNickname) {
+                unreadCount++;
+                const badge = document.getElementById('chat-badge');
+                badge.innerText = unreadCount;
+                badge.style.display = 'flex';
+            }
+        }
+
+        const chatInput = document.getElementById('chat-input');
+        const chatSend = document.getElementById('chat-send');
+
+        function sendChat() {
+            const text = chatInput.value.trim();
+            if (!text || !presenceChannel) return;
+
+            if (!isAdmin && chatTarget === "") {
+                return alert("Para conversar, debes acercarte y darle clic a otro avatar en el Mall primero.");
+            }
+
+            presenceChannel.send({
+                type: 'broadcast',
+                event: 'chat_msg',
+                payload: { user: myNickname, text: text, to: chatTarget }
+            });
+            chatInput.value = '';
+            chatInput.blur(); // Quitar el foco para devolver el control a la c├ímara/teclado del mall
+        }
+
+        chatSend.onclick = sendChat;
+        chatInput.onkeypress = (e) => { if (e.key === 'Enter') sendChat(); e.stopPropagation(); };
+        chatInput.addEventListener('keydown', e => e.stopPropagation());
+        chatInput.addEventListener('keyup', e => e.stopPropagation());
+
+        function createAvatar(nickname, styleCode = "1") {
+            const group = new THREE.Group();
+
+            // --- CONFIGURACI├ôN DE ESTILO Y COLORES ---
+            let skinColor = 0xffdbac;
+            let clothColor = 0x333333;
+            let accentColor = 0x555555;
+            let hairColor = 0x221100;
+            
+            // Tonos de piel variados para realismo
+            const skinTones = [0xffdbac, 0xf1c27d, 0xe0ac69, 0x8d5524];
+            skinColor = skinTones[Math.abs(nickname.split("").reduce((a, b) => a + b.charCodeAt(0), 0)) % skinTones.length];
+
+            if (styleCode === "1") { // Formal
+                clothColor = 0x1a1a1a; 
+                accentColor = 0x2a2a2a; 
+                hairColor = 0x111111;
+            } else if (styleCode === "2") { // Deportivo
+                clothColor = 0x0066cc; 
+                accentColor = 0x3344cc; 
+                hairColor = 0x442211;
+            } else if (styleCode === "3") { // Urbano
+                clothColor = 0xaa4455; 
+                accentColor = 0x444444; 
+                hairColor = 0x221100;
+            }
+
+            const skinMat = new THREE.MeshStandardMaterial({ color: skinColor, roughness: 0.7 });
+            const clothMat = new THREE.MeshStandardMaterial({ color: clothColor, roughness: 0.8 });
+            const accentMat = new THREE.MeshStandardMaterial({ color: accentColor, roughness: 0.8 });
+            const hairMat = new THREE.MeshStandardMaterial({ color: hairColor, roughness: 0.9 });
+            const blackMat = new THREE.MeshStandardMaterial({ color: 0x000000 });
+            const whiteMat = new THREE.MeshStandardMaterial({ color: 0xffffff });
+
+            // --- CUERPO ---
+            // Torso (Trapezoide con cilindro de 8 caras)
+            const torso = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.18, 0.65, 8), clothMat);
+            torso.name = "torso";
+            torso.position.set(0, 1.15, 0);
+            group.add(torso);
+
+            // Cuello
+            const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.1, 8), skinMat);
+            neck.name = "neck";
+            neck.position.set(0, 1.48, 0);
+            group.add(neck);
+
+            // Cabeza (Esf├®rica)
+            const head = new THREE.Mesh(new THREE.SphereGeometry(0.2, 16, 16), skinMat);
+            head.name = "head";
+            head.position.set(0, 1.68, 0);
+            group.add(head);
+
+            // Cara: Ojos (A├▒ade expresividad humana)
+            const createEye = (xOffset) => {
+                const eyeGroup = new THREE.Group();
+                eyeGroup.name = "eyes";
+                const eyeball = new THREE.Mesh(new THREE.SphereGeometry(0.04, 8, 8), whiteMat);
+                const pupil = new THREE.Mesh(new THREE.SphereGeometry(0.02, 8, 8), blackMat);
+                pupil.position.z = 0.035;
+                eyeGroup.add(eyeball);
+                eyeGroup.add(pupil);
+                eyeGroup.position.set(xOffset, 1.72, 0.16);
+                return eyeGroup;
+            };
+            group.add(createEye(-0.08));
+            group.add(createEye(0.08));
+
+            // Pelo / Sombrero
+            let hairGeom;
+            if (styleCode === "1") {
+                hairGeom = new THREE.SphereGeometry(0.21, 16, 16, 0, Math.PI * 2, 0, Math.PI / 1.8);
+            } else if (styleCode === "2") {
+                hairGeom = new THREE.BoxGeometry(0.25, 0.1, 0.4); // Gorra deportiva
+            } else {
+                hairGeom = new THREE.SphereGeometry(0.22, 16, 16); // Beanie/Gorro urbano
+            }
+            const hair = new THREE.Mesh(hairGeom, hairMat);
+            hair.name = "hair";
+            hair.position.set(0, 1.75, 0);
+            if(styleCode === "2") hair.position.z = 0.05;
+            group.add(hair);
+
+            // --- EXTREMIDADES ARTICULADAS (CODOS Y RODILLAS) ---
+            const createLimb = (w, h, mat, name) => {
+                const limbGroup = new THREE.Group();
+                limbGroup.name = name;
+                
+                const upperH = h * 0.45;
+                const lowerH = h * 0.55;
+                
+                // Parte Superior
+                const upperGeom = new THREE.CylinderGeometry(w, w*0.9, upperH, 8);
+                upperGeom.translate(0, -upperH/2, 0);
+                const upper = new THREE.Mesh(upperGeom, mat);
+                upper.name = name + "_upper";
+                limbGroup.add(upper);
+                
+                // Articulaci├│n (Codo/Rodilla)
+                const joint = new THREE.Mesh(new THREE.SphereGeometry(w*1.05, 8, 8), mat);
+                joint.position.set(0, -upperH, 0);
+                upper.add(joint);
+                
+                // Parte Inferior
+                const lowerGeom = new THREE.CylinderGeometry(w*0.9, w*0.8, lowerH, 8);
+                lowerGeom.translate(0, -lowerH/2, 0);
+                const lower = new THREE.Mesh(lowerGeom, mat);
+                lower.name = name + "_lower";
+                lower.position.set(0, -upperH, 0);
+                upper.add(lower);
+
+                return limbGroup;
+            };
+
+            // Brazos (Hombros en Y=1.45)
+            const armL = createLimb(0.06, 0.6, clothMat, "armL");
+            armL.position.set(-0.27, 1.45, 0);
+            const handL = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 8), skinMat);
+            handL.position.set(0, -0.33, 0); // Posici├│n relativa al final del antebrazo
+            armL.children[0].children[1].add(handL); // A├▒adir a la parte inferior (antebrazo)
+            group.add(armL);
+
+            const armR = createLimb(0.06, 0.6, clothMat, "armR");
+            armR.position.set(0.27, 1.45, 0);
+            const handR = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 8), skinMat);
+            handR.position.set(0, -0.33, 0);
+            armR.children[0].children[1].add(handR);
+            group.add(armR);
+
+            // Piernas (Caderas en Y=0.8)
+            const legL = createLimb(0.08, 0.75, accentMat, "legL");
+            legL.position.set(-0.10, 0.8, 0);
+            const footL = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.08, 0.28), blackMat);
+            footL.position.set(0, -0.4, 0.06);
+            legL.children[0].children[1].add(footL); // A├▒adir a la parte inferior
+            group.add(legL);
+
+            const legR = createLimb(0.08, 0.75, accentMat, "legR");
+            legR.position.set(0.10, 0.8, 0);
+            const footR = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.08, 0.28), blackMat);
+            footR.position.set(0, -0.4, 0.06);
+            legR.children[0].children[1].add(footR);
+            group.add(legR);
+
+            // Vincular metadatos para interacci├│n
+            group.children.forEach(c => {
+                c.userData.playerId = nickname;
+                if(c.children) c.children.forEach(cc => cc.userData.playerId = nickname);
+            });
+
+            scene.add(group);
+
+            const label = document.createElement('div');
+            label.className = 'avatar-label'; label.innerText = nickname;
+            document.body.appendChild(label);
+
+            return { mesh: group, label: label, targetPos: new THREE.Vector3(), targetRot: 0 };
+        }
+
+        function syncPlayers(state) {
+            Object.keys(state).forEach(id => {
+                if (id === myNickname) return;
+                let remoteStyle = "1";
+                if (state[id] && state[id][0] && state[id][0].style) remoteStyle = state[id][0].style;
+                if (!otherPlayers[id]) otherPlayers[id] = createAvatar(id, remoteStyle);
+                // No configuramos posiciones iniciales aqu├¡ porque vendr├ín v├¡a Broadcast
+            });
+        }
+
+        function removePlayer(id) {
+            if (otherPlayers[id]) {
+                scene.remove(otherPlayers[id].mesh);
+                otherPlayers[id].label.remove();
+                delete otherPlayers[id];
+            }
+        }
+
+        function updateOtherPlayers() {
+            Object.values(otherPlayers).forEach(p => {
+                if (p.mesh) {
+                    p.mesh.position.lerp(p.targetPos, 0.08); // Suavizado mayor para compensar saltos
+                    p.mesh.rotation.y = p.targetRot;
+                    const isMoving = p.mesh.position.distanceTo(p.targetPos) > 0.05;
+                    const bob = isMoving ? Math.abs(Math.sin(Date.now() * 0.005)) * 0.08 : 0;
+                    const swing = isMoving ? Math.sin(Date.now() * 0.005) * 0.5 : 0;
+                    
+                    p.mesh.position.lerp(p.targetPos, 0.08);
+                    p.mesh.rotation.y = p.targetRot;
+                    
+                    const tempVec = p.mesh.position.clone();
+                    tempVec.y += 2.0 + bob;
+                    tempVec.project(camera);
+                    const x = (tempVec.x * 0.5 + 0.5) * window.innerWidth;
+                    const y = (tempVec.y * -0.5 + 0.5) * window.innerHeight;
+                    p.label.style.transform = `translate(-50%, -50%) translate(${x}px, ${y}px)`;
+                    p.label.style.display = (tempVec.z > 1 || Math.abs(tempVec.x) > 1 || Math.abs(tempVec.y) > 1) ? 'none' : 'block';
+                    
+                    // Aplicar bobbing visual a las partes superiores y oscilaci├│n a extremidades
+                    p.mesh.children.forEach(c => {
+                        if (["torso", "neck", "head", "hair", "eyes"].includes(c.name)) {
+                            const bases = { torso: 1.15, neck: 1.48, head: 1.68, hair: 1.75, eyes: 1.72 };
+                            const base = bases[c.name] || 0;
+                            c.position.y = base + bob;
+                        }
+                        // Oscilaci├│n de brazos y piernas con articulaci├│n
+                        if (["armL", "armR", "legL", "legR"].includes(c.name)) {
+                            const upper = c.children[0];
+                            const lower = upper.children[1];
+                            const s = (c.name === "armL" || c.name === "legR") ? swing : -swing;
+                            
+                            upper.rotation.x = s;
+                            if (c.name.startsWith("leg")) {
+                                lower.rotation.x = s < 0 ? -s * 1.1 : 0; // Doblar rodilla al ir atr├ís
+                            } else {
+                                lower.rotation.x = s > 0 ? -s * 0.5 : 0; // Doblar codo (adelante) al ir adelante
+                            }
+                        }
+                    });
+                }
+            });
+        }
+
+        // --- VARIABLES GLOBALES DE PUBLICIDAD ---
+        let lastAdUpdate = Date.now();
+        let adIndex = 0;
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            const currentTime = Date.now();
+            if (currentTime - lastAdUpdate > 5000) {
+                adIndex = (adIndex + 1) % adTextures.length;
+                screenMeshes.forEach(s => s.material.map = adTextures[adIndex]);
+                lastAdUpdate = currentTime;
+            }
+
+            updateKeyboardNavigation();
+            updateOtherPlayers();
+            updateNPCs(); // Actualizar bots
+
+            controls.update(); 
+            renderer.render(scene, camera); 
+        }
+
+        // --- SISTEMA DE NPCs (MULTITUD ARTIFICIAL CHILENA) ---
+        const CHILEAN_NAMES = [
+            "Mateo Gonz├ílez", "Agust├¡n Mu├▒oz", "Benjam├¡n Rojas", "Vicente D├¡az", "Santiago P├®rez",
+            "Mat├¡as Soto", "Joaqu├¡n Contreras", "Maximiliano Silva", "Nicol├ís Mart├¡nez", "Sebasti├ín Sep├║lveda",
+            "Sof├¡a Morales", "Isabella Rodr├¡guez", "Emilia L├│pez", "Martina Fuentes", "Luc├¡a Hern├índez",
+            "Francisca Olave", "Catalina Tapia", "Valentina Carrasco", "Florencia Vera", "Isidora Castro",
+            "Lucas Herrera", "Felipe Medina", "Diego Castro", "Javier Mu├▒oz", "Gabriel Palma",
+            "Paz Romero", "Antonella Silva", "Maite Araya", "Josefa Reyes", "Ignacia Pizarro",
+            "Daniela Soto", "Carolina Rojas", "Andr├®s Mart├¡nez", "Crist├│bal Valenzuela", "Camila Bravo",
+            "Rodrigo Espinoza", "Basti├ín Tapia", "Javiera Torres", "Renato Vera", "Micaela Lagos",
+            "Tom├ís Castro", "B├írbara Pe├▒a", "Emanuel Vargas", "Julieta Miranda", "Pascal C├íceres"
+        ];
+
+        const npcs = [];
+        const NPC_COUNT = 45; 
+
+        function getValidNPCPosition(y) {
+            const isPB = y < 3;
+            if (isPB) {
+                if (Math.random() > 0.5) {
+                    return { x: (Math.random() - 0.5) * 18, z: (Math.random() - 0.5) * 180, y: 0 };
+                } else {
+                    return { x: (Math.random() - 0.5) * 180, z: (Math.random() - 0.5) * 18, y: 0 };
+                }
+            } else {
+                const side = Math.floor(Math.random() * 4);
+                if (side === 0) return { x: 14 + (Math.random() - 0.5) * 4, z: (Math.random() - 0.5) * 180, y: 5.4 };
+                if (side === 1) return { x: -14 + (Math.random() - 0.5) * 4, z: (Math.random() - 0.5) * 180, y: 5.4 };
+                if (side === 2) return { x: (Math.random() - 0.5) * 180, z: 14 + (Math.random() - 0.5) * 4, y: 5.4 };
+                if (side === 3) return { x: (Math.random() - 0.5) * 180, z: -14 + (Math.random() - 0.5) * 4, y: 5.4 };
+            }
+        }
+
+        function initNPCs() {
+            for (let i = 0; i < NPC_COUNT; i++) {
+                const name = CHILEAN_NAMES[i % CHILEAN_NAMES.length];
+                const style = ["1", "2", "3"][Math.floor(Math.random() * 3)];
+                const npcAvatar = createAvatar(name, style);
+                
+                const startFloor = Math.random() > 0.5 ? 5.4 : 0;
+                const pos = getValidNPCPosition(startFloor);
+                npcAvatar.mesh.position.set(pos.x, pos.y, pos.z);
+                
+                npcs.push({
+                    mesh: npcAvatar.mesh,
+                    label: npcAvatar.label,
+                    target: new THREE.Vector3(pos.x, pos.y, pos.z),
+                    intermediateTarget: null,
+                    state: 'walking',
+                    timer: 0,
+                    speed: 0.012 + Math.random() * 0.015,
+                    name: name
+                });
+                npcAvatar.label.style.background = "rgba(0,0,0,0.4)";
+                npcAvatar.label.style.borderColor = "rgba(197, 160, 89, 0.3)";
+                npcAvatar.label.style.color = "#aaa";
+                npcAvatar.label.style.fontSize = "8px";
+                npcAvatar.label.style.padding = "2px 6px";
+            }
+        }
+
+        function updateNPCs() {
+            const now = Date.now();
+            npcs.forEach(npc => {
+                let onEscalator = false;
+                escalatorList.forEach(e => {
+                    const dx = Math.abs(npc.mesh.position.x - e.x);
+                    const dz = (npc.mesh.position.z >= e.zMin && npc.mesh.position.z <= e.zMax);
+                    if (dx < 1.6 && dz) {
+                        onEscalator = true;
+                        const distDir = Math.sign(e.zEnd - e.zStart);
+                        const speedZ = 0.08;
+                        const speedY = 0.038;
+                        const targetHeight = e.up ? 5.4 : 0;
+                        npc.mesh.position.z += distDir * speedZ;
+                        if (e.up && npc.mesh.position.y < targetHeight) npc.mesh.position.y += speedY;
+                        else if (!e.up && npc.mesh.position.y > targetHeight) npc.mesh.position.y -= speedY;
+                        npc.mesh.rotation.y = distDir > 0 ? 0 : Math.PI;
+                        npc.intermediateTarget = null;
+                    }
+                });
+
+                if (onEscalator) return;
+
+                if (npc.state === 'walking') {
+                    const needsFloorChange = Math.abs(npc.target.y - npc.mesh.position.y) > 1;
+                    let currentMoveTarget = npc.target;
+
+                    if (needsFloorChange) {
+                        if (!npc.intermediateTarget) {
+                            const isGoingUp = npc.target.y > npc.mesh.position.y;
+                            let bestEsc = null;
+                            let minDist = Infinity;
+                            escalatorList.forEach(e => {
+                                if (e.up === isGoingUp) {
+                                    const entX = e.x;
+                                    const entZ = isGoingUp ? e.zStart : e.zEnd;
+                                    const d = Math.hypot(npc.mesh.position.x - entX, npc.mesh.position.z - entZ);
+                                    if (d < minDist) { minDist = d; bestEsc = { x: entX, z: entZ, y: npc.mesh.position.y }; }
+                                }
+                            });
+                            if (bestEsc) npc.intermediateTarget = new THREE.Vector3(bestEsc.x, bestEsc.y, bestEsc.z);
+                        }
+                        if (npc.intermediateTarget) currentMoveTarget = npc.intermediateTarget;
+                    }
+
+                    const dist = npc.mesh.position.distanceTo(currentMoveTarget);
+                    if (dist < 0.8) {
+                        if (!needsFloorChange) {
+                            npc.state = 'looking';
+                            npc.timer = now + (4000 + Math.random() * 8000);
+                        }
+                    } else {
+                        const dir = currentMoveTarget.clone().sub(npc.mesh.position);
+                        dir.y = 0; dir.normalize();
+                        
+                        // --- MOVIMIENTO CON COLISIONES ---
+                        const nextX = npc.mesh.position.x + dir.x * npc.speed;
+                        const nextZ = npc.mesh.position.z + dir.z * npc.speed;
+                        const bodyY = npc.mesh.position.y + 1.2; // Altura de colisi├│n
+
+                        if (!checkCollision(nextX, bodyY, nextZ)) {
+                            npc.mesh.position.x = nextX;
+                            npc.mesh.position.z = nextZ;
+                        } else {
+                            // Si choca con algo (pared, barandilla, objeto), recalcular ruta
+                            npc.state = 'looking';
+                            npc.timer = now;
+                        }
+                        
+                        const targetRot = Math.atan2(dir.x, dir.z);
+                        let diff = targetRot - npc.mesh.rotation.y;
+                        while(diff < -Math.PI) diff += Math.PI * 2;
+                        while(diff > Math.PI) diff -= Math.PI * 2;
+                        npc.mesh.rotation.y += diff * 0.05;
+
+                        // Bobbing y pasos al caminar
+                        const bob = Math.abs(Math.sin(Date.now() * 0.005)) * 0.08;
+                        const swing = Math.sin(Date.now() * 0.005) * 0.5;
+                        npc.mesh.children.forEach(c => {
+                            if (["torso", "neck", "head", "hair", "eyes"].includes(c.name)) {
+                                const bases = { torso: 1.15, neck: 1.48, head: 1.68, hair: 1.75, eyes: 1.72 };
+                                const base = bases[c.name] || 0;
+                                c.position.y = base + bob;
+                            }
+                            if (["armL", "armR", "legL", "legR"].includes(c.name)) {
+                                const upper = c.children[0];
+                                const lower = upper.children[1];
+                                const s = (c.name === "armL" || c.name === "legR") ? swing : -swing;
+                                
+                                upper.rotation.x = s;
+                                if (c.name.startsWith("leg")) {
+                                    lower.rotation.x = s < 0 ? -s * 1.1 : 0;
+                                } else {
+                                    lower.rotation.x = s > 0 ? -s * 0.5 : 0;
+                                }
+                            }
+                        });
+                    }
+                } else if (npc.state === 'looking') {
+                    // Resetear postura al estar quieto
+                    npc.mesh.children.forEach(c => {
+                        if (["armL", "armR", "legL", "legR"].includes(c.name)) {
+                            if (c.children[0]) {
+                                c.children[0].rotation.x = 0;
+                                if (c.children[0].children[1]) c.children[0].children[1].rotation.x = 0;
+                            }
+                        }
+                        if (["torso", "neck", "head", "hair", "eyes"].includes(c.name)) {
+                             const bases = { torso: 1.15, neck: 1.48, head: 1.68, hair: 1.75, eyes: 1.72 };
+                             c.position.y = bases[c.name];
+                        }
+                    });
+                    if (now > npc.timer) {
+                        npc.state = 'walking';
+                        npc.intermediateTarget = null;
+                        const changeFloor = Math.random() > 0.85;
+                        const nextY = changeFloor ? (npc.mesh.position.y > 3 ? 0 : 5.4) : npc.mesh.position.y;
+                        const pos = getValidNPCPosition(nextY);
+                        npc.target.set(pos.x, pos.y, pos.z);
+                    }
+                }
+
+                // --- 3. ACTUALIZAR ETIQUETAS ---
+                const tempVec = npc.mesh.position.clone();
+                tempVec.y += 2.2;
+                tempVec.project(camera);
+                const x = (tempVec.x * 0.5 + 0.5) * window.innerWidth;
+                const y = (tempVec.y * -0.5 + 0.5) * window.innerHeight;
+                npc.label.style.transform = `translate(-50%, -50%) translate(${x}px, ${y}px)`;
+                
+                const distToCam = camera.position.distanceTo(npc.mesh.position);
+                npc.label.style.display = (tempVec.z > 1 || Math.abs(tempVec.x) > 1 || Math.abs(tempVec.y) > 1 || distToCam > 35) ? 'none' : 'block';
+
+                // --- 4. SEGURIDAD: GRAVEDAD Y SUELO ---
+                if (!onEscalator) {
+                    const inAtrium = Math.abs(npc.mesh.position.x) < 11 && Math.abs(npc.mesh.position.z) < 11;
+                    const isPA = npc.mesh.position.y > 2.7;
+                    const groundY = isPA ? 5.4 : 0;
+                    
+                    if (isPA && inAtrium) {
+                        npc.mesh.position.y -= 0.2; // Ca├¡da libre si logran saltar la barandilla o aparecen en el aire
+                        if (npc.mesh.position.y < 0) npc.mesh.position.y = 0;
+                    } else {
+                        // Snap suave al suelo para evitar que floten por errores de precisi├│n decimal
+                        npc.mesh.position.y = THREE.MathUtils.lerp(npc.mesh.position.y, groundY, 0.1);
+                    }
+                }
+            });
+        }
+
+        initNPCs();
+
+        // --- V├ìNCULOS DE CIERRE (M├ëTODO ROBUSTO) ---
+        function closeModal() {
+            document.getElementById('modal-overlay').style.display = 'none';
+            document.getElementById('store-modal').style.display = 'none';
+            document.getElementById('search-modal').style.display = 'none';
+        }
+        window.closeModal = closeModal;
+
+        document.getElementById('modal-close-btn-fixed').addEventListener('click', closeModal);
+        document.getElementById('modal-overlay').addEventListener('click', closeModal);
+        document.getElementById('search-close-btn').addEventListener('click', closeModal);
+
+        // --- INICIALIZACI├ôN ---
+        precalculateInventory();
+        animate();
+
+        setTimeout(() => { if (document.getElementById('loader')) document.getElementById('loader').remove(); }, 1500);
+    

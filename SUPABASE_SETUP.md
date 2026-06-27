@@ -1,76 +1,149 @@
-# Configuración de Base de Datos (Supabase)
+# Supabase Setup - Mall Emprendimientos
 
-Para habilitar el modelo multi-tienda del "Mall de Emprendimientos", debes ejecutar los siguientes comandos SQL en el editor de consultas (SQL Editor) de tu dashboard de Supabase.
+Este proyecto usa Supabase para:
 
-## 1. Crear Tabla de Tiendas (Stores)
-Esta tabla almacenará la configuración individual de cada emprendedora.
+- cuentas de visitantes inscritos y locatarios;
+- postulaciones de locatarios;
+- asignacion de locales;
+- tarifas, historial de arriendos, pagos y observaciones administrativas;
+- productos, logos e imagenes publicas;
+- mensajes de contacto por local;
+- presencia/chat en el mall.
 
-```sql
-CREATE TABLE IF NOT EXISTS stores (
-    id UUID PRIMARY KEY DEFAULT auth.uid(),
-    slug TEXT UNIQUE NOT NULL,
-    name TEXT NOT NULL,
-    whatsapp TEXT,
-    primary_color TEXT DEFAULT '#c9a66b',
-    checkout_mode TEXT DEFAULT 'whatsapp', -- 'whatsapp' o 'mercadopago'
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
+## Archivo Principal
 
--- Habilitar RLS (Row Level Security)
-ALTER TABLE stores ENABLE ROW LEVEL SECURITY;
-
--- Permitir lectura pública de las tiendas
-CREATE POLICY "Permitir lectura pública de tiendas" ON stores
-FOR SELECT USING (true);
-
--- Permitir que cada dueña edite su propia tienda
-CREATE POLICY "Duenas pueden editar su propia tienda" ON stores
-FOR UPDATE USING (auth.uid() = id);
-```
-
-## 2. Modificar Tablas Existentes para Multi-Tenancy
-
-Ejecuta estos comandos para vincular el contenido actual a las tiendas.
+Ejecuta este archivo en el SQL Editor de Supabase:
 
 ```sql
--- Añadir columna store_id a site_content
-ALTER TABLE site_content ADD COLUMN IF NOT EXISTS store_id TEXT;
-
--- Añadir columna store_id a quotations
-ALTER TABLE quotations ADD COLUMN IF NOT EXISTS store_id TEXT;
-
--- Añadir columna store_id a contact_messages
-ALTER TABLE contact_messages ADD COLUMN IF NOT EXISTS store_id TEXT;
-
--- (Opcional) Si deseas usar UUIDs y FKs reales para mayor seguridad:
--- ALTER TABLE site_content ADD COLUMN store_id UUID REFERENCES stores(id);
+supabase/mall_current_setup.sql
 ```
 
-## 3. Poblar Tienda por Defecto (Migración)
-Para asegurar que tu tienda actual de "MR Confecciones" siga funcionando:
+Ese archivo es la fuente de verdad actual. Es idempotente: se puede ejecutar mas de una vez para alinear tablas, columnas, RLS, grants y politicas de Storage.
 
-```sql
-INSERT INTO stores (slug, name, whatsapp, primary_color, checkout_mode)
-VALUES ('mr_confecciones', 'MR Confecciones', '56998745436', '#b05d3c', 'mercadopago')
-ON CONFLICT (slug) DO NOTHING;
+## Orden Recomendado
 
--- Vincular contenido existente a la tienda por defecto
-UPDATE site_content SET store_id = 'mr_confecciones' WHERE store_id IS NULL;
-UPDATE quotations SET store_id = 'mr_confecciones' WHERE store_id IS NULL;
-UPDATE contact_messages SET store_id = 'mr_confecciones' WHERE store_id IS NULL;
+1. Abre Supabase Dashboard.
+2. Ve a `SQL Editor`.
+3. Ejecuta completo `supabase/mall_current_setup.sql`.
+4. Revisa que el usuario administrador `alanmauri4815@gmail.com` exista en Authentication.
+5. Si ese usuario fue creado despues de ejecutar el SQL, vuelve a ejecutar el archivo para sembrar su rol `admin`.
+
+## Modelo Actual
+
+La regla de datos del mall queda asi:
+
+- `stores.local_code`: codigo visible del mall, por ejemplo `O101`, `N204`.
+- `stores.id`: identificador interno heredado o estable.
+- `store_products.local_code`: vincula productos con el local visible.
+- `storage.objects.name`: debe comenzar con la carpeta del local, por ejemplo `O101/logo-...webp`.
+
+El codigo frontend tolera bases antiguas que todavia usan `stores.id` como codigo real, pero el modelo objetivo es `local_code`.
+
+El setup tambien repara datos heredados importantes:
+
+- rellena `stores.local_code` desde `stores.id` cuando falta;
+- rellena `stores.contact_email` desde el usuario Auth asignado al local;
+- vincula `tenant_applications.applicant_auth_user_id` usando el email del usuario Auth;
+- conserva el rol `admin` del administrador aunque tambien tenga locales asignados.
+
+## Tablas Administrativas Nuevas
+
+El setup maestro tambien crea estas tablas para gestion administrativa de locatarios:
+
+- `store_rent_rates`: tabla maestra de tarifas por local.
+- `tenant_leases`: historial de arriendos por local y locatario.
+- `tenant_payments`: registro de pagos, vencimientos, montos y referencias.
+- `tenant_notes`: observaciones internas o visibles para el locatario.
+
+Regla de acceso:
+
+- el administrador del mall puede leer y escribir todo;
+- el locatario solo puede leer sus propios arriendos, pagos y notas visibles para el;
+- las tarifas del local quedan visibles para el dueño actual del local.
+
+## Archivos SQL Antiguos
+
+Estos archivos quedan como compatibilidad o referencia historica:
+
+- `supabase/admin_enable_current_schema.sql`
+- `supabase/store_products_local_code_fix.sql`
+- `supabase/store_assets_storage.sql`
+- `supabase/admin_delete_accounts.sql`
+- `supabase/mall_access_schema.sql`
+
+Para una instalacion o reparacion normal, usa primero `supabase/mall_current_setup.sql`.
+
+## Importante
+
+Los cambios en archivos locales no modifican Supabase remoto automaticamente. Cada cambio SQL debe ejecutarse en el dashboard o mediante CLI autenticada.
+
+Desde abril de 2026, los proyectos nuevos de Supabase pueden no exponer tablas nuevas al Data API automaticamente. Por eso el setup maestro incluye `GRANT` explicitos ademas de RLS.
+
+## Telegram
+
+El proyecto ya incluye una base para notificaciones por Telegram:
+
+- columnas de Telegram en `stores`
+- tabla `mall_messages`
+- Edge Function en `supabase/functions/telegram-bot/index.ts`
+
+Para activarlo:
+
+1. Ejecuta de nuevo `supabase/mall_current_setup.sql`.
+2. Crea un bot con `@BotFather` y guarda:
+   - `TELEGRAM_BOT_TOKEN`
+   - el username publico del bot
+3. Define en la Edge Function estas variables:
+   - `SUPABASE_URL`
+   - `SUPABASE_SERVICE_ROLE_KEY`
+   - `TELEGRAM_BOT_TOKEN`
+   - `TELEGRAM_WEBHOOK_SECRET`
+   - `MALL_ALLOWED_ORIGIN` con `https://mall-virtual-one-ten.vercel.app`
+   - `MALL_INTERNAL_NOTIFY_SECRET` solo si vas a disparar notificaciones desde un backend propio, nunca desde el frontend
+4. Despliega la function sin verificacion JWT:
+
+```bash
+supabase functions deploy telegram-bot --no-verify-jwt
 ```
 
-## 4. Políticas de Seguridad (RLS)
-Actualiza las políticas de `site_content` para que las emprendedoras solo puedan editar lo suyo.
+5. Configura el webhook de Telegram apuntando a la function y usando el mismo `TELEGRAM_WEBHOOK_SECRET` como `secret_token`:
 
-```sql
-ALTER TABLE site_content ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Lectura pública de contenido" ON site_content
-FOR SELECT USING (true);
-
--- Asumiendo que el store_id coincide con el slug y hay una lógica de permisos
--- Para simplificar el MVP, puedes dejar la política de inserción/actualización abierta a admins autenticados
-CREATE POLICY "Admins pueden editar contenido" ON site_content
-FOR ALL USING (auth.role() = 'authenticated');
+```text
+https://<project-ref>.functions.supabase.co/telegram-bot
 ```
+
+6. Configura el disparo automatico de mensajes desde Supabase, no desde el navegador:
+   - Opcion recomendada por Dashboard: Database Webhooks.
+   - Tabla/evento: `public.mall_messages` / `INSERT`.
+   - URL: `https://<project-ref>.functions.supabase.co/telegram-bot`.
+   - Metodo: `POST`.
+   - Header: `Content-Type: application/json`.
+   - Header: `x-mall-notify-secret: <MALL_INTERNAL_NOTIFY_SECRET>`.
+   - Repite lo mismo para `public.contact_messages` / `INSERT` si quieres cubrir el fallback antiguo.
+
+   Tambien puedes usar la plantilla:
+
+```text
+supabase/telegram_message_webhook_20260603.sql
+```
+
+   Antes de ejecutarla, reemplaza los placeholders y no guardes el secreto real en git.
+
+7. En el frontend, reemplaza la constante `TELEGRAM_BOT_USERNAME` en [index.html](C:/Users/javii/Downloads/Web Tienda Virtual/index.html:5600) por el username real del bot.
+
+Flujo final:
+
+- el locatario activa Telegram en su panel
+- abre el bot con su enlace
+- el bot valida el local con `/start`
+- cuando un visitante deja un mensaje, el sistema guarda el registro
+- para disparar avisos automáticos a Telegram, usa un backend seguro o trigger controlado que envie `x-mall-notify-secret`; no expongas ese secreto en JavaScript del navegador
+
+## Nota actualizada de Telegram - 2026-06-03
+
+Para avisos automaticos de mensajes:
+
+- Supabase debe disparar un Database Webhook con `x-mall-notify-secret`.
+- La Edge Function `telegram-bot` valida ese secreto y envia el aviso a Telegram.
+- No expongas `MALL_INTERNAL_NOTIFY_SECRET` en JavaScript del navegador.
+- Usa `supabase/telegram_message_webhook_20260603.sql` como plantilla si prefieres configurarlo desde SQL Editor.
