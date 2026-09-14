@@ -7277,7 +7277,7 @@
                     if (!id || id === myPresenceId || (!pData.playerId && pData.user === myNickname)) return;
                     const displayName = String(pData.nickname || pData.user || "Visitante");
                     const remoteStyle = pData.style || "1";
-                    if (!otherPlayers[id]) otherPlayers[id] = createAvatar(id, displayName, remoteStyle);
+            if (!otherPlayers[id]) otherPlayers[id] = createProceduralAvatar(displayName, remoteStyle);
                     else updateRemoteAvatarStyle(otherPlayers[id], remoteStyle);
                     const p = otherPlayers[id];
                     updateRemotePlayerIdentity(p, displayName);
@@ -8303,7 +8303,7 @@
                 let remoteStyle = "1";
                 if (presence.style) remoteStyle = presence.style;
                 const displayName = String(presence.nickname || id);
-                if (!otherPlayers[id]) otherPlayers[id] = createAvatar(id, displayName, remoteStyle);
+                if (!otherPlayers[id]) otherPlayers[id] = createProceduralAvatar(displayName, remoteStyle);
                 else updateRemoteAvatarStyle(otherPlayers[id], remoteStyle);
                 updateRemotePlayerIdentity(otherPlayers[id], displayName);
             });

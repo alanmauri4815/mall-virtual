@@ -344,7 +344,7 @@
         const ESCALATOR_RIDE_Y_BOTTOM = 0.1;
         const ESCALATOR_RIDE_Y_TOP = 5.4;
         // Calibrated to the eye line of the Blender avatar, not its chest.
-        const PLAYER_EYE_HEIGHT = 1.85;
+        const PLAYER_EYE_HEIGHT = 1.7;
         const AVATAR_FLOOR_OFFSET = 0.115;
         const getAvatarGroundY = (floorY) => floorY + AVATAR_FLOOR_OFFSET;
 
@@ -6141,7 +6141,6 @@ const nose = new THREE.Mesh(new THREE.SphereGeometry(0.022, 10, 8), skinMat);
 nose.position.set(0, 1.96, 0.235);
 assistantFallback.add(nose);
 assistant.add(assistantFallback);
-loadMallInformationAssistantAvatar(assistant, assistantFallback);
 module.add(assistant);
 
             assistant.traverse((child) => {
