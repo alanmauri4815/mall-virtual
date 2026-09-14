@@ -2,7 +2,7 @@
         let supabaseClient = null;
         let currentEscalatorState = null;
         let escalatorExitCooldown = null;
-        let avatarLabelMode = 'far';
+        let avatarLabelMode = 'near';
         const AVATAR_LABEL_NEAR_DISTANCE = 18;
         const AVATAR_LABEL_FAR_DISTANCE = 40;
         const AVATAR_LABEL_NPC_FAR_DISTANCE = 35;
@@ -38,6 +38,7 @@
                 SUPABASE_URL,
                 SUPABASE_PUBLISHABLE_KEY
             );
+            window.mallSupabaseClient = supabaseClient;
         } catch(e) { console.error("Error inicializando Supabase:", e); }
 
         const TELEGRAM_BOT_USERNAME = 'Mall_Emprendimiento_bot';

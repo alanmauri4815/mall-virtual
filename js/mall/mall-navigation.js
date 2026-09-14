@@ -89,27 +89,45 @@
             event.target.dispatchEvent(invertedEvent);
         }, true);
 
-        canvasContainer.addEventListener('pointerdown', (event) => {
-            if (event.target.closest && event.target.closest('input, textarea, button, select, a, label')) return;
-            ensureWalkModeActive();
-            focusMallCanvas();
-        });
-        setInterval(() => {
-            ensureWalkModeActive();
-            if (!shouldForceWalkMode()) return;
-            focusMallCanvas();
-        }, 1200);
+        const startWalkModeMaintenance = () => {
+            canvasContainer.addEventListener('pointerdown', (event) => {
+                if (event.target.closest && event.target.closest('input, textarea, button, select, a, label')) return;
+                ensureWalkModeActive();
+                focusMallCanvas();
+            });
+            setInterval(() => {
+                ensureWalkModeActive();
+                if (!shouldForceWalkMode()) return;
+                focusMallCanvas();
+            }, 1200);
+        };
+        // mall-ui declares entry state in a later deferred script.
+        if (document.readyState === 'complete') startWalkModeMaintenance();
+        else document.addEventListener('DOMContentLoaded', startWalkModeMaintenance, { once: true });
 
         // --- LÓGICA DE JOYSTICK VIRTUAL ---
         let joystickActive = false;
         let joystickDir = { x: 0, y: 0 };
+        let joystickTouchId = null;
+        let joystickPointerId = null;
         const joyZone = document.getElementById('joystick-zone');
         const joyKnob = document.getElementById('joystick-knob');
+        window.mallMobileControls?.bind();
+
+        function getJoystickTouch(e) {
+            if (!e.touches) return e;
+            if (joystickTouchId === null) return e.touches[0];
+            for (let i = 0; i < e.touches.length; i++) {
+                if (e.touches[i].identifier === joystickTouchId) return e.touches[i];
+            }
+            return null;
+        }
 
         function handleJoystick(e) {
             e.preventDefault();
             const rect = joyZone.getBoundingClientRect();
-            const touch = e.touches ? e.touches[0] : e;
+            const touch = getJoystickTouch(e);
+            if (!touch) return;
             const joyRadius = Math.max(1, Math.min(rect.width, rect.height) / 2);
             const centerX = rect.left + rect.width / 2;
             const centerY = rect.top + rect.height / 2;
@@ -128,31 +146,66 @@
         }
 
         joyZone.addEventListener('touchstart', (e) => {
+            e.stopPropagation();
+            window.mallMobileControls?.stopAutoForward();
+            if (joystickActive && joystickTouchId !== null) return;
+            joystickTouchId = e.changedTouches?.[0]?.identifier ?? e.touches?.[0]?.identifier ?? null;
             joystickActive = true;
             handleJoystick(e);
-        });
-        joyZone.addEventListener('touchmove', handleJoystick);
+        }, { passive: false });
+        joyZone.addEventListener('touchmove', (e) => {
+            e.stopPropagation();
+            handleJoystick(e);
+        }, { passive: false });
         const releaseJoystick = () => {
             joystickActive = false;
             joystickDir = { x: 0, y: 0 };
+            joystickTouchId = null;
+            joystickPointerId = null;
             joyKnob.style.transform = `translate(-50%, -50%)`;
         };
-        joyZone.addEventListener('touchend', releaseJoystick);
-        joyZone.addEventListener('touchcancel', releaseJoystick);
+        const releaseJoystickTouch = (e) => {
+            e.stopPropagation();
+            if (joystickTouchId === null) {
+                releaseJoystick();
+                return;
+            }
+            const changedTouches = e.changedTouches || [];
+            for (let i = 0; i < changedTouches.length; i++) {
+                if (changedTouches[i].identifier === joystickTouchId) {
+                    releaseJoystick();
+                    return;
+                }
+            }
+        };
+        joyZone.addEventListener('touchend', releaseJoystickTouch, { passive: false });
+        joyZone.addEventListener('touchcancel', releaseJoystickTouch, { passive: false });
         joyZone.addEventListener('pointerdown', (e) => {
             if (e.pointerType === 'touch') return;
+            e.stopPropagation();
+            window.mallMobileControls?.stopAutoForward();
             joystickActive = true;
+            joystickPointerId = e.pointerId;
             try { joyZone.setPointerCapture(e.pointerId); } catch (_) {}
             handleJoystick(e);
         });
 
         joyZone.addEventListener('pointermove', (e) => {
-            if (!joystickActive || e.pointerType === 'touch') return;
+            if (!joystickActive || e.pointerType === 'touch' || joystickPointerId !== e.pointerId) return;
+            e.stopPropagation();
             handleJoystick(e);
         });
 
-        window.addEventListener('pointerup', releaseJoystick);
-        window.addEventListener('pointercancel', releaseJoystick);
+        window.addEventListener('pointerup', (e) => {
+            if (e.pointerType === 'touch') return;
+            if (joystickPointerId !== null && e.pointerId !== joystickPointerId) return;
+            releaseJoystick();
+        });
+        window.addEventListener('pointercancel', (e) => {
+            if (e.pointerType === 'touch') return;
+            if (joystickPointerId !== null && e.pointerId !== joystickPointerId) return;
+            releaseJoystick();
+        });
 
         // Touch simulador de teclado para botones de rotación
         const bindKey = (id, key) => {
@@ -160,17 +213,19 @@
             if (!el) return;
             const pressKey = (e) => {
                 e.preventDefault();
+                e.stopPropagation();
                 keys[key] = true;
                 el.classList.add('opacity-50');
             };
             const releaseKey = (e) => {
                 e.preventDefault();
+                e.stopPropagation();
                 keys[key] = false;
                 el.classList.remove('opacity-50');
             };
-            el.addEventListener('touchstart', pressKey);
-            el.addEventListener('touchend', releaseKey);
-            el.addEventListener('touchcancel', releaseKey);
+            el.addEventListener('touchstart', pressKey, { passive: false });
+            el.addEventListener('touchend', releaseKey, { passive: false });
+            el.addEventListener('touchcancel', releaseKey, { passive: false });
             el.addEventListener('mousedown', pressKey);
             el.addEventListener('mouseup', releaseKey);
             el.addEventListener('mouseleave', releaseKey);
@@ -202,12 +257,26 @@
         const BASE_FRAME_RATE = 60;
         const MIN_NAV_DELTA = 1 / 120;
         const MAX_NAV_DELTA = 1 / 30;
-        let moveSpeed = 0.22 * BASE_FRAME_RATE;
+        let moveSpeed = MALL_PEDESTRIAN_WALK_SPEED;
         let rotSpeed = 0.035 * BASE_FRAME_RATE;
         let currentMoveVelocityX = 0;
         let currentMoveVelocityZ = 0;
         let currentYawVelocity = 0;
         let currentPitchVelocity = 0;
+
+        window.resetMallNavigationInputs = function(lockMs = 0) {
+            Object.keys(keys).forEach((key) => { keys[key] = false; });
+            releaseJoystick();
+            isBtnLookUp = false;
+            isBtnLookDown = false;
+            currentMoveVelocityX = 0;
+            currentMoveVelocityZ = 0;
+            currentYawVelocity = 0;
+            currentPitchVelocity = 0;
+            if (lockMs > 0) {
+                window.mallMovementLockedUntil = Date.now() + lockMs;
+            }
+        };
 
         function getNavigationBlend(deltaSec, responsiveness) {
             return 1 - Math.exp(-responsiveness * deltaSec);
@@ -215,8 +284,45 @@
 
         function updateKeyboardNavigation(deltaSec = 1 / BASE_FRAME_RATE) {
             deltaSec = THREE.MathUtils.clamp(deltaSec || (1 / BASE_FRAME_RATE), MIN_NAV_DELTA, MAX_NAV_DELTA);
+            const teleportHold = window.mallTeleportHoldPose;
+            if (teleportHold && window.mallTeleportHoldUntil && Date.now() < window.mallTeleportHoldUntil) {
+                Object.keys(keys).forEach((key) => { keys[key] = false; });
+                joystickActive = false;
+                joystickDir = { x: 0, y: 0 };
+                currentMoveVelocityX = 0;
+                currentMoveVelocityZ = 0;
+                currentYawVelocity = 0;
+                currentPitchVelocity = 0;
+                controls.target.set(teleportHold.tx, teleportHold.ty, teleportHold.tz);
+                camera.position.set(teleportHold.px, teleportHold.py, teleportHold.pz);
+                controls.update();
+                return;
+            } else if (teleportHold && window.mallTeleportHoldUntil && Date.now() >= window.mallTeleportHoldUntil) {
+                window.mallTeleportHoldPose = null;
+                window.mallTeleportHoldUntil = 0;
+            }
+            if (window.mallGuidedArrivalActive) {
+                Object.keys(keys).forEach((key) => { keys[key] = false; });
+                joystickActive = false;
+                joystickDir = { x: 0, y: 0 };
+                currentMoveVelocityX = 0;
+                currentMoveVelocityZ = 0;
+                currentYawVelocity = 0;
+                currentPitchVelocity = 0;
+                return;
+            }
             if (!isWalking) {
                 currentEscalatorState = null;
+                currentMoveVelocityX = 0;
+                currentMoveVelocityZ = 0;
+                currentYawVelocity = 0;
+                currentPitchVelocity = 0;
+                return;
+            }
+            if (window.mallMovementLockedUntil && Date.now() < window.mallMovementLockedUntil) {
+                Object.keys(keys).forEach((key) => { keys[key] = false; });
+                joystickActive = false;
+                joystickDir = { x: 0, y: 0 };
                 currentMoveVelocityX = 0;
                 currentMoveVelocityZ = 0;
                 currentYawVelocity = 0;
@@ -243,6 +349,11 @@
             if (joystickActive) {
                 moveInputX += walkDir.x * (-joystickDir.y) + right.x * joystickDir.x;
                 moveInputZ += walkDir.z * (-joystickDir.y) + right.z * joystickDir.x;
+            }
+
+            if (window.mallMobileControls?.isAutoForwardActive()) {
+                moveInputX += walkDir.x;
+                moveInputZ += walkDir.z;
             }
 
             if (isCtrl) {
@@ -342,6 +453,7 @@
                     controls.target.x += moveAccumX;
                 } else {
                     currentMoveVelocityX = 0;
+                    window.mallMobileControls?.stopAutoForward();
                 }
                 // Colisión eje Z (deslizamiento)
                 if (!checkCollision(camera.position.x, ny, nz, { ignoreActorId: '__local__' })) {
@@ -349,6 +461,7 @@
                     controls.target.z += moveAccumZ;
                 } else {
                     currentMoveVelocityZ = 0;
+                    window.mallMobileControls?.stopAutoForward();
                 }
                 isWalking = true;
             }

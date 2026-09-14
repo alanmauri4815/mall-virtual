@@ -113,5 +113,6 @@
                 `<div class="debug-row"><strong>Ruta:</strong> ${collectParentChain(obj)}</div>`,
                 `<div class="debug-row"><strong>userData:</strong> ${userDataKeys.length ? userDataKeys.join(", ") : "-"}</div>`
             ].join("");
+            window.mallObjectEditor?.select?.(obj);
         }
 

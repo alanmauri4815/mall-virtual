@@ -1,10 +1,16 @@
 ﻿        // --- SISTEMA DE BÚSQUEDA Y MAPAS ---
+        const mallUiScopeQuery = (query) => window.mallContext?.scopeQuery
+            ? window.mallContext.scopeQuery(query)
+            : query;
+        const mallUiScopePayload = (payload) => window.mallContext?.scopePayload
+            ? window.mallContext.scopePayload(payload)
+            : payload;
         let fullStoreInventory = [];
         window.supabaseStoresCache = null;
         async function precalculateInventory() {
             if (!supabaseClient) return;
             // Optimización: Una sola petición para obtener todos los locales activos
-            const { data: allStores } = await supabaseClient.from('stores').select('*');
+            const allStores = await window.mallCatalogRequests.getStores();
             if (!allStores) return;
 
             window.supabaseStoresCache = allStores;
@@ -13,6 +19,8 @@
                 shopCode: getStoreCode(s),
                 name: s.name || "Local Disponible",
                 category: s.category || "Comercio",
+                catalogMemory: s.catalog_memory || "",
+                description: s.catalog_memory || "",
                 products: [] // Los productos se cargarán on-demand o al filtrar si es necesario
             }));
 
@@ -89,14 +97,1342 @@
         window.openSearch = function () { document.getElementById('search-modal').style.display = 'block'; document.getElementById('modal-overlay').style.display = 'block'; };
         document.getElementById('search-close-btn').onclick = () => { document.getElementById('search-modal').style.display = 'none'; document.getElementById('modal-overlay').style.display = 'none'; };
 
+        let selectedSearchStoreCode = "";
+        let searchProductsLoaded = false;
+        const SEARCH_STOP_WORDS = new Set([
+            "aqui", "para", "por", "con", "sin", "del", "las", "los", "una", "uno", "unos", "unas",
+            "que", "como", "donde", "local", "producto", "productos", "tienda", "busco", "buscar",
+            "quiero", "necesito", "hay", "tiene", "tienen", "algo", "todo", "toda", "todos", "todas",
+            "mas", "muy", "este", "esta", "estos", "estas", "ese", "esa", "esos", "esas"
+        ]);
+
+        function normalizeSearchText(value = "") {
+            return String(value || "")
+                .toLowerCase()
+                .normalize("NFD")
+                .replace(/[\u0300-\u036f]/g, "")
+                .replace(/[^a-z0-9]+/g, " ")
+                .trim();
+        }
+
+        function getSearchCodeCandidates(code = "") {
+            const raw = String(code || "").trim();
+            if (!raw) return [];
+            const compact = raw.replace(/-/g, "");
+            const hyphenated = compact.replace(/^([A-Z]+)(\d+)$/i, "$1-$2").toUpperCase();
+            return [...new Set([raw, raw.toUpperCase(), compact, compact.toUpperCase(), hyphenated].filter(Boolean))];
+        }
+
+        function extractSearchTerms(value = "") {
+            return normalizeSearchText(value)
+                .split(" ")
+                .filter(term => term && (term.length >= 3 || /\d/.test(term)) && !SEARCH_STOP_WORDS.has(term))
+                .slice(0, 8);
+        }
+
+        function compactSearchText(value = "") {
+            return normalizeSearchText(value).replace(/\s+/g, "");
+        }
+
+        function extractHashKeywords(...values) {
+            const found = [];
+            values.filter(Boolean).forEach(value => {
+                String(value).replace(/#([A-Za-zÁÉÍÓÚÜÑáéíóúüñ0-9_-]{2,40})/g, (_match, tag) => {
+                    const normalized = normalizeSearchText(tag);
+                    if (normalized) found.push(normalized);
+                    return _match;
+                });
+            });
+            return [...new Set(found)];
+        }
+
+        function getKeywordText(source = {}) {
+            const rawTags = Array.isArray(source.tags) ? source.tags.join(" ") : source.tags;
+            return [
+                source.search_keywords,
+                source.keywords,
+                source.keyword_tags,
+                rawTags
+            ].filter(Boolean).join(" ");
+        }
+
+        function matchesEveryTerm(text, terms) {
+            if (!terms.length) return false;
+            const normalized = normalizeSearchText(text);
+            return terms.every(term => normalized.includes(term));
+        }
+
+        function clampMapCoord(value, min = 6, max = 94) {
+            return Math.max(min, Math.min(max, value));
+        }
+
+        function productName(product) {
+            return product?.name || product?.n || "Producto";
+        }
+
+        function productSearchText(product) {
+            return normalizeSearchText([
+                product?.name,
+                product?.n,
+                product?.description,
+                product?.category,
+                getKeywordText(product),
+                extractHashKeywords(product?.description, getKeywordText(product)).join(" "),
+                product?.price,
+                product?.p
+            ].filter(Boolean).join(" "));
+        }
+
+        function syncStoreSearchText(store) {
+            store.searchText = normalizeSearchText([
+                store.shopCode,
+                store.name,
+                store.category,
+                store.description,
+                store.catalogMemory,
+                store.keywords,
+                store.hashKeywords?.join(" "),
+                (store.products || []).map(product => `${productName(product)} ${product?.description || ""}`).join(" ")
+            ].join(" "));
+        }
+
+        async function loadSearchProductsForStores() {
+            if (searchProductsLoaded || !supabaseClient || !fullStoreInventory.length) return;
+            searchProductsLoaded = true;
+
+            try {
+                if (typeof window.preloadAllProducts === 'function') {
+                    await window.preloadAllProducts();
+                }
+
+                if (!window.storeProductsCache) return;
+                fullStoreInventory.forEach(store => {
+                    const productKeys = [
+                        store.storeId,
+                        store.shopCode,
+                        ...getSearchCodeCandidates(store.shopCode),
+                        ...getSearchCodeCandidates(store.storeId)
+                    ].filter(Boolean);
+
+                    for (const key of productKeys) {
+                        const cached = window.storeProductsCache.get(key) || window.storeProductsCache.get(String(key).toLowerCase());
+                        if (cached && cached.length) {
+                            store.products = cached;
+                            break;
+                        }
+                    }
+                    syncStoreSearchText(store);
+                });
+            } catch (err) {
+                console.warn("[Search] No se pudieron cargar productos para el tótem:", err);
+            }
+        }
+
+        async function rebuildTotemSearchInventory() {
+            if (!supabaseClient) return;
+            try {
+                const { data: allStores, error } = await mallUiScopeQuery(supabaseClient.from('stores').select('*'));
+                if (error) throw error;
+                if (!allStores) return;
+
+                window.supabaseStoresCache = allStores;
+                fullStoreInventory = allStores.map(store => {
+                    const item = {
+                        storeRef: store,
+                        storeId: store.id || "",
+                        shopCode: getStoreCode(store),
+                        name: store.name || "Local Disponible",
+                        category: store.category || "Comercio",
+                        catalogMemory: store.catalog_memory || "",
+                        description: [
+                            store.description,
+                            store.public_description,
+                            store.short_description,
+                            store.bio,
+                            store.about,
+                            store.catalog_description,
+                            store.specialty,
+                            store.notes,
+                            store.catalog_memory
+                        ].filter(Boolean).join(" "),
+                        keywords: getKeywordText(store),
+                        hashKeywords: extractHashKeywords(
+                            store.description,
+                            store.public_description,
+                            store.short_description,
+                            store.bio,
+                            store.about,
+                            store.catalog_description,
+                            store.specialty,
+                            store.catalog_memory,
+                            getKeywordText(store)
+                        ),
+                        products: []
+                    };
+                    syncStoreSearchText(item);
+                    return item;
+                });
+
+                searchProductsLoaded = false;
+                await loadSearchProductsForStores();
+            } catch (err) {
+                console.warn("[Search] No se pudo preparar el inventario de búsqueda:", err);
+            }
+        }
+        window.refreshTotemSearchInventory = rebuildTotemSearchInventory;
+        rebuildTotemSearchInventory();
+
+        function getCurrentUserMapLocation() {
+            if (typeof camera === "undefined" || !camera?.position) {
+                return { x: 50, y: 50, floor: 1, label: "Ubicación actual: no disponible todavía" };
+            }
+            const floor = camera.position.y > 3 ? 2 : 1;
+            return {
+                x: clampMapCoord(50 - (camera.position.x / 90) * 40),
+                y: clampMapCoord(50 - (camera.position.z / 90) * 40),
+                floor,
+                label: `Ubicación actual: Planta ${floor}, X ${camera.position.x.toFixed(1)}, Z ${camera.position.z.toFixed(1)}`
+            };
+        }
+
+        const PLAN_STORE_MAP = {
+            N101: [42, 18], N103: [42, 24], N105: [42, 32], N107: [42, 38], N01: [42, 44], NO1: [42, 44], NO10: [42, 44],
+            N102: [58, 18], N104: [58, 24], N106: [58, 32], N108: [58, 38], EN1: [58, 44], EN10: [58, 44],
+            S108: [42, 62], S106: [42, 68], S104: [42, 76], S102: [42, 82], OS1: [42, 56], OS10: [42, 56],
+            SE1: [58, 56], SE10: [58, 56], S107: [58, 62], S105: [58, 68], S103: [58, 76], S101: [58, 82],
+            O102: [20, 42], O104: [27, 42], O105: [34, 42], O108: [39, 42],
+            O101: [20, 58], O103: [27, 58], O107: [39, 58],
+            E107: [61, 42], E105: [68, 42], E103: [75, 42], E101: [82, 42],
+            E108: [61, 58], E106: [68, 58], E104: [75, 58], E002: [82, 58],
+
+            N201: [42, 16], N203: [42, 21], N205: [42, 27], N207: [42, 33], N209: [42, 39], NO2: [42, 45],
+            N202: [58, 16], N204: [58, 21], N206: [58, 27], N208: [58, 33], N210: [58, 39], EN2: [58, 45],
+            S210: [42, 55], S208: [42, 61], S206: [42, 67], S204: [42, 73], S202: [42, 79], OS2: [42, 49],
+            SE2: [58, 49], S209: [58, 55], S207: [58, 61], S205: [58, 67], S203: [58, 73], S201: [58, 79],
+            O202: [22, 42], O204: [28, 42], O206: [34, 42], O208: [40, 42], O210: [46, 42],
+            O201: [22, 58], O203: [28, 58], O205: [34, 58], O207: [40, 58], O209: [46, 58],
+            E209: [54, 42], E207: [60, 42], E205: [66, 42], E203: [72, 42], E201: [78, 42],
+            E210: [54, 58], E208: [60, 58], E206: [66, 58], E204: [72, 58], E202: [78, 58],
+
+            N: [50, 7], S: [50, 93], E: [93, 50], O: [7, 50]
+        };
+
+        function normalizePlanStoreCode(code = "") {
+            return String(code || "").trim().toUpperCase().replace(/-/g, "");
+        }
+
+        function getSearchSelectedStoreCode(store = {}) {
+            return String(
+                store.teleportCode ||
+                store.searchSelectedCode ||
+                store.selectedShopCode ||
+                store.shopCode ||
+                getStoreCode(store) ||
+                ""
+            ).trim();
+        }
+
+        function getGroupCodeMatchScore(group, selectedCode = "") {
+            const selectedCompact = normalizePlanStoreCode(selectedCode);
+            if (!group || !selectedCompact) return 100;
+            const meta = group.userData?.physicalSpaceMeta || {};
+            const visibleCodes = [
+                group.userData?.plateCode,
+                group.userData?.displayCode,
+                meta.displayCode,
+                group.userData?.shopCode
+            ].map(normalizePlanStoreCode).filter(Boolean);
+            if (visibleCodes.includes(selectedCompact)) return 0;
+            return 10;
+        }
+
+        function getPlanWingLabel(compactCode = "") {
+            const corner = compactCode.match(/^(NO|EN|OS|SE)/);
+            return corner ? corner[1] : compactCode.charAt(0);
+        }
+
+        function getStoreMapLocation(store) {
+            const code = getSearchSelectedStoreCode(store).toUpperCase();
+            const compact = normalizePlanStoreCode(code);
+            const planPoint = PLAN_STORE_MAP[compact];
+            const wing = getPlanWingLabel(compact);
+            const numeric = parseInt(compact.replace(/^[A-Z]+/, ""), 10);
+            const floor = /2\d\d/.test(compact) ? 2 : 1;
+            if (planPoint) {
+                return { x: planPoint[0], y: planPoint[1], floor, wing, code };
+            }
+            const slot = Number.isFinite(numeric) ? Math.max(1, Math.min(10, numeric % 100 || 10)) : 5;
+            const along = 14 + ((slot - 1) / 9) * 72;
+            let x = 50;
+            let y = 50;
+
+            if (compact.length <= 2) {
+                if (wing === "N") y = 7;
+                else if (wing === "S") y = 93;
+                else if (wing === "E") x = 7;
+                else if (wing === "O") x = 93;
+            } else if (wing === "N") {
+                x = along; y = 20;
+            } else if (wing === "S") {
+                x = along; y = 80;
+            } else if (wing === "E") {
+                x = 80; y = along;
+            } else if (wing === "O") {
+                x = 20; y = along;
+            }
+
+            return { x: clampMapCoord(x), y: clampMapCoord(y), floor, wing, code };
+        }
+
+        function clearSvgGroup(id) {
+            const group = document.getElementById(id);
+            if (group) group.innerHTML = "";
+            return group;
+        }
+
+        function drawMapMarker(groupId, location, color, label) {
+            const group = clearSvgGroup(groupId);
+            if (!group) return;
+
+            const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+            circle.setAttribute("cx", location.x);
+            circle.setAttribute("cy", location.y);
+            circle.setAttribute("r", 3.6);
+            circle.setAttribute("fill", color);
+            circle.setAttribute("stroke", "#ffffff");
+            circle.setAttribute("stroke-width", "1.2");
+            group.appendChild(circle);
+
+            const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+            text.setAttribute("x", clampMapCoord(location.x + 4, 8, 88));
+            text.setAttribute("y", clampMapCoord(location.y - 4, 8, 96));
+            text.setAttribute("fill", color);
+            text.setAttribute("font-size", "4");
+            text.setAttribute("font-weight", "700");
+            text.textContent = label;
+            group.appendChild(text);
+        }
+
+        function drawRouteOnMap(userLocation, targetLocation) {
+            const group = clearSvgGroup("map-route-path");
+            if (!group) return;
+
+            const route = document.createElementNS("http://www.w3.org/2000/svg", "polyline");
+            route.setAttribute("points", `${userLocation.x},${userLocation.y} ${targetLocation.x},${userLocation.y} ${targetLocation.x},${targetLocation.y}`);
+            route.setAttribute("fill", "none");
+            route.setAttribute("stroke", "#c5a059");
+            route.setAttribute("stroke-width", "2.2");
+            route.setAttribute("stroke-linecap", "round");
+            route.setAttribute("stroke-linejoin", "round");
+            route.setAttribute("stroke-dasharray", "3 2");
+            group.appendChild(route);
+        }
+
+        let activeCompactRouteStore = null;
+
+        function drawCompactRouteMarker(groupId, location, color, label) {
+            const group = clearSvgGroup(groupId);
+            if (!group) return;
+            const marker = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+            marker.setAttribute("cx", location.x);
+            marker.setAttribute("cy", location.y);
+            marker.setAttribute("r", 3.4);
+            marker.setAttribute("fill", color);
+            marker.setAttribute("stroke", "#ffffff");
+            marker.setAttribute("stroke-width", "1.1");
+            group.appendChild(marker);
+            const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+            text.setAttribute("x", clampMapCoord(location.x + 4, 8, 88));
+            text.setAttribute("y", clampMapCoord(location.y - 4, 8, 96));
+            text.setAttribute("fill", color);
+            text.setAttribute("font-size", "4");
+            text.setAttribute("font-weight", "700");
+            text.textContent = label;
+            group.appendChild(text);
+        }
+
+        function showCompactRouteMap(store, userLocation, targetLocation, selectedCode) {
+            if (!window.matchMedia('(min-width: 701px)').matches) return false;
+            const card = document.getElementById('compact-route-map');
+            const title = document.getElementById('compact-route-map-title');
+            const floor = document.getElementById('compact-route-map-floor');
+            const copy = document.getElementById('compact-route-map-copy');
+            const routeGroup = clearSvgGroup('compact-route-path');
+            const teleport = document.getElementById('compact-route-map-teleport');
+            if (!card || !title || !floor || !copy || !routeGroup || !teleport) return false;
+
+            const route = document.createElementNS("http://www.w3.org/2000/svg", "polyline");
+            route.setAttribute("points", `${userLocation.x},${userLocation.y} ${targetLocation.x},${userLocation.y} ${targetLocation.x},${targetLocation.y}`);
+            route.setAttribute("fill", "none");
+            route.setAttribute("stroke", "#d7b25f");
+            route.setAttribute("stroke-width", "2.2");
+            route.setAttribute("stroke-linecap", "round");
+            route.setAttribute("stroke-linejoin", "round");
+            route.setAttribute("stroke-dasharray", "3 2");
+            routeGroup.appendChild(route);
+            drawCompactRouteMarker('compact-route-user', userLocation, '#48a6ed', 'Tú');
+            drawCompactRouteMarker('compact-route-target', targetLocation, '#e46957', selectedCode || 'Local');
+
+            title.textContent = store?.name || `Local ${selectedCode}`;
+            floor.textContent = `Planta ${targetLocation.floor} · Ala ${targetLocation.wing || '-'}`;
+            copy.textContent = `Sigue la ruta hacia ${selectedCode || targetLocation.code}.`;
+            activeCompactRouteStore = store;
+            teleport.hidden = !hasMemberBenefitAccess();
+            card.hidden = false;
+            return true;
+        }
+
+        window.closeCompactRouteMap = function () {
+            const card = document.getElementById('compact-route-map');
+            if (card) card.hidden = true;
+            activeCompactRouteStore = null;
+        };
+
+        window.teleportFromCompactRoute = function () {
+            if (!activeCompactRouteStore) return;
+            if (!hasMemberBenefitAccess()) {
+                window.showMemberBenefitRequired('el teletransporte desde el mapa');
+                return;
+            }
+            window.mallAnalytics?.track('route_requested', {
+                storeCode: getSearchSelectedStoreCode(activeCompactRouteStore),
+                source: 'compact_map'
+            });
+            window.teleportVisitorToSearchStore(activeCompactRouteStore);
+            window.closeCompactRouteMap();
+        };
+
+        function refreshSearchUserLocation() {
+            const userLocation = getCurrentUserMapLocation();
+            const userLocationText = document.getElementById("user-location-text");
+            if (userLocationText) userLocationText.textContent = userLocation.label;
+            drawMapMarker("map-user-pos", userLocation, "#1f7ae0", "Tú");
+            return userLocation;
+        }
+
+        function getStoreGroupsForTeleport(code = "") {
+            const groups = [];
+            const addGroup = (group) => {
+                if (group && !groups.includes(group)) groups.push(group);
+            };
+            getSearchCodeCandidates(code).forEach((candidate) => {
+                if (typeof getStoreGroupCollection === "function") {
+                    getStoreGroupCollection(candidate).forEach(addGroup);
+                }
+                if (typeof storeGroups !== "undefined") addGroup(storeGroups[candidate]);
+            });
+            return groups;
+        }
+
+        function getTeleportFloorY(floor = 1) {
+            return floor === 2 ? 5.5 : 0;
+        }
+
+        function getTeleportGroundY(floor = 1) {
+            return floor === 2 ? 5.4 : 0.1;
+        }
+
+        function alignTeleportCandidateToFloor(candidate, floor = 1, targetHeight = 3.05) {
+            if (!candidate?.position || !candidate?.target) return candidate;
+            const eyeHeight = typeof PLAYER_EYE_HEIGHT !== "undefined" ? PLAYER_EYE_HEIGHT : 1.7;
+            const groundY = getTeleportGroundY(floor);
+            candidate.position.y = groundY + eyeHeight;
+            candidate.target.y = groundY + targetHeight;
+            return candidate;
+        }
+
+        function getTeleportValidationFloor(position) {
+            const y = Number(position?.y);
+            if (!Number.isFinite(y)) return 1;
+            return y >= 5 ? 2 : 1;
+        }
+
+        function getTeleportClearanceChecks(position) {
+            const floor = getTeleportValidationFloor(position);
+            const clearance = floor === 2 ? 0.28 : 0.45;
+            return [
+                [0, 0],
+                [clearance, 0],
+                [-clearance, 0],
+                [0, clearance],
+                [0, -clearance]
+            ];
+        }
+
+        function getTeleportCollisionRadius(position) {
+            return getTeleportValidationFloor(position) === 2 ? 0.24 : 0.4;
+        }
+
+        function isInSecondFloorArrivalEnvelope(position) {
+            if (getTeleportValidationFloor(position) !== 2) return false;
+            const x = Number(position?.x);
+            const z = Number(position?.z);
+            if (!Number.isFinite(x) || !Number.isFinite(z)) return false;
+
+            const absX = Math.abs(x);
+            const absZ = Math.abs(z);
+            const outerLimit = 96;
+            const innerArmHalfWidth = 17.5;
+
+            if (absX > outerLimit || absZ > outerLimit) return false;
+
+            const northSouthArm = absX <= innerArmHalfWidth && absZ >= 9 && absZ <= outerLimit;
+            const eastWestArm = absZ <= innerArmHalfWidth && absX >= 9 && absX <= outerLimit;
+            const centralRing = absX <= innerArmHalfWidth && absZ <= innerArmHalfWidth;
+            return northSouthArm || eastWestArm || centralRing;
+        }
+
+        function isWalkableTeleportPosition(position) {
+            if (!position) return false;
+            if (typeof checkCollision !== "function") return true;
+            if (isInSecondFloorArrivalEnvelope(position)) {
+                return true;
+            }
+            const clearanceChecks = getTeleportClearanceChecks(position);
+            const collisionRadius = getTeleportCollisionRadius(position);
+            return clearanceChecks.every(([dx, dz]) => (
+                !checkCollision(position.x + dx, position.y, position.z + dz, {
+                    ignoreActorId: "__local__",
+                    includeActors: false,
+                    collisionRadius
+                })
+            ));
+        }
+
+        function makeStorefrontTeleportCandidate(group, localX, localZ, targetLocalZ, targetLocalY = null) {
+            const eyeHeight = typeof PLAYER_EYE_HEIGHT !== "undefined" ? PLAYER_EYE_HEIGHT : 1.7;
+            const localPosition = new THREE.Vector3(localX, eyeHeight, localZ);
+            const localTarget = new THREE.Vector3(0, targetLocalY ?? (eyeHeight + 0.8), targetLocalZ);
+            return {
+                position: group.localToWorld(localPosition.clone()),
+                target: group.localToWorld(localTarget.clone())
+            };
+        }
+
+        function getTeleportGroupFloor(group) {
+            const metaFloor = Number(group?.userData?.physicalSpaceMeta?.floor);
+            if (Number.isFinite(metaFloor) && metaFloor > 0) return metaFloor;
+            const y = Number(group?.position?.y || 0);
+            return y >= 5 ? 2 : 1;
+        }
+
+        async function resolveStorefrontTeleportTarget(store) {
+            const storeCode = getSearchSelectedStoreCode(store);
+            const targetLocation = getStoreMapLocation(store);
+            const savedDestination = await resolveSavedStorefrontTeleportTarget(storeCode, targetLocation.floor);
+            if (savedDestination?.blocked) return null;
+            if (savedDestination) return savedDestination;
+
+            const targetFloorY = getTeleportFloorY(targetLocation.floor);
+            const groups = getStoreGroupsForTeleport(storeCode)
+                .filter(group => {
+                    if (!group) return false;
+                    if (group.userData?.isAnchor) return true;
+                    if (!group.userData?.isBoutique) return true;
+                    return getTeleportGroupFloor(group) === targetLocation.floor;
+                })
+                .sort((a, b) => {
+                    const aCodeScore = getGroupCodeMatchScore(a, storeCode);
+                    const bCodeScore = getGroupCodeMatchScore(b, storeCode);
+                    if (aCodeScore !== bCodeScore) return aCodeScore - bCodeScore;
+                    const aFloorDelta = Math.abs((a?.position?.y || 0) - targetFloorY);
+                    const bFloorDelta = Math.abs((b?.position?.y || 0) - targetFloorY);
+                    if (aFloorDelta !== bFloorDelta) return aFloorDelta - bFloorDelta;
+                    return camera.position.distanceTo(a.getWorldPosition(new THREE.Vector3())) - camera.position.distanceTo(b.getWorldPosition(new THREE.Vector3()));
+                });
+
+            const group = groups[0];
+            if (!group) return null;
+
+            const isAnchor = !!group.userData?.isAnchor;
+            const doorFrontZ = isAnchor ? 9.05 : 9.02;
+            const outsideOffsets = isAnchor ? [4.2, 3.6, 4.8, 3.0, 5.4] : [4.0, 3.4, 4.6, 2.8, 5.2];
+            const localXOptions = isAnchor ? [0, -4.5, 4.5, -8, 8] : [0, -1.2, 1.2, -2.2, 2.2];
+            const targetLocalZ = doorFrontZ;
+            const targetLocalY = isAnchor ? 2.9 : 2.65;
+
+            for (const outsideOffset of outsideOffsets) {
+                const localZ = doorFrontZ + outsideOffset;
+                for (const localX of localXOptions) {
+                    const candidate = alignTeleportCandidateToFloor(
+                        makeStorefrontTeleportCandidate(group, localX, localZ, targetLocalZ, targetLocalY),
+                        targetLocation.floor,
+                        targetLocalY
+                    );
+                    if (isWalkableTeleportPosition(candidate.position)) {
+                        window.mallLastTeleportDebug = {
+                            selectedCode: storeCode,
+                            resolvedGroupCode: group.userData?.shopCode || "",
+                            resolvedPlateCode: group.userData?.plateCode || group.userData?.physicalSpaceMeta?.displayCode || "",
+                            resolvedSourceCode: group.userData?.sourceShopCode || group.userData?.generatedShopCode || "",
+                            targetFloor: targetLocation.floor,
+                            entranceBased: true,
+                            doorFrontZ,
+                            outsideOffset,
+                            localX,
+                            localZ,
+                            worldPosition: {
+                                x: Number(candidate.position.x.toFixed(2)),
+                                y: Number(candidate.position.y.toFixed(2)),
+                                z: Number(candidate.position.z.toFixed(2))
+                            }
+                        };
+                        return { ...candidate, group };
+                    }
+                }
+            }
+
+            window.mallLastTeleportDebug = {
+                selectedCode: storeCode,
+                resolvedGroupCode: group.userData?.shopCode || "",
+                resolvedPlateCode: group.userData?.plateCode || group.userData?.physicalSpaceMeta?.displayCode || "",
+                resolvedSourceCode: group.userData?.sourceShopCode || group.userData?.generatedShopCode || "",
+                targetFloor: targetLocation.floor,
+                entranceBased: true,
+                blocked: true,
+                doorFrontZ
+            };
+            return null;
+        }
+
+        function showMagicTeleportFlash() {
+            let flash = document.getElementById("magic-teleport-flash");
+            if (!flash) {
+                flash = document.createElement("div");
+                flash.id = "magic-teleport-flash";
+                document.body.appendChild(flash);
+            }
+            flash.classList.remove("is-active");
+            void flash.offsetWidth;
+            flash.classList.add("is-active");
+        }
+
+        function resetLocalMovementInputs() {
+            if (typeof window.resetMallNavigationInputs === "function") {
+                window.resetMallNavigationInputs(900);
+                return;
+            }
+            try {
+                Object.keys(keys).forEach((key) => { keys[key] = false; });
+            } catch (_) {}
+            try {
+                currentMoveVelocityX = 0;
+                currentMoveVelocityZ = 0;
+                currentYawVelocity = 0;
+                currentPitchVelocity = 0;
+            } catch (_) {}
+        }
+
+        function getControlsTargetForLookPoint(position, lookPoint) {
+            if (!position || !lookPoint) return lookPoint;
+            const direction = lookPoint.clone().sub(position);
+            if (direction.lengthSq() < 0.000001) return lookPoint.clone();
+            direction.normalize();
+
+            const minDistance = Number.isFinite(controls?.minDistance) ? controls.minDistance : 0.01;
+            const maxDistance = Number.isFinite(controls?.maxDistance) ? controls.maxDistance : 0.05;
+            if (isWalking && maxDistance <= 0.2) {
+                const targetDistance = THREE.MathUtils.clamp(maxDistance * 0.8, minDistance + 0.005, maxDistance);
+                return position.clone().add(direction.multiplyScalar(targetDistance));
+            }
+            return lookPoint.clone();
+        }
+
+        function applyTeleportPose(destination, holdMs = 0) {
+            if (!destination?.position || !destination?.target) return;
+            const controlTarget = getControlsTargetForLookPoint(destination.position, destination.target);
+            controls.target.copy(controlTarget);
+            camera.position.copy(destination.position);
+            controls.update();
+            camera.position.copy(destination.position);
+            controls.target.copy(controlTarget);
+            if (holdMs > 0) {
+                window.mallTeleportHoldPose = {
+                    px: Number(destination.position.x),
+                    py: Number(destination.position.y),
+                    pz: Number(destination.position.z),
+                    tx: Number(controlTarget.x),
+                    ty: Number(controlTarget.y),
+                    tz: Number(controlTarget.z)
+                };
+                window.mallTeleportHoldUntil = Date.now() + holdMs;
+                window.mallMovementLockedUntil = Date.now() + holdMs;
+            }
+            window.mallLastTeleportFinal = {
+                camera: {
+                    x: Number(camera.position.x.toFixed(2)),
+                    y: Number(camera.position.y.toFixed(2)),
+                    z: Number(camera.position.z.toFixed(2))
+                },
+                target: {
+                    x: Number(destination.target.x.toFixed(2)),
+                    y: Number(destination.target.y.toFixed(2)),
+                    z: Number(destination.target.z.toFixed(2))
+                },
+                controlTarget: {
+                    x: Number(controls.target.x.toFixed(2)),
+                    y: Number(controls.target.y.toFixed(2)),
+                    z: Number(controls.target.z.toFixed(2))
+                }
+            };
+        }
+
+        function animateCameraTeleport(destination, durationMs = 680) {
+            return new Promise((resolve) => {
+                const startPosition = camera.position.clone();
+                const startTarget = controls.target.clone();
+                const endPosition = destination.position.clone();
+                const endLookTarget = destination.target.clone();
+                const startedAt = performance.now();
+                const ease = (t) => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+
+                function step(now) {
+                    const t = Math.min(1, (now - startedAt) / durationMs);
+                    const k = ease(t);
+                    const framePosition = new THREE.Vector3().lerpVectors(startPosition, endPosition, k);
+                    const frameControlTarget = getControlsTargetForLookPoint(framePosition, endLookTarget);
+                    camera.position.copy(framePosition);
+                    controls.target.lerpVectors(startTarget, frameControlTarget, k);
+                    controls.update();
+                    camera.position.copy(framePosition);
+                    controls.target.copy(frameControlTarget);
+                    if (t < 1) {
+                        requestAnimationFrame(step);
+                    } else {
+                        applyTeleportPose({ position: endPosition, target: endLookTarget }, 1200);
+                        resolve();
+                    }
+                }
+
+                requestAnimationFrame(step);
+            });
+        }
+
+        window.teleportVisitorToSearchStore = async function (store) {
+            if (!hasMemberBenefitAccess()) {
+                window.showMemberBenefitRequired('el teletransporte desde el tótem');
+                return;
+            }
+            const storeCode = getSearchSelectedStoreCode(store);
+            if (!storeCode) {
+                showInteractionFeedback("Selecciona un local primero.");
+                return;
+            }
+
+            const destination = await resolveStorefrontTeleportTarget(store);
+            if (!destination) {
+                showInteractionFeedback(`No encontré una posición segura para ${storeCode}.`);
+                return;
+            }
+
+            const searchModal = document.getElementById('search-modal');
+            const modalOverlay = document.getElementById('modal-overlay');
+            if (searchModal) searchModal.style.display = 'none';
+            if (modalOverlay) modalOverlay.style.display = 'none';
+
+            if (!isWalking && typeof window.toggleWalkMode === "function") {
+                window.toggleWalkMode();
+            }
+            currentEscalatorState = null;
+            escalatorExitCooldown = null;
+            lockWalkModePreference = true;
+            resetLocalMovementInputs();
+            window.mallMovementLockedUntil = Date.now() + 1200;
+            showMagicTeleportFlash();
+            showInteractionFeedback(`Llevándote al local ${storeCode}...`);
+
+            await animateCameraTeleport(destination);
+            if (destination?.position && destination?.target) {
+                resetLocalMovementInputs();
+                applyTeleportPose(destination, 1500);
+            }
+            focusMallCanvas();
+            if (typeof broadcastMyPosition === "function") broadcastMyPosition();
+            showInteractionFeedback(`Llegaste al local ${storeCode}.`);
+        };
+
+        let tenantAutoArrivalSequence = 0;
+        let tenantAutoArrivalUserId = "";
+
+        async function getTenantAutoArrivalStore(user, { queryActiveLease = true } = {}) {
+            const userId = String(user?.id || currentTenantUser?.id || "").trim();
+            const normalize = value => String(value || "").trim().toLowerCase();
+            const userEmail = normalize(user?.email || currentTenantUser?.email);
+            const selectedStoreCode = String(getStoreCode(myOwnedStore) || "").trim().toUpperCase();
+            const eligibleStores = myOwnedStores.filter(store => {
+                const ownerId = String(store?.owner_id || "").trim();
+                const contactEmail = normalize(store?.contact_email);
+                return ownerId === userId || (!ownerId && userEmail && contactEmail === userEmail);
+            });
+
+            if (queryActiveLease && supabaseClient && userId) {
+                try {
+                    const { data: activeLeases, error: leaseError } = await withRequestTimeout(
+                        mallUiScopeQuery(
+                            supabaseClient
+                                .from('tenant_leases')
+                                .select('store_id,local_code,updated_at')
+                        )
+                            .eq('tenant_auth_user_id', userId)
+                            .eq('status', 'active')
+                            .order('updated_at', { ascending: false })
+                            .limit(5),
+                        3000,
+                        'La consulta del local tardó demasiado.'
+                    );
+                    if (leaseError) throw leaseError;
+                    const activeLeaseCodes = (activeLeases || []).flatMap(lease => [lease.store_id, lease.local_code])
+                        .map(value => String(value || "").trim().toUpperCase())
+                        .filter(Boolean);
+                    const leasedStore = eligibleStores.find(store => {
+                        const id = String(store?.id || "").trim().toUpperCase();
+                        const code = String(getStoreCode(store) || "").trim().toUpperCase();
+                        return activeLeaseCodes.includes(id) || activeLeaseCodes.includes(code);
+                    });
+                    if (leasedStore) return leasedStore;
+                } catch (error) {
+                    console.warn('No se pudo consultar el arriendo activo para la llegada del locatario:', error);
+                }
+            }
+
+            const brandNames = [
+                user?.user_metadata?.brand_name,
+                user?.user_metadata?.store_name,
+                currentTenantUser?.user_metadata?.brand_name,
+                currentTenantUser?.user_metadata?.store_name
+            ].map(normalize).filter(Boolean);
+            const brandedStore = eligibleStores.find(store => brandNames.includes(normalize(store?.name)));
+            if (brandedStore) return brandedStore;
+
+            const selectedStore = eligibleStores.find(store => (
+                String(getStoreCode(store) || "").trim().toUpperCase() === selectedStoreCode
+            ));
+            if (selectedStore) return selectedStore;
+
+            return eligibleStores.find(store => normalize(store?.contact_email) === userEmail)
+                || eligibleStores[0]
+                || myOwnedStore
+                || null;
+        }
+
+        function scheduleTenantAutoArrival(user) {
+            const userId = String(user?.id || "").trim();
+            if (!userId) return Promise.resolve(false);
+
+            const sequence = ++tenantAutoArrivalSequence;
+            const startedAt = Date.now();
+            let shouldQueryActiveLease = true;
+            return new Promise(resolve => {
+                const runTryArrival = () => {
+                    void tryArrival().catch(error => {
+                        console.warn('No se pudo completar la llegada automática al local:', error);
+                        resolve(false);
+                    });
+                };
+                const tryArrival = async () => {
+                    if (sequence !== tenantAutoArrivalSequence || !hasEnteredMall || currentAccessRole !== "tenant") {
+                        resolve(false);
+                        return;
+                    }
+                    if (String(currentTenantUser?.id || "").trim() !== userId) {
+                        resolve(false);
+                        return;
+                    }
+                    if (tenantAutoArrivalUserId === userId) {
+                        resolve(true);
+                        return;
+                    }
+
+                    const store = await getTenantAutoArrivalStore(user, {
+                        queryActiveLease: shouldQueryActiveLease
+                    });
+                    shouldQueryActiveLease = false;
+                    if (!store && Date.now() - startedAt < 6000) {
+                        setTimeout(runTryArrival, 350);
+                        return;
+                    }
+                    if (!store) {
+                        console.warn("No se pudo ubicar automáticamente el local del locatario.");
+                        resolve(false);
+                        return;
+                    }
+
+                    tenantAutoArrivalUserId = userId;
+                    const storeCode = getStoreCode(store);
+                    window.mallAnalytics?.track("route_requested", {
+                        source: "tenant_auto_entry",
+                        store_code: storeCode
+                    });
+                    await window.teleportVisitorToSearchStore(store);
+                    resolve(true);
+                };
+
+                setTimeout(runTryArrival, 0);
+            });
+        }
+
+        function renderSearchResults(matches) {
+            const results = document.getElementById('search-results');
+            if (!results) return;
+            results.innerHTML = "";
+
+            if (!matches.length) {
+                const empty = document.createElement("div");
+                empty.className = "search-empty";
+                empty.textContent = "No encontré locales con esa búsqueda.";
+                results.appendChild(empty);
+                return;
+            }
+
+            matches.forEach(match => {
+                const button = document.createElement('button');
+                button.type = "button";
+                button.className = `search-item${selectedSearchStoreCode === match.shopCode ? " is-selected" : ""}`;
+
+                const label = document.createElement('span');
+                const strong = document.createElement('strong');
+                strong.textContent = match.name;
+                label.appendChild(strong);
+
+                const detail = document.createElement('span');
+                const matchedProducts = match.matchedProducts || [];
+                const memoryText = String(match.catalogMemory || "").replace(/\s+/g, " ").trim();
+                const memoryDetail = match.memoryMatch && memoryText
+                    ? `Novedades: ${memoryText.length > 96 ? `${memoryText.slice(0, 93)}...` : memoryText}`
+                    : "";
+                detail.textContent = matchedProducts.length
+                    ? `Productos: ${matchedProducts.slice(0, 3).map(productName).join(", ")}`
+                    : memoryDetail || match.category;
+                label.appendChild(detail);
+
+                const small = document.createElement('small');
+                small.textContent = match.shopCode || "-";
+
+                button.append(label, small);
+                button.addEventListener("click", async () => {
+                    selectedSearchStoreCode = match.shopCode;
+                    window.mallAnalytics?.track('search_result_clicked', {
+                        storeCode: match.shopCode,
+                        searchTerm: document.getElementById('search-input')?.value || '',
+                        source: 'search'
+                    });
+                    [...results.querySelectorAll(".search-item")].forEach(item => item.classList.remove("is-selected"));
+                    button.classList.add("is-selected");
+                    const fullData = await getStoreData(match.shopCode);
+                    showInMap({
+                        ...fullData,
+                        matchedProducts,
+                        searchSelectedCode: match.shopCode,
+                        selectedShopCode: match.shopCode,
+                        teleportCode: match.shopCode
+                    });
+                });
+                results.appendChild(button);
+            });
+        }
+
+        window.filterStores = async function () {
+            await loadSearchProductsForStores();
+            refreshSearchUserLocation();
+
+            const input = document.getElementById('search-input');
+            const rawQuery = input?.value || "";
+            const query = normalizeSearchText(rawQuery);
+            const queryTerms = extractSearchTerms(rawQuery);
+            const compactQuery = compactSearchText(rawQuery);
+            if (!query || !queryTerms.length) {
+                const results = document.getElementById('search-results');
+                if (results) {
+                    results.innerHTML = '<div class="search-empty">Escribe un producto, local, categoría o palabra clave como #regalo.</div>';
+                }
+                return;
+            }
+
+            const matches = fullStoreInventory
+                .map(store => {
+                    const codeMatch = compactSearchText(store.shopCode).includes(compactQuery) || normalizeSearchText(store.shopCode).includes(query);
+                    const nameMatch = matchesEveryTerm(store.name, queryTerms);
+                    const categoryMatch = matchesEveryTerm(store.category, queryTerms);
+                    const descriptionMatch = matchesEveryTerm(store.description, queryTerms);
+                    const memoryMatch = matchesEveryTerm(store.catalogMemory, queryTerms);
+                    const keywordMatch = matchesEveryTerm(`${store.keywords || ""} ${(store.hashKeywords || []).join(" ")}`, queryTerms);
+                    const matchedProducts = (store.products || []).filter(product => matchesEveryTerm(productSearchText(product), queryTerms));
+                    const storeTextMatch = matchesEveryTerm(store.searchText, queryTerms);
+                    const matchScore = [
+                        codeMatch ? 6 : 0,
+                        nameMatch ? 5 : 0,
+                        keywordMatch ? 4 : 0,
+                        memoryMatch ? 4 : 0,
+                        matchedProducts.length ? 3 : 0,
+                        categoryMatch ? 2 : 0,
+                        descriptionMatch ? 1 : 0,
+                        storeTextMatch ? 1 : 0
+                    ].reduce((sum, value) => sum + value, 0);
+                    return matchScore ? { ...store, matchedProducts, memoryMatch, matchScore } : null;
+                })
+                .filter(Boolean)
+                .sort((a, b) => b.matchScore - a.matchScore || a.name.localeCompare(b.name))
+                .slice(0, 12);
+
+            renderSearchResults(matches);
+            window.mallAnalytics?.trackSearch(rawQuery, matches.length);
+        };
+
+        showInMap = function (store) {
+            if (!store) return;
+            const userLocation = refreshSearchUserLocation();
+            const selectedCode = getSearchSelectedStoreCode(store);
+            const targetLocation = getStoreMapLocation(store);
+            const floor = targetLocation.floor;
+
+            document.getElementById('f-btn-1').className = floor === 1 ? 'floor-btn active' : 'floor-btn';
+            document.getElementById('f-btn-2').className = floor === 2 ? 'floor-btn active' : 'floor-btn';
+
+            drawRouteOnMap(userLocation, targetLocation);
+            drawMapMarker("map-target-pos", targetLocation, "#d71920", selectedCode || "Local");
+
+            const locationText = document.getElementById('location-text');
+            if (!locationText) return;
+            locationText.textContent = "";
+            const label = document.createElement('b');
+            label.style.color = '#8a6b2f';
+            label.textContent = 'Ruta:';
+            locationText.append(
+                label,
+                document.createTextNode(` desde tu ubicación actual hasta Local ${selectedCode || targetLocation.code}, Ala ${targetLocation.wing || "-"}, Planta ${floor}.`)
+            );
+
+            const teleportBtn = document.createElement("button");
+            teleportBtn.type = "button";
+            const canTeleport = hasMemberBenefitAccess();
+            teleportBtn.className = `search-teleport-btn${canTeleport ? '' : ' is-member-locked'}`;
+            teleportBtn.textContent = canTeleport ? "Llévame al local" : "Teletransporte · solo inscritos";
+            teleportBtn.setAttribute('aria-disabled', canTeleport ? 'false' : 'true');
+            teleportBtn.addEventListener("click", () => {
+                if (!hasMemberBenefitAccess()) {
+                    window.showMemberBenefitRequired('el teletransporte desde el tótem');
+                    return;
+                }
+                window.mallAnalytics?.track('route_requested', {
+                    storeCode: selectedCode || targetLocation.code,
+                    searchTerm: document.getElementById('search-input')?.value || '',
+                    channel: 'map',
+                    source: 'search'
+                });
+                window.teleportVisitorToSearchStore(store);
+            });
+            locationText.appendChild(teleportBtn);
+
+            if (window.__quickNavigatorSearch === true && showCompactRouteMap(store, userLocation, targetLocation, selectedCode)) {
+                window.__quickNavigatorSearch = false;
+                window.closeSearchModal?.();
+            }
+        };
+
+        window.openSearch = function () {
+            document.getElementById('search-modal').style.display = 'block';
+            document.getElementById('modal-overlay').style.display = 'block';
+            window.mallAnalytics?.track('search_opened', { source: 'totem' });
+            refreshSearchUserLocation();
+            const input = document.getElementById('search-input');
+            if (input) {
+                input.focus();
+                window.filterStores();
+            }
+        };
+
+        let mallQuickStartTimer = null;
+
+        function closeQuickNavigator() {
+            const panel = document.getElementById('quick-navigator-panel');
+            const toggle = document.getElementById('quick-navigator-toggle');
+            if (panel) panel.hidden = true;
+            if (toggle) toggle.setAttribute('aria-expanded', 'false');
+        }
+
+        window.toggleQuickNavigator = function () {
+            const panel = document.getElementById('quick-navigator-panel');
+            const toggle = document.getElementById('quick-navigator-toggle');
+            if (!panel || !toggle) return;
+            const willOpen = panel.hidden;
+            panel.hidden = !willOpen;
+            toggle.setAttribute('aria-expanded', String(willOpen));
+            if (willOpen) window.dismissMallQuickStart?.();
+        };
+
+        window.dismissMallQuickStart = function () {
+            const card = document.getElementById('mall-quick-start');
+            if (card) card.hidden = true;
+            if (mallQuickStartTimer) window.clearTimeout(mallQuickStartTimer);
+            try { window.sessionStorage.setItem('mallQuickStartSeen', '1'); } catch (_) {}
+        };
+
+        function showMallQuickStart() {
+            const card = document.getElementById('mall-quick-start');
+            if (!card) return;
+            try {
+                if (window.sessionStorage.getItem('mallQuickStartSeen')) return;
+            } catch (_) {}
+            card.hidden = false;
+            mallQuickStartTimer = window.setTimeout(() => window.dismissMallQuickStart?.(), 12000);
+        }
+
+        window.openQuickSearch = function (kind = 'product') {
+            closeQuickNavigator();
+            window.dismissMallQuickStart?.();
+            window.__quickNavigatorSearch = true;
+            window.closeCompactRouteMap?.();
+            window.openSearch?.();
+            const input = document.getElementById('search-input');
+            if (!input) return;
+            const category = ['Moda', 'Hogar', 'Belleza', 'Tecnología'].includes(kind) ? kind : '';
+            input.value = category;
+            input.placeholder = kind === 'store'
+                ? 'Nombre o número del local...'
+                : category ? `Explora ${category}...` : 'Producto, local, categoría, oferta o evento...';
+            window.filterStores?.();
+            input.focus();
+        };
+
+        window.openMallOrientation = function () {
+            closeQuickNavigator();
+            window.dismissMallQuickStart?.();
+            if (typeof window.openMallAssistant === 'function') {
+                window.openMallAssistant();
+                return;
+            }
+            window.showInteractionFeedback?.('El asistente de Informaciones se está preparando. Intenta nuevamente en un momento.');
+        };
+
+        let activeProximityContext = null;
+        let proximityContextTimer = null;
+        const proximityVector = typeof THREE !== 'undefined' ? new THREE.Vector3() : null;
+
+        function setProximityContext(context = null) {
+            const bar = document.getElementById('proximity-context');
+            const icon = document.getElementById('proximity-context-icon');
+            const title = document.getElementById('proximity-context-title');
+            const description = document.getElementById('proximity-context-description');
+            const action = document.getElementById('proximity-context-action');
+            activeProximityContext = context;
+            if (!bar || !icon || !title || !description || !action) return;
+            if (!context) {
+                bar.hidden = true;
+                action.hidden = true;
+                return;
+            }
+            icon.textContent = context.icon;
+            title.textContent = context.title;
+            description.textContent = context.description;
+            action.textContent = context.actionLabel || '';
+            action.hidden = !context.action;
+            bar.hidden = false;
+        }
+
+        function getTargetDistance(target) {
+            if (!target || !camera || !proximityVector || typeof target.getWorldPosition !== 'function') return Infinity;
+            target.getWorldPosition(proximityVector);
+            if (Math.abs(proximityVector.y - camera.position.y) > 4.5) return Infinity;
+            return Math.hypot(proximityVector.x - camera.position.x, proximityVector.z - camera.position.z);
+        }
+
+        function findNearbyContext() {
+            if (!hasEnteredMall || !camera || typeof THREE === 'undefined') return null;
+            let best = null;
+            const consider = (target, context, radius) => {
+                const distance = getTargetDistance(target);
+                if (distance > radius || (best && distance >= best.distance)) return;
+                best = { ...context, distance };
+            };
+
+            (window.mallInformationModuleTargets || []).forEach((target) => {
+                consider(target, {
+                    icon: 'support_agent',
+                    title: 'Informaciones cerca',
+                    description: 'Pregunta por locales, productos o cómo orientarte.',
+                    action: 'mall-assistant',
+                    actionLabel: 'Preguntar'
+                }, 8);
+            });
+
+            (window.mallStoreAttendantTargets || []).forEach((target) => {
+                const storeCode = target?.userData?.storeCode || '';
+                const assistantName = target?.userData?.assistantName || 'Asistente';
+                if (!storeCode) return;
+                consider(target, {
+                    icon: 'support_agent',
+                    title: `${assistantName} está disponible`,
+                    description: 'Puedes hacer una pregunta breve sobre esta tienda.',
+                    action: 'store-assistant',
+                    storeCode,
+                    actionLabel: 'Hablar'
+                }, 6);
+            });
+
+            if (typeof catalogClickTargets !== 'undefined' && Array.isArray(catalogClickTargets)) {
+                catalogClickTargets.forEach((target) => {
+                    const storeCode = target?.userData?.shopCode || target?.userData?.sourceShopCode || '';
+                    if (!storeCode) return;
+                    consider(target, {
+                        icon: 'storefront',
+                        title: `Local ${storeCode}`,
+                        description: 'Toca la placa dorada para ver su ficha comercial.',
+                        action: null
+                    }, 5.5);
+                });
+            }
+
+            return best;
+        }
+
+        function updateProximityContext() {
+            const next = findNearbyContext();
+            const currentKey = activeProximityContext
+                ? `${activeProximityContext.action || 'plaque'}:${activeProximityContext.storeCode || activeProximityContext.title}`
+                : '';
+            const nextKey = next ? `${next.action || 'plaque'}:${next.storeCode || next.title}` : '';
+            if (currentKey !== nextKey) setProximityContext(next);
+        }
+
+        function startProximityContext() {
+            if (proximityContextTimer) window.clearInterval(proximityContextTimer);
+            updateProximityContext();
+            proximityContextTimer = window.setInterval(updateProximityContext, 650);
+        }
+
+        window.openProximityContextAction = function () {
+            const context = activeProximityContext;
+            if (!context?.action) return;
+            if (context.action === 'mall-assistant') window.openMallOrientation?.();
+            if (context.action === 'store-assistant') window.openStoreAssistant?.(context.storeCode);
+        };
+
+        window.openMallIntro = function () {
+            const introModal = document.getElementById('mall-intro-modal');
+            const modalOverlay = document.getElementById('modal-overlay');
+            if (!introModal || !modalOverlay) return;
+            const searchModal = document.getElementById('search-modal');
+            const storeModal = document.getElementById('store-modal');
+            if (searchModal) searchModal.style.display = 'none';
+            if (storeModal) storeModal.style.display = 'none';
+            introModal.style.display = 'block';
+            modalOverlay.style.display = 'block';
+        };
+
+        function closeMallIntro(event) {
+            if (event) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+            const introModal = document.getElementById('mall-intro-modal');
+            const modalOverlay = document.getElementById('modal-overlay');
+            if (introModal) introModal.style.display = 'none';
+            if (modalOverlay) modalOverlay.style.display = 'none';
+            if (typeof focusMallCanvas === 'function') focusMallCanvas();
+        }
+        window.closeMallIntro = closeMallIntro;
+        const introCloseBtn = document.getElementById('mall-intro-close-btn');
+        if (introCloseBtn) {
+            introCloseBtn.onclick = closeMallIntro;
+            introCloseBtn.addEventListener('pointerdown', closeMallIntro);
+        }
+
+        function closeSearchModal(event) {
+            if (event) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+            const searchModal = document.getElementById('search-modal');
+            const modalOverlay = document.getElementById('modal-overlay');
+            if (searchModal) searchModal.style.display = 'none';
+            if (modalOverlay) modalOverlay.style.display = 'none';
+            window.__quickNavigatorSearch = false;
+            if (typeof focusMallCanvas === 'function') focusMallCanvas();
+        }
+        window.closeSearchModal = closeSearchModal;
+        document.getElementById('search-close-btn').onclick = closeSearchModal;
+        document.getElementById('search-close-btn').addEventListener('pointerdown', closeSearchModal);
+        document.addEventListener('keydown', (event) => {
+            if (event.key !== 'Escape') return;
+            const searchModal = document.getElementById('search-modal');
+            const introModal = document.getElementById('mall-intro-modal');
+            const benefitsModal = document.getElementById('member-benefits-modal');
+            if (introModal && introModal.style.display !== 'none') closeMallIntro(event);
+            if (searchModal && searchModal.style.display !== 'none') closeSearchModal(event);
+            if (benefitsModal && benefitsModal.style.display !== 'none') window.closeMemberBenefits();
+        });
+
         let lastMallInteractionSignature = "";
         let lastMallInteractionAt = 0;
         let pendingTouchCanvasTap = null;
+        let pendingTouchCanvasTapTimer = null;
         let suppressSyntheticMallClickUntil = 0;
         const TOUCH_MALL_TAP_MAX_DISTANCE = 18;
         const TOUCH_MALL_TAP_MAX_DURATION_MS = 320;
 
+        function getMallInteractionRoots() {
+            const roots = [];
+            const addRoot = (obj) => {
+                if (obj && !roots.includes(obj)) roots.push(obj);
+            };
+            if (Array.isArray(catalogClickTargets)) {
+                catalogClickTargets.forEach(addRoot);
+            }
+            if (Array.isArray(window.mallTotemTargets)) {
+                window.mallTotemTargets.forEach(addRoot);
+            }
+            if (Array.isArray(window.mallIntroTargets)) {
+                window.mallIntroTargets.forEach(addRoot);
+            }
+            if (Array.isArray(window.mallPromotionTargets)) {
+                window.mallPromotionTargets.forEach(addRoot);
+            }
+            if (Array.isArray(window.mallStoreAttendantTargets)) {
+                window.mallStoreAttendantTargets.forEach(addRoot);
+            }
+            if (Array.isArray(window.mallInformationModuleTargets)) {
+                window.mallInformationModuleTargets.forEach(addRoot);
+            }
+            if (typeof allStoreGroups !== "undefined" && Array.isArray(allStoreGroups)) {
+                allStoreGroups.forEach(addRoot);
+            }
+            return roots;
+        }
+
+        function getRemotePlayerInteractionTargets() {
+            if (typeof otherPlayers === 'undefined' || !otherPlayers) return [];
+            return Object.values(otherPlayers)
+                .filter((player) => player?.mesh?.visible && player.hasReceivedPose)
+                .map((player) => player.mesh);
+        }
+
+        function getPlayerIdFromObject(object) {
+            let current = object;
+            while (current) {
+                if (current.userData?.playerId) return current.userData.playerId;
+                current = current.parent;
+            }
+            return '';
+        }
+
+        function isUpperStorefrontCatalogTarget(object) {
+            let current = object;
+            while (current) {
+                if (
+                    current.userData?.isCatalogTrigger
+                    && (
+                        current.userData?.isStoreCodeSign
+                        || current.userData?.isPlaqueHitbox
+                        || current.userData?.isUpperStorefrontHitbox
+                    )
+                ) return true;
+                current = current.parent;
+            }
+            return false;
+        }
+
         async function handleMallInteractionPointer(event) {
+            if (Date.now() < Number(window.mallSuppressCanvasTapUntil || 0)) return;
             if (
                 event.type === 'click' &&
                 event.pointerType !== 'mouse' &&
@@ -104,21 +1440,23 @@
             ) {
                 return;
             }
-            // Mostrar pequeño feedback visual de interacción
-            showInteractionFeedback("Procesando clic...");
             if (
                 canvasContainer &&
                 event.target.closest &&
                 event.target.closest('#canvas-container, canvas') &&
-                !event.target.closest('#login-overlay, #store-modal, #search-modal, #tenant-login-modal, #tenant-apply-modal, #super-admin-modal, #tenant-admin-modal, #password-recovery-modal, #tenant-password-setup-modal, #controls-menu, input, textarea, button, select, a, label')
+                !event.target.closest('#login-overlay, #store-modal, #search-modal, #mall-intro-modal, #store-assistant-modal, #tenant-login-modal, #tenant-apply-modal, #super-admin-modal, #tenant-admin-modal, #password-recovery-modal, #tenant-password-setup-modal, #controls-menu, #mall-quick-tools, #mall-quick-start, #guest-account-actions, input, textarea, button, select, a, label')
             ) {
                 focusMallCanvas();
             }
-            if (event.target.closest && event.target.closest('#controls-menu')) return;
+            if (event.target.closest && event.target.closest('#controls-menu, #mall-quick-tools, #mall-quick-start, #guest-account-actions')) return;
             closeControlsMenu();
             // No interactuar con el mall si el login o el modal de búsqueda están abiertos
             if (isElementActuallyVisible(document.getElementById('login-overlay')) ||
-                isElementActuallyVisible(document.getElementById('search-modal'))) return;
+                isElementActuallyVisible(document.getElementById('search-modal')) ||
+                isElementActuallyVisible(document.getElementById('mall-intro-modal')) ||
+                isElementActuallyVisible(document.getElementById('store-assistant-modal'))) return;
+
+            window.mallMobileControls?.stopAutoForward();
 
             const rect = renderer.domElement.getBoundingClientRect();
             if (!rect.width || !rect.height) return;
@@ -133,10 +1471,38 @@
 
             mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
             mouse.y = -(((event.clientY - rect.top) / rect.height) * 2 - 1);
+            raycaster.near = 0;
+            raycaster.far = IS_COARSE_POINTER ? 170 : Infinity;
             raycaster.setFromCamera(mouse, camera);
 
-            // 1. Detección directa de disparadores de catálogo (Placas, Letreros, Logos)
-            const directCatalogIntersects = raycaster.intersectObjects(catalogClickTargets, true);
+            // En modo edición, el clic pertenece exclusivamente al editor. Se recorre
+            // toda la profundidad del rayo para no quedar bloqueado por vidrios u overlays.
+            if (window.mallInfrastructureEditorEnabled === true) {
+                const editorIntersections = raycaster.intersectObjects(scene.children, true);
+                const editableIntersection = window.mallObjectEditor?.findIntersection?.(editorIntersections) || null;
+                updateObjectInspector(editableIntersection || editorIntersections[0] || null);
+                if (!editableIntersection) {
+                    window.mallObjectEditor?.render?.('Ese elemento no es editable. Selecciona un mueble, banca o muro de tabiquería registrado.');
+                }
+                return;
+            }
+
+            // Los avatares deben ganar sobre vitrinas, placas o muros que estén detrás.
+            const remotePlayerTargets = getRemotePlayerInteractionTargets();
+            const directPlayerIntersects = remotePlayerTargets.length
+                ? raycaster.intersectObjects(remotePlayerTargets, true)
+                : [];
+            if (directPlayerIntersects.length > 0) {
+                const playerId = getPlayerIdFromObject(directPlayerIntersects[0].object);
+                if (playerId) {
+                    setChatTarget(playerId);
+                    return;
+                }
+            }
+
+            // El catálogo se abre desde la franja superior: placa, logo o vidrio alto.
+            const upperStorefrontCatalogTargets = catalogClickTargets.filter(isUpperStorefrontCatalogTarget);
+            const directCatalogIntersects = raycaster.intersectObjects(upperStorefrontCatalogTargets, true);
             if (directCatalogIntersects.length > 0) {
                 const hitObj = directCatalogIntersects[0].object;
                 const directCatalogTarget = findShopRoot(hitObj) || hitObj;
@@ -151,46 +1517,80 @@
             }
 
             // 2. Detección general en la escena (Paredes, Totems, Jugadores)
-            const intersects = raycaster.intersectObjects(scene.children, true);
+            const interactionRoots = getMallInteractionRoots();
+            let intersects = interactionRoots.length
+                ? raycaster.intersectObjects(interactionRoots, true)
+                : raycaster.intersectObjects(scene.children, true);
+            if (!intersects.length && !IS_COARSE_POINTER) {
+                intersects = raycaster.intersectObjects(scene.children, true);
+            }
             if (OBJECT_INSPECTOR_ENABLED) updateObjectInspector(intersects[0] || null);
             if (intersects.length > 0) {
-                let foundStore = null, foundTotem = null, foundPlayer = null;
-                let firstStoreHit = null;
+                let foundStore = null, foundStoreSurface = null, foundTotem = null, foundPlayer = null, foundIntro = null, foundPromotion = null, foundAttendant = null, foundMallAssistant = null;
 
                 for (const hit of intersects) {
                     let obj = hit.object;
-                    let hitCatalogTrigger = false;
                     let hitStore = null;
-                    let hitPlaque = false;
+                    let hitCatalogTrigger = false;
 
                     while (obj) {
-                        if (obj.userData?.isSign || obj.userData?.isStoreCodeSign || obj.userData?.isLogoBanner || obj.userData?.isCatalogTrigger) {
+                        if (obj.userData?.isCatalogTrigger && (
+                            obj.userData?.isStoreCodeSign
+                            || obj.userData?.isPlaqueHitbox
+                            || obj.userData?.isUpperStorefrontHitbox
+                        )) {
                             hitCatalogTrigger = true;
                         }
-                        if (obj.userData?.isStoreCodeSign || obj.userData?.isPlaqueHitbox) {
-                            hitPlaque = true;
-                        }
                         if (obj.userData?.shopCode && !hitStore) hitStore = obj;
+                        if (obj.userData?.isMallIntroTrigger && !foundIntro) foundIntro = obj;
                         if (obj.userData?.isTotem && !foundTotem) foundTotem = obj;
                         if (obj.userData?.playerId && !foundPlayer) foundPlayer = obj.userData.playerId;
+                        if (obj.userData?.isPromotionCollectible && !foundPromotion) foundPromotion = obj;
+                        if (obj.userData?.isStoreAttendant && !foundAttendant) foundAttendant = obj;
+                        if (obj.userData?.isMallInformationAssistant && !foundMallAssistant) foundMallAssistant = obj;
                         obj = obj.parent;
                     }
 
-                    if (hitStore && !firstStoreHit) {
-                        firstStoreHit = findShopRoot(hitStore) || hitStore;
-                    }
-                    if (hitStore && (hitPlaque || hitCatalogTrigger)) {
+                    if (hitStore && hitCatalogTrigger) {
                         foundStore = findShopRoot(hitStore) || hitStore;
                         break;
                     }
+                    if (hitStore && !foundStoreSurface) {
+                        foundStoreSurface = findShopRoot(hitStore) || hitStore;
+                    }
                 }
 
-                if (foundPlayer) {
+                if (foundMallAssistant) {
+                    window.openMallAssistant?.();
+                } else if (foundAttendant) {
+                    window.openStoreAssistant?.(foundAttendant.userData?.storeCode);
+                } else if (foundPromotion) {
+                    const promotionId = foundPromotion.userData?.promotionId;
+                    if (!hasMemberBenefitAccess()) {
+                        window.showMemberBenefitRequired('los concursos y promociones');
+                    } else if (promotionId) {
+                        window.claimMemberPromotion(promotionId, {
+                            source: 'golden_balloon',
+                            x: Number(camera.position.x.toFixed(2)),
+                            y: Number(camera.position.y.toFixed(2)),
+                            z: Number(camera.position.z.toFixed(2))
+                        });
+                    }
+                } else if (foundIntro) {
+                    openMallIntro();
+                } else if (foundPlayer) {
                     setChatTarget(foundPlayer);
                 } else if (foundTotem) {
                     openSearch();
-                } else if (foundStore || firstStoreHit) {
-                    openPublicStoreCatalog(foundStore || firstStoreHit);
+                } else if (foundStore) {
+                    openPublicStoreCatalog(foundStore);
+                } else if (foundStoreSurface) {
+                    const storeCode = foundStoreSurface.userData?.plateCode || foundStoreSurface.userData?.shopCode;
+                    const storeReference = storeCode ? ` de ${storeCode}` : '';
+                    showInteractionFeedback(
+                        `Para ver el catálogo${storeReference}, toca la placa, el logo o el vidrio superior.`,
+                        { duration: 3200, kind: 'guidance' }
+                    );
                 }
             }
         }
@@ -219,28 +1619,52 @@
             const isTap = elapsed <= TOUCH_MALL_TAP_MAX_DURATION_MS && moved <= TOUCH_MALL_TAP_MAX_DISTANCE;
             pendingTouchCanvasTap = null;
             if (!isTap) return;
-            suppressSyntheticMallClickUntil = Date.now() + 700;
-            handleMallInteractionPointer(event);
+            if (Date.now() < Number(window.mallSuppressCanvasTapUntil || 0)) return;
+            const tapEvent = {
+                type: event.type,
+                pointerType: event.pointerType,
+                target: event.target,
+                clientX: event.clientX,
+                clientY: event.clientY
+            };
+            if (pendingTouchCanvasTapTimer) clearTimeout(pendingTouchCanvasTapTimer);
+            pendingTouchCanvasTapTimer = setTimeout(() => {
+                pendingTouchCanvasTapTimer = null;
+                if (Date.now() < Number(window.mallTouchDoubleTapUntil || 0)) return;
+                if (Date.now() < Number(window.mallSuppressCanvasTapUntil || 0)) return;
+                suppressSyntheticMallClickUntil = Date.now() + 700;
+                handleMallInteractionPointer(tapEvent);
+            }, 360);
         }, { passive: true });
         renderer.domElement.addEventListener('pointercancel', () => {
             pendingTouchCanvasTap = null;
         }, { passive: true });
 
-        function showInteractionFeedback(msg) {
+        let interactionFeedbackTimer = null;
+        function showInteractionFeedback(msg, options = {}) {
             let el = document.getElementById('interaction-feedback');
             if (!el) {
                 el = document.createElement('div');
                 el.id = 'interaction-feedback';
-                el.style = 'position:fixed; top:20px; left:50%; transform:translateX(-50%); background:rgba(0,0,0,0.8); color:#c5a059; padding:8px 16px; border:1px solid #c5a059; border-radius:20px; font-size:11px; z-index:10002; pointer-events:none; transition:opacity 0.3s;';
+                el.setAttribute('role', 'status');
+                el.setAttribute('aria-live', 'polite');
                 document.body.appendChild(el);
             }
             el.innerText = msg;
-            el.style.opacity = '1';
-            setTimeout(() => { if(el) el.style.opacity = '0'; }, 2000);
+            el.className = options.kind === 'guidance'
+                ? 'interaction-feedback interaction-feedback--guidance is-visible'
+                : 'interaction-feedback is-visible';
+            if (interactionFeedbackTimer) clearTimeout(interactionFeedbackTimer);
+            interactionFeedbackTimer = setTimeout(() => {
+                el.classList.remove('is-visible');
+            }, Number(options.duration) || 2000);
         }
 
         // supabaseClient ya inicializado arriba (antes de getStoreData)
         let myNickname = "";
+        const myPresenceId = window.crypto?.randomUUID
+            ? window.crypto.randomUUID()
+            : `mall-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
         let myAvatarBody = "male";
         let myAvatarOutfit = "formal";
         let myAvatarStyle = "male-formal";
@@ -248,10 +1672,390 @@
         let currentMemberProfile = null;
         let currentUserProfile = null;
         let currentUserRole = "guest";
+        let currentUserIsAuthoritativeAdmin = false;
+        let isChatOpen = false;
+        let presenceReady = false;
+        let authoritativeAdminUserId = "";
+        let authoritativeAdminVerificationUserId = "";
+        let authoritativeAdminVerificationPromise = null;
+        let tenantLoginInFlight = false;
+        let memberLoginInFlight = false;
         let hasEnteredMall = false;
+        let mallEntryInFlight = false;
+        let mallEntryCompleted = false;
+        let mallEntryPromise = null;
+        let mallEntrySequence = 0;
         let pendingMemberPhone = "";
         let pendingMemberEmail = "";
         let pendingMemberPhoneOtpType = "phone_change";
+        window.mallMazePlayerName = "Jugador local";
+
+        const MEMBER_BENEFIT_ROLES = new Set(['member', 'registered_visitor', 'tenant', 'admin']);
+        // Campaign switch: set to false to restore membership-only visitor benefits.
+        const TEMPORARY_GUEST_BENEFITS_ENABLED = true;
+
+        function getEffectiveBenefitRole() {
+            if (hasEnteredMall && currentAccessRole === 'guest') return 'guest';
+            if (currentUserRole === 'admin') return 'admin';
+            if (currentAccessRole === 'tenant' || currentUserRole === 'tenant') return 'tenant';
+            if (currentAccessRole === 'member' || currentUserRole === 'registered_visitor' || currentUserRole === 'member') return 'member';
+            return 'guest';
+        }
+
+        function hasMemberBenefitAccess() {
+            const effectiveRole = getEffectiveBenefitRole();
+            return MEMBER_BENEFIT_ROLES.has(effectiveRole)
+                || (TEMPORARY_GUEST_BENEFITS_ENABLED && effectiveRole === 'guest');
+        }
+
+        window.mallCanUseBenefit = function () {
+            return hasMemberBenefitAccess();
+        };
+
+        window.showMemberBenefitRequired = function (benefitLabel = 'esta función') {
+            showInteractionFeedback(
+                `Inscríbete gratis para usar ${benefitLabel} y acceder a los beneficios del mall.`,
+                { duration: 3400, kind: 'guidance' }
+            );
+        };
+
+        function syncMemberBenefitAccess() {
+            const allowed = hasMemberBenefitAccess();
+            document.body.dataset.memberBenefits = allowed ? 'enabled' : 'guest';
+            const benefitsKicker = document.getElementById('member-benefits-kicker');
+            if (benefitsKicker) {
+                benefitsKicker.textContent = TEMPORARY_GUEST_BENEFITS_ENABLED
+                    && getEffectiveBenefitRole() === 'guest'
+                    ? 'Beneficios de bienvenida'
+                    : 'Cuenta inscrita';
+            }
+            const chatButton = document.getElementById('chat-minimized-btn');
+            const chatPanel = document.getElementById('mall-chat');
+            const pedometer = document.getElementById('member-pedometer');
+            if (!allowed) {
+                if (chatButton) chatButton.style.display = 'none';
+                if (chatPanel) chatPanel.style.display = 'none';
+                if (pedometer) pedometer.style.display = 'none';
+                if (typeof isChatOpen !== 'undefined') isChatOpen = false;
+            } else if (presenceReady && !isChatOpen && chatButton) {
+                chatButton.style.display = 'flex';
+            }
+            if (allowed && hasEnteredMall && pedometer) pedometer.style.display = 'flex';
+            syncWalkModeButton();
+        }
+
+        function syncGuestAccountActions() {
+            const isAnonymousGuest = hasEnteredMall && currentAccessRole === 'guest';
+            const controlsMenu = document.getElementById('controls-menu');
+            const accountActions = document.getElementById('guest-account-actions');
+            const tenantAccessItem = document.getElementById('tenant-access-btn');
+            const adminMenuItem = document.getElementById('admin-manage-menu-item');
+            const adminButton = document.getElementById('super-admin-btn');
+            const persistentAdminButton = document.getElementById('super-admin-btn-persistent');
+            if (controlsMenu) {
+                controlsMenu.style.display = '';
+                controlsMenu.classList.toggle('is-guest-controls', isAnonymousGuest);
+            }
+            if (isAnonymousGuest) {
+                clearAuthoritativeAdminAccess();
+                isAdmin = false;
+                if (tenantAccessItem) tenantAccessItem.style.display = 'none';
+                if (adminMenuItem) adminMenuItem.style.display = 'none';
+                if (adminButton) adminButton.style.display = 'none';
+                if (persistentAdminButton) persistentAdminButton.style.display = 'none';
+            } else {
+                if (tenantAccessItem) tenantAccessItem.style.display = '';
+            }
+            if (accountActions) {
+                accountActions.hidden = !isAnonymousGuest;
+                accountActions.style.display = isAnonymousGuest ? 'flex' : 'none';
+            }
+        }
+
+        const memberPedometerState = {
+            monthKey: new Date().toISOString().slice(0, 7),
+            totalMeters: 0,
+            pendingMeters: 0,
+            lastPosition: null,
+            lastUiAt: 0,
+            lastFlushAt: 0,
+            initialized: false,
+            flushing: false
+        };
+        let activeMemberPromotions = [];
+
+        function formatMemberMeters(value) {
+            const meters = Math.max(0, Number(value) || 0);
+            if (meters >= 1000) return `${(meters / 1000).toFixed(meters >= 10000 ? 1 : 2)} km`;
+            return `${Math.round(meters)} m`;
+        }
+
+        function getMemberPedometerStorageKey() {
+            const identity = String(currentTenantUser?.id || currentUserProfile?.auth_user_id || myNickname || 'member');
+            return `mall_member_meters:${memberPedometerState.monthKey}:${identity}`;
+        }
+
+        function updateMemberPedometerUi() {
+            const formatted = formatMemberMeters(memberPedometerState.totalMeters);
+            const compactValue = document.getElementById('member-pedometer-value');
+            const modalValue = document.getElementById('member-benefits-distance-value');
+            if (compactValue) compactValue.textContent = formatted;
+            if (modalValue) modalValue.textContent = formatted;
+
+            const nextReward = [...activeMemberPromotions]
+                .filter(promotion => Number(promotion.min_monthly_meters) > memberPedometerState.totalMeters)
+                .sort((a, b) => Number(a.min_monthly_meters) - Number(b.min_monthly_meters))[0];
+            const nextCopy = document.getElementById('member-benefits-distance-next');
+            if (nextCopy) {
+                nextCopy.textContent = nextReward
+                    ? `Te faltan ${formatMemberMeters(Number(nextReward.min_monthly_meters) - memberPedometerState.totalMeters)} para ${nextReward.reward_label || nextReward.title}.`
+                    : 'Tus metros del mes están listos para promociones y regalías activas.';
+            }
+        }
+
+        function setMemberBenefitsStatus(message = '', tone = 'muted') {
+            const status = document.getElementById('member-benefits-status');
+            if (!status) return;
+            status.textContent = message;
+            status.dataset.tone = tone;
+        }
+
+        function renderMemberPromotions() {
+            const container = document.getElementById('member-promotions-list');
+            if (!container) return;
+            container.innerHTML = '';
+            if (!activeMemberPromotions.length) {
+                const empty = document.createElement('p');
+                empty.textContent = 'No hay promociones activas en este momento.';
+                container.appendChild(empty);
+                return;
+            }
+
+            activeMemberPromotions.forEach((promotion) => {
+                const item = document.createElement('article');
+                item.className = 'member-promotion-item';
+                const title = document.createElement('strong');
+                title.textContent = promotion.title || 'Promoción del mall';
+                const detail = document.createElement('span');
+                detail.textContent = promotion.description || promotion.reward_label || '';
+                item.append(title, detail);
+
+                const button = document.createElement('button');
+                button.type = 'button';
+                const isClaimed = Boolean(promotion.claimed_at);
+                const requiredMeters = Number(promotion.min_monthly_meters) || 0;
+                const hasRequiredMeters = memberPedometerState.totalMeters >= requiredMeters;
+                if (isClaimed) {
+                    button.textContent = 'Beneficio obtenido';
+                    button.disabled = true;
+                } else if (promotion.promotion_type === 'golden_balloon') {
+                    button.textContent = 'Buscar el Globo Dorado';
+                    button.addEventListener('click', () => window.activateMemberPromotion(promotion.id));
+                } else {
+                    button.textContent = requiredMeters && !hasRequiredMeters
+                        ? `Requiere ${formatMemberMeters(requiredMeters)}`
+                        : 'Participar';
+                    button.disabled = requiredMeters > 0 && !hasRequiredMeters;
+                    if (!button.disabled) {
+                        button.addEventListener('click', () => window.claimMemberPromotion(promotion.id, { source: 'benefits_panel' }));
+                    }
+                }
+                item.appendChild(button);
+                container.appendChild(item);
+            });
+        }
+
+        async function loadMemberBenefitsSummary() {
+            if (!hasMemberBenefitAccess()) return;
+            const localMeters = Number(localStorage.getItem(getMemberPedometerStorageKey()) || 0);
+            memberPedometerState.totalMeters = Number.isFinite(localMeters) ? Math.max(0, localMeters) : 0;
+            activeMemberPromotions = [];
+
+            if (supabaseClient && currentTenantUser) {
+                const { data, error } = await supabaseClient.rpc('get_member_benefits_summary');
+                if (!error && data) {
+                    const summary = Array.isArray(data) ? data[0] : data;
+                    memberPedometerState.totalMeters = Math.max(
+                        memberPedometerState.totalMeters,
+                        Number(summary?.monthly_meters) || 0
+                    );
+                    activeMemberPromotions = Array.isArray(summary?.promotions) ? summary.promotions : [];
+                    window.mallActivePromotions = activeMemberPromotions;
+                    setMemberBenefitsStatus('Beneficios sincronizados con tu cuenta.', 'success');
+                } else if (error) {
+                    setMemberBenefitsStatus('El podómetro funciona localmente. Falta activar el módulo de beneficios en Supabase.', 'warn');
+                }
+            }
+
+            localStorage.setItem(getMemberPedometerStorageKey(), String(memberPedometerState.totalMeters));
+            memberPedometerState.lastPosition = camera.position.clone();
+            memberPedometerState.initialized = true;
+            updateMemberPedometerUi();
+            renderMemberPromotions();
+            window.mallObjectEditor?.configurePromotionCollectibles?.(activeMemberPromotions);
+            window.configureMallPromotionCollectibles?.(activeMemberPromotions);
+        }
+
+        async function triggerPendingPromotionAnnouncements() {
+            if (currentUserRole !== 'admin' || !supabaseClient || !currentTenantUser) return;
+            try {
+                await supabaseClient.functions.invoke('member-promotion-email', {
+                    body: { mode: 'announce-active' }
+                });
+            } catch (_) {}
+        }
+
+        async function flushMemberPedometer() {
+            if (
+                memberPedometerState.flushing
+                || memberPedometerState.pendingMeters < 0.5
+                || !supabaseClient
+                || !currentTenantUser
+            ) return;
+            const metersToFlush = Number(memberPedometerState.pendingMeters.toFixed(2));
+            memberPedometerState.flushing = true;
+            const { data, error } = await supabaseClient.rpc('add_member_walk_distance', { p_meters: metersToFlush });
+            memberPedometerState.flushing = false;
+            memberPedometerState.lastFlushAt = performance.now();
+            if (error) return;
+            memberPedometerState.pendingMeters = Math.max(0, memberPedometerState.pendingMeters - metersToFlush);
+            const serverTotal = Number(data?.monthly_meters ?? data);
+            if (Number.isFinite(serverTotal)) memberPedometerState.totalMeters = Math.max(memberPedometerState.totalMeters, serverTotal);
+            localStorage.setItem(getMemberPedometerStorageKey(), String(memberPedometerState.totalMeters));
+            updateMemberPedometerUi();
+        }
+
+        function updateMemberPedometer(nowMs = performance.now()) {
+            if (!memberPedometerState.initialized || !hasMemberBenefitAccess() || !hasEnteredMall) return;
+            const currentPosition = camera.position;
+            if (!memberPedometerState.lastPosition) {
+                memberPedometerState.lastPosition = currentPosition.clone();
+                return;
+            }
+            const dx = currentPosition.x - memberPedometerState.lastPosition.x;
+            const dz = currentPosition.z - memberPedometerState.lastPosition.z;
+            const horizontalDistance = Math.hypot(dx, dz);
+            memberPedometerState.lastPosition.copy(currentPosition);
+
+            const movementLocked = Date.now() < Number(window.mallMovementLockedUntil || 0);
+            if (isWalking && !movementLocked && horizontalDistance > 0.002 && horizontalDistance <= 1.25) {
+                memberPedometerState.totalMeters += horizontalDistance;
+                memberPedometerState.pendingMeters += horizontalDistance;
+                localStorage.setItem(getMemberPedometerStorageKey(), String(memberPedometerState.totalMeters));
+            }
+            if (nowMs - memberPedometerState.lastUiAt > 500) {
+                memberPedometerState.lastUiAt = nowMs;
+                updateMemberPedometerUi();
+            }
+            if (memberPedometerState.pendingMeters >= 10 || nowMs - memberPedometerState.lastFlushAt > 30000) {
+                void flushMemberPedometer();
+            }
+        }
+        window.updateMemberPedometer = updateMemberPedometer;
+
+        window.openMemberBenefits = function () {
+            if (!hasMemberBenefitAccess()) {
+                window.showMemberBenefitRequired('el podómetro, concursos y promociones');
+                return;
+            }
+            resetLocalMovementInputs();
+            document.getElementById('member-benefits-backdrop').style.display = 'block';
+            document.getElementById('member-benefits-modal').style.display = 'block';
+            updateMemberPedometerUi();
+            renderMemberPromotions();
+        };
+
+        window.closeMemberBenefits = function () {
+            document.getElementById('member-benefits-backdrop').style.display = 'none';
+            document.getElementById('member-benefits-modal').style.display = 'none';
+            focusMallCanvas();
+        };
+
+        window.openDiscountReward = function (discountCode, rewardLabel = '') {
+            const modal = document.getElementById('discount-reward-modal');
+            const backdrop = document.getElementById('discount-reward-backdrop');
+            const code = document.getElementById('discount-reward-code');
+            const copy = document.getElementById('discount-reward-copy');
+            const status = document.getElementById('discount-reward-status');
+            if (!modal || !backdrop || !code) return;
+            code.textContent = String(discountCode || '');
+            if (copy) copy.textContent = rewardLabel
+                ? `${rewardLabel}. Guárdalo y preséntalo según las condiciones de la promoción.`
+                : 'Guárdalo y preséntalo según las condiciones de la promoción.';
+            if (status) status.textContent = '';
+            backdrop.style.display = 'block';
+            modal.hidden = false;
+            modal.style.display = 'block';
+        };
+
+        window.closeDiscountReward = function () {
+            const modal = document.getElementById('discount-reward-modal');
+            const backdrop = document.getElementById('discount-reward-backdrop');
+            if (backdrop) backdrop.style.display = 'none';
+            if (modal) {
+                modal.hidden = true;
+                modal.style.display = 'none';
+            }
+            focusMallCanvas();
+        };
+
+        window.copyDiscountCode = async function () {
+            const code = document.getElementById('discount-reward-code')?.textContent || '';
+            const status = document.getElementById('discount-reward-status');
+            try {
+                await navigator.clipboard.writeText(code);
+                if (status) status.textContent = 'Código copiado.';
+            } catch (_) {
+                if (status) status.textContent = 'Selecciona el código para copiarlo manualmente.';
+            }
+        };
+
+        window.activateMemberPromotion = function (promotionId) {
+            const promotion = activeMemberPromotions.find(item => String(item.id) === String(promotionId));
+            if (!promotion || promotion.claimed_at) return;
+            window.configureMallPromotionCollectibles?.([promotion]);
+            window.closeMemberBenefits();
+            showInteractionFeedback('El Globo Dorado está oculto en el mall. Encuéntralo y tócalo para participar.', {
+                duration: 4200,
+                kind: 'guidance'
+            });
+        };
+
+        window.claimMemberPromotion = async function (promotionId, evidence = {}) {
+            if (!hasMemberBenefitAccess() || !supabaseClient || !currentTenantUser) {
+                window.showMemberBenefitRequired('los concursos y promociones');
+                return;
+            }
+            setMemberBenefitsStatus('Registrando tu participación...', 'muted');
+            const { data, error } = await supabaseClient.rpc('claim_member_promotion', {
+                p_promotion_id: promotionId,
+                p_evidence: evidence
+            });
+            if (error) {
+                setMemberBenefitsStatus(`No se pudo registrar la promoción: ${error.message}`, 'error');
+                showInteractionFeedback('No pudimos registrar el beneficio. Intenta nuevamente.', { duration: 3000, kind: 'guidance' });
+                return;
+            }
+            const promotion = activeMemberPromotions.find(item => String(item.id) === String(promotionId));
+            if (promotion) promotion.claimed_at = new Date().toISOString();
+            window.mallObjectEditor?.hidePromotionCollectible?.(promotionId);
+            window.hideMallPromotionCollectible?.(promotionId);
+            renderMemberPromotions();
+            setMemberBenefitsStatus(data?.message || 'Beneficio registrado. Enviaremos la confirmación a tu correo.', 'success');
+            showInteractionFeedback('¡Promoción obtenida! Revisa el correo de tu cuenta.', { duration: 3600 });
+            if (data?.discount_code) {
+                window.openDiscountReward(data.discount_code, data.reward_label);
+            }
+            try {
+                await supabaseClient.functions.invoke('member-promotion-email', {
+                    body: { promotion_id: promotionId, claim_id: data?.claim_id || null }
+                });
+            } catch (_) {}
+        };
+
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) void flushMemberPedometer();
+        });
 
         function getSelectedAvatarStyleCode() {
             return `${myAvatarBody}-${myAvatarOutfit}`;
@@ -321,23 +2125,75 @@
         window.setEntryMode = function(mode) {
             currentAccessRole = mode;
             const guestPanel = document.getElementById('guest-entry-panel');
+            const loginChoicePanel = document.getElementById('login-choice-panel');
             const memberPanel = document.getElementById('member-entry-panel');
             const tenantPanel = document.getElementById('tenant-entry-panel');
             const guestButton = document.getElementById('guest-entry-button');
             const avatarSelection = normalizeAvatarSelectionPanels();
             const secondaryActions = document.getElementById('entry-secondary-actions');
+            const accountCard = document.getElementById('entry-account-card');
+            const accountTitle = document.getElementById('welcome-access-title');
+            const accountCopy = document.getElementById('welcome-access-copy');
             syncAvatarSelectionUi();
 
             // Reset visibilities
             if (guestPanel) guestPanel.style.display = (mode === 'guest') ? 'block' : 'none';
+            if (loginChoicePanel) loginChoicePanel.style.display = (mode === 'login-choice') ? 'grid' : 'none';
             if (memberPanel) memberPanel.style.display = (mode === 'member') ? 'flex' : 'none';
+            if (memberPanel && mode === 'member') memberPanel.dataset.entryFlow = 'login';
             if (tenantPanel) tenantPanel.style.display = (mode === 'tenant') ? 'flex' : 'none';
             
             const isGuest = (mode === 'guest');
+            if (accountCard) accountCard.hidden = isGuest;
             if (guestButton) guestButton.style.display = isGuest ? 'inline-block' : 'none';
             if (avatarSelection) avatarSelection.style.display = isGuest ? 'block' : 'none';
             if (secondaryActions) secondaryActions.style.display = isGuest ? 'flex' : 'none';
+            if (accountTitle) accountTitle.textContent = mode === 'login-choice'
+                ? '¿Cómo quieres ingresar?'
+                : mode === 'tenant' ? 'Acceso locatario' : mode === 'member' ? 'Acceso visitante' : 'Tu cuenta';
+            if (accountCopy) accountCopy.textContent = mode === 'login-choice'
+                ? 'Elige el tipo de cuenta con que deseas acceder.'
+                : mode === 'tenant' ? 'Ingresa con tus datos de locatario aprobado.'
+                : mode === 'member' ? 'Ingresa con tu cuenta de visitante registrado.'
+                : 'Ingresa o crea una cuenta para acceder a beneficios.';
+            if (isGuest && hasEnteredMall) window.closeMallAccountAccess?.();
         }
+
+        window.openLoginChooser = function() {
+            window.openMallAccountAccess?.();
+            window.setEntryMode('login-choice');
+        };
+
+        window.openMemberRegistration = function() {
+            window.openMallAccountAccess?.();
+            window.setEntryMode('member');
+            const memberPanel = document.getElementById('member-entry-panel');
+            const title = document.getElementById('welcome-access-title');
+            const copy = document.getElementById('welcome-access-copy');
+            if (memberPanel) memberPanel.dataset.entryFlow = 'register';
+            if (title) title.textContent = 'Crear una cuenta';
+            if (copy) copy.textContent = 'Regístrate para acceder a beneficios y promociones del mall.';
+            setTimeout(() => document.getElementById('member-login-email')?.focus(), 0);
+        };
+
+        window.openMallAccountAccess = function() {
+            if (!hasEnteredMall) return;
+            const overlay = document.getElementById('login-overlay');
+            if (!overlay) return;
+            overlay.classList.add('mall-account-access');
+            overlay.style.opacity = '1';
+            overlay.style.display = 'flex';
+        };
+
+        window.closeMallAccountAccess = function() {
+            if (!hasEnteredMall) return;
+            const overlay = document.getElementById('login-overlay');
+            if (!overlay) return;
+            overlay.classList.remove('mall-account-access');
+            overlay.style.opacity = '0';
+            overlay.style.display = 'none';
+            focusMallCanvas();
+        };
         setTimeout(() => {
             normalizeAvatarSelectionPanels();
             syncAvatarSelectionUi();
@@ -370,8 +2226,23 @@
         }
 
         function buildNpcDisplayName(index = 0) {
-            if (Math.random() < 0.38) return buildGuestNickname();
-            return CHILEAN_NAMES[index % CHILEAN_NAMES.length];
+            // En un mall abierto predominan los accesos anónimos. Los nombres
+            // registrados se combinan para que la multitud no repita identidades.
+            if (Math.random() < 0.58) return buildGuestNickname();
+            const sourceNames = Array.isArray(CHILEAN_NAMES) && CHILEAN_NAMES.length
+                ? CHILEAN_NAMES
+                : ["Alex Rivera", "Camila Soto", "Diego Muñoz", "Sofía Pérez"];
+            const nameParts = sourceNames.map(fullName => {
+                const parts = String(fullName).trim().split(/\s+/);
+                return {
+                    first: parts[0] || "Visitante",
+                    last: parts.slice(1).join(" ") || "Mall"
+                };
+            });
+            const size = nameParts.length;
+            const first = nameParts[(index * 7 + Math.floor(Math.random() * size)) % size].first;
+            const last = nameParts[(index * 11 + Math.floor(Math.random() * size)) % size].last;
+            return `${first} ${last}`;
         }
 
         function buildRandomAvatarStyle() {
@@ -382,11 +2253,12 @@
 
         async function upsertUserProfile(user, role = "registered_visitor", displayName = "") {
             if (!supabaseClient || !user) return null;
+            const protectedRole = userHasAdminAccess(currentUserProfile, user) ? "admin" : role;
             const payload = {
                 auth_user_id: user.id,
                 email: user.email,
                 display_name: displayName || user.user_metadata?.nickname || user.email?.split('@')[0] || "",
-                role,
+                role: protectedRole,
                 updated_at: new Date().toISOString()
             };
             
@@ -420,35 +2292,125 @@
             return data;
         }
 
-        const MALL_ADMIN_EMAILS = new Set([
-            "alanmauri4815@gmail.com"
-        ]);
-
         function userHasAdminAccess(profile = null, user = null) {
-            const profileEmail = String(profile?.email || "").trim().toLowerCase();
-            const userEmail = String(user?.email || "").trim().toLowerCase();
-            return profile?.role === "admin" || MALL_ADMIN_EMAILS.has(profileEmail) || MALL_ADMIN_EMAILS.has(userEmail);
+            if (!currentUserIsAuthoritativeAdmin || !currentTenantUser?.id) return false;
+            const candidateId = String(user?.id || profile?.auth_user_id || currentTenantUser.id || "").trim();
+            const currentUserId = String(currentTenantUser.id || "").trim();
+            return !!currentUserId
+                && authoritativeAdminUserId === currentUserId
+                && (!candidateId || candidateId === currentUserId);
+        }
+
+        function clearAuthoritativeAdminAccess() {
+            currentUserIsAuthoritativeAdmin = false;
+            authoritativeAdminUserId = "";
+            authoritativeAdminVerificationUserId = "";
+            authoritativeAdminVerificationPromise = null;
+        }
+
+        async function refreshAuthoritativeAdminAccess(user = null, options = {}) {
+            const userId = String(user?.id || "").trim();
+            if (!supabaseClient || !userId) {
+                clearAuthoritativeAdminAccess();
+                return false;
+            }
+
+            if (authoritativeAdminUserId && authoritativeAdminUserId !== userId) {
+                clearAuthoritativeAdminAccess();
+            }
+
+            if (!options.force && currentUserIsAuthoritativeAdmin && authoritativeAdminUserId === userId) {
+                return true;
+            }
+
+            if (
+                authoritativeAdminVerificationPromise
+                && authoritativeAdminVerificationUserId === userId
+            ) {
+                return authoritativeAdminVerificationPromise;
+            }
+
+            authoritativeAdminVerificationUserId = userId;
+            const verificationPromise = (async () => {
+                if (!options.sessionAlreadyVerified) {
+                    const { data: authData, error: authError } = await supabaseClient.auth.getUser();
+                    const verifiedUser = authData?.user || null;
+                    if (authError || !verifiedUser || String(verifiedUser.id) !== userId) {
+                        if (authError) console.warn("No se pudo verificar la sesión administrativa:", authError.message);
+                        clearAuthoritativeAdminAccess();
+                        return false;
+                    }
+                }
+
+                const { data, error } = await supabaseClient.rpc('is_mall_admin');
+                if (error) {
+                    console.warn("No se pudo verificar el rol administrativo en Supabase:", error.message);
+                    clearAuthoritativeAdminAccess();
+                    return false;
+                }
+
+                if (String(currentTenantUser?.id || "") !== userId) return false;
+                if (data === true) {
+                    authoritativeAdminUserId = userId;
+                    currentUserIsAuthoritativeAdmin = true;
+                    return true;
+                }
+
+                clearAuthoritativeAdminAccess();
+                return false;
+            })();
+
+            authoritativeAdminVerificationPromise = verificationPromise;
+            try {
+                return await verificationPromise;
+            } finally {
+                if (authoritativeAdminVerificationPromise === verificationPromise) {
+                    authoritativeAdminVerificationPromise = null;
+                    authoritativeAdminVerificationUserId = "";
+                }
+            }
         }
 
         function applyUserRole(profile, user = null) {
-            currentUserProfile = profile;
-            currentUserRole = profile?.role || "guest";
-            const isMallAdmin = userHasAdminAccess(profile, user);
+            const isExplicitGuest = hasEnteredMall && currentAccessRole === 'guest';
+            currentUserProfile = isExplicitGuest ? null : profile;
+            const isMallAdmin = !isExplicitGuest && userHasAdminAccess(profile, user);
+            const profileRole = isExplicitGuest
+                ? "guest"
+                : (profile?.role === "admin" ? "registered_visitor" : (profile?.role || "guest"));
+            currentUserRole = isMallAdmin ? "admin" : profileRole;
             const btn = document.getElementById('super-admin-btn');
             const btnP = document.getElementById('super-admin-btn-persistent');
             const adminMenuItem = document.getElementById('admin-manage-menu-item');
             const debugPanel = document.getElementById('object-debug-panel');
             const gpsDisplay = document.getElementById('gps-display');
             const adminModal = document.getElementById('super-admin-modal');
-            const canShowAdmin = OBJECT_INSPECTOR_ENABLED && isMallAdmin && hasEnteredMall && hasPrivilegedMallSession;
+            const canShowAdmin = OBJECT_INSPECTOR_ENABLED
+                && currentAccessRole !== 'guest'
+                && isMallAdmin
+                && hasEnteredMall
+                && hasPrivilegedMallSession;
             if (btn) btn.style.display = canShowAdmin ? 'block' : 'none';
             if (btnP) btnP.style.display = canShowAdmin ? 'block' : 'none';
             if (adminMenuItem) adminMenuItem.style.display = canShowAdmin ? 'block' : 'none';
             isAdmin = canShowAdmin;
+            window.mallCanEditInfrastructure = () => Boolean(
+                isAdmin
+                && currentUserIsAuthoritativeAdmin
+                && window.mallInfrastructureEditorEnabled === true
+            );
+            window.mallCanUseAdminTools = () => Boolean(
+                isAdmin
+                && currentUserIsAuthoritativeAdmin
+                && currentAccessRole !== 'guest'
+                && hasPrivilegedMallSession
+            );
+            window.dispatchEvent(new Event('mall:admin-access-changed'));
              
             const axisRef = document.getElementById('axis-reference');
             const compassToggle = document.getElementById('admin-toggle-compass');
             const inspectorToggle = document.getElementById('admin-toggle-inspector');
+            const infrastructureEditorToggle = document.getElementById('admin-toggle-infrastructure-editor');
             const gpsToggle = document.getElementById('admin-toggle-gps');
 
             // Por defecto ocultas, el admin las activa desde su panel
@@ -457,17 +2419,45 @@
             if (gpsDisplay) gpsDisplay.style.display = 'none';
             if (compassToggle) compassToggle.checked = false;
             if (inspectorToggle) inspectorToggle.checked = false;
+            if (infrastructureEditorToggle) infrastructureEditorToggle.checked = false;
+            window.mallInfrastructureEditorEnabled = false;
             if (gpsToggle) gpsToggle.checked = false;
             if (!canShowAdmin && adminModal) adminModal.style.display = 'none';
+            syncMemberBenefitAccess();
+            syncGuestAccountActions();
         }
 
         window.toggleAdminTool = function(tool, isVisible) {
+            if (!isAdmin || !currentUserIsAuthoritativeAdmin) return;
             if (tool === 'compass') {
                 const axisRef = document.getElementById('axis-reference');
                 if (axisRef) axisRef.style.display = isVisible ? 'block' : 'none';
             } else if (tool === 'inspector') {
                 const debugPanel = document.getElementById('object-debug-panel');
                 if (debugPanel) debugPanel.style.display = isVisible ? 'block' : 'none';
+                if (isVisible) setTimeout(() => window.mallObjectEditor?.render?.(), 0);
+                if (!isVisible) {
+                    window.mallInfrastructureEditorEnabled = false;
+                    const editorToggle = document.getElementById('admin-toggle-infrastructure-editor');
+                    if (editorToggle) editorToggle.checked = false;
+                    document.getElementById('mall-object-editor')?.remove();
+                }
+            } else if (tool === 'infrastructure-editor') {
+                window.mallInfrastructureEditorEnabled = isVisible;
+                const debugPanel = document.getElementById('object-debug-panel');
+                const inspectorToggle = document.getElementById('admin-toggle-inspector');
+                if (isVisible) {
+                    if (inspectorToggle) inspectorToggle.checked = true;
+                    if (debugPanel) debugPanel.style.display = 'block';
+                    setTimeout(() => window.mallObjectEditor?.render?.('Selecciona un objeto registrado para modificarlo.'), 0);
+                    const adminModal = document.getElementById('super-admin-modal');
+                    if (adminModal) adminModal.style.display = 'none';
+                    const overlay = document.getElementById('modal-overlay');
+                    if (overlay) overlay.style.display = 'none';
+                    showInteractionFeedback('Editor activo: haz clic en un mueble, banca o muro de tabiquería.');
+                } else {
+                    document.getElementById('mall-object-editor')?.remove();
+                }
             } else if (tool === 'gps') {
                 const gpsDisplay = document.getElementById('gps-display');
                 if (gpsDisplay) gpsDisplay.style.display = isVisible ? 'block' : 'none';
@@ -558,7 +2548,8 @@
         }
 
         window.teleportAdminToHotspot = async function(hotspotKey) {
-            if (!isAdmin) {
+            const adminUser = await requireAuthoritativeAdminAccess({ showAlert: false });
+            if (!adminUser || !isAdmin) {
                 setAdminHotspotStatus("Solo el administrador del mall puede usar este desplazamiento.", "error");
                 return;
             }
@@ -599,10 +2590,14 @@
         const ADMINS = ['javier', 'javi', 'mauri', 'admin'];
         let chatTarget = "";
         let isAdmin = false;
-        let isChatOpen = false;
+        window.mallCanManagePublicDisplays = () => Boolean(isAdmin && currentUserIsAuthoritativeAdmin);
         let unreadCount = 0;
 
         window.toggleChat = function () {
+            if (!hasMemberBenefitAccess()) {
+                window.showMemberBenefitRequired('el chat interno');
+                return;
+            }
             isChatOpen = !isChatOpen;
             document.getElementById('mall-chat').style.display = isChatOpen ? 'flex' : 'none';
             document.getElementById('chat-minimized-btn').style.display = isChatOpen ? 'none' : 'flex';
@@ -615,10 +2610,17 @@
         };
 
         window.setChatTarget = function (user) {
-            if (user === myNickname) return;
+            if (!hasMemberBenefitAccess()) {
+                window.showMemberBenefitRequired('el chat interno');
+                return;
+            }
+            if (user === myPresenceId) return;
             chatTarget = user;
-            document.getElementById('chat-target-text').innerText = `Privado con: ${user}`;
+            const displayName = otherPlayers[user]?.nickname || user;
+            document.getElementById('chat-target-text').innerText = `Privado con: ${displayName}`;
             document.getElementById('chat-reset-btn').style.display = isAdmin ? 'inline-block' : 'none';
+            if (!isChatOpen) window.toggleChat();
+            showInteractionFeedback(`Conversación privada con ${displayName}.`, { duration: 1800 });
         }
 
         window.resetChatTarget = function () {
@@ -634,20 +2636,105 @@
         let myOwnedStores = [];
         let hasPrivilegedMallSession = false;
 
+        if (supabaseClient?.auth?.onAuthStateChange) {
+            supabaseClient.auth.onAuthStateChange((event, session) => {
+                const sessionUserId = String(session?.user?.id || "").trim();
+                const currentUserId = String(currentTenantUser?.id || "").trim();
+                const sessionEnded = event === 'SIGNED_OUT' || !sessionUserId;
+                const accountChanged = !!currentUserId && !!sessionUserId && currentUserId !== sessionUserId;
+
+                if (!sessionEnded && !accountChanged) return;
+                clearAuthoritativeAdminAccess();
+
+                currentTenantUser = null;
+                hasPrivilegedMallSession = false;
+                currentUserProfile = null;
+                currentUserRole = "guest";
+                myOwnedStores = [];
+                myOwnedStore = null;
+                applyUserRole(null, null);
+                resetPrivilegedClientState();
+                syncTenantManagementAccess();
+            });
+        }
+
+        async function getVerifiedTenantSessionUser(options = {}) {
+            if (!supabaseClient) return null;
+            const { data, error } = await supabaseClient.auth.getUser();
+            const user = data?.user || null;
+            if (error || !user) {
+                currentTenantUser = null;
+                hasPrivilegedMallSession = false;
+                clearAuthoritativeAdminAccess();
+                currentUserProfile = null;
+                currentUserRole = "guest";
+                myOwnedStores = [];
+                myOwnedStore = null;
+                applyUserRole(null, null);
+                resetPrivilegedClientState();
+                syncTenantManagementAccess();
+                return null;
+            }
+            if (currentTenantUser?.id && String(currentTenantUser.id) !== String(user.id)) {
+                clearAuthoritativeAdminAccess();
+            }
+            currentTenantUser = user;
+            hasPrivilegedMallSession = true;
+            await refreshAuthoritativeAdminAccess(user, {
+                sessionAlreadyVerified: true,
+                force: options.forceAdminRefresh === true
+            });
+            return user;
+        }
+
+        async function verifyTenantStoreAccess(store) {
+            const user = await getVerifiedTenantSessionUser({ forceAdminRefresh: true });
+            if (!user || !store) return { allowed: false, user: null, store: null };
+            if (userHasAdminAccess(currentUserProfile, user)) return { allowed: true, user, store };
+
+            const storeId = String(store.id || "").trim();
+            const localCode = String(getStoreCode(store) || "").trim();
+            let query = supabaseClient.from('stores').select('*');
+            if (storeId) query = query.eq('id', storeId);
+            else if (localCode) query = query.eq('local_code', localCode);
+            else return { allowed: false, user, store: null };
+
+            const { data: verifiedStore, error } = await query.maybeSingle();
+            if (error || !verifiedStore) {
+                if (error) console.warn("No se pudo verificar la propiedad del local:", error.message);
+                return { allowed: false, user, store: null };
+            }
+
+            const ownerId = String(verifiedStore.owner_id || "").trim();
+            const userId = String(user.id || "").trim();
+            const storeEmail = String(verifiedStore.contact_email || "").trim().toLowerCase();
+            const userEmail = String(user.email || "").trim().toLowerCase();
+            const isOwner = ownerId && ownerId === userId;
+            const isReservedForUser = !ownerId && !!userEmail && storeEmail === userEmail;
+            return { allowed: isOwner || isReservedForUser, user, store: verifiedStore };
+        }
+
+        window.verifyTenantStoreAccess = verifyTenantStoreAccess;
+
         function syncTenantManagementAccess() {
             const tenantAccessItem = document.getElementById('tenant-access-btn');
-            const hasTenantSession = hasPrivilegedMallSession && !!currentTenantUser && myOwnedStores.length > 0;
+            const hasTenantSession = currentAccessRole !== 'guest'
+                && hasPrivilegedMallSession
+                && !!currentTenantUser
+                && myOwnedStores.length > 0;
             if (tenantAccessItem) tenantAccessItem.innerText = 'Panel Locatario';
         }
 
         window.toggleTenantLogin = function() {
             closeControlsMenu();
-            if (hasPrivilegedMallSession && currentTenantUser) {
+            if (currentAccessRole !== 'guest' && hasPrivilegedMallSession && currentTenantUser) {
                 openTenantAdminFromMenu();
                 return;
             }
             const modal = document.getElementById('tenant-login-modal');
-            modal.style.display = modal.style.display === 'none' ? 'block' : 'none';
+            if (!modal) return;
+            const isHidden = getComputedStyle(modal).display === 'none';
+            modal.style.display = isHidden ? 'block' : 'none';
         }
 
         // --- DETECTOR AUTOMÁTICO DE SESIÓN ADMIN ---
@@ -655,17 +2742,19 @@
             setTimeout(async () => {
                 if (!supabaseClient) return;
                 const { data: { user } } = await supabaseClient.auth.getUser();
+                if (hasEnteredMall && currentAccessRole === 'guest') return;
                 
                 if (user) {
                     currentTenantUser = user;
                     hasPrivilegedMallSession = true;
+                    await refreshAuthoritativeAdminAccess(user, { sessionAlreadyVerified: true });
                     let profile = await loadUserProfile(user);
                     if (!profile) {
                         profile = {
                             auth_user_id: user.id,
                             email: user.email,
                             display_name: user.user_metadata?.brand_name || user.email?.split('@')[0] || "",
-                            role: userHasAdminAccess(null, user) ? "admin" : "registered_visitor"
+                            role: currentUserIsAuthoritativeAdmin ? "admin" : "registered_visitor"
                         };
                     }
                     applyUserRole(profile, user);
@@ -680,11 +2769,13 @@
                 } else {
                     currentTenantUser = null;
                     hasPrivilegedMallSession = false;
+                    clearAuthoritativeAdminAccess();
                     currentUserProfile = null;
                     currentUserRole = "guest";
                     myOwnedStores = [];
                     myOwnedStore = null;
                     applyUserRole(null, null);
+                    resetPrivilegedClientState();
                     syncTenantManagementAccess();
                 }
                 
@@ -694,18 +2785,24 @@
         });
 
         window.adminLogout = async function() {
-            if (supabaseClient) {
-                await supabaseClient.auth.signOut();
-                hasEnteredMall = false;
-                hasPrivilegedMallSession = false;
-                currentTenantUser = null;
-                myOwnedStores = [];
-                myOwnedStore = null;
-                applyUserRole(null, null);
-                syncTenantManagementAccess();
-                alert("Sesión cerrada correctamente.");
-                location.reload(); // Recargar para limpiar estado
-            }
+            if (supabaseClient) await supabaseClient.auth.signOut();
+            hasEnteredMall = false;
+            mallEntryInFlight = false;
+            mallEntryCompleted = false;
+            mallEntryPromise = null;
+            mallEntrySequence++;
+            resetMallEntrySpawnPoint();
+            window.resetMallGuidedVisitorArrival?.();
+            hasPrivilegedMallSession = false;
+            clearAuthoritativeAdminAccess();
+            currentTenantUser = null;
+            myOwnedStores = [];
+            myOwnedStore = null;
+            applyUserRole(null, null);
+            resetPrivilegedClientState();
+            syncTenantManagementAccess();
+            alert("Sesión cerrada correctamente.");
+            location.reload(); // Recargar para limpiar estado
         }
 
         window.submitTenantApplication = async function() {
@@ -722,6 +2819,7 @@
             // 1. Guardar en Supabase (Registro histórico)
             const { error } = await supabaseClient.from('tenant_applications').insert([
                 { 
+                    mall_id: window.mallContext?.id,
                     brand_name: brand, 
                     category: category, 
                     email: email, 
@@ -779,67 +2877,286 @@
             el.style.color = isError ? '#ff8866' : '#888';
         }
 
-        async function enterMallWithIdentity({ nickname, role = "guest", user = null, profile = null }) {
-            myNickname = nickname;
-            currentAccessRole = role;
-            currentMemberProfile = role === "member" ? profile : currentMemberProfile;
-            hasEnteredMall = true;
-            if (window.mallMobileViewport) {
-                window.mallMobileViewport.activate();
-            }
-            applyUserRole(currentUserProfile, currentTenantUser || user);
+        function setTenantLoginBusy(isBusy) {
+            tenantLoginInFlight = isBusy;
+            document.querySelectorAll('[data-mall-action="tenantLoginMain"], [data-mall-action="tenantLoginDefault"]').forEach(button => {
+                if (!button.dataset.idleLabel) button.dataset.idleLabel = button.textContent.trim();
+                button.disabled = isBusy;
+                button.setAttribute('aria-busy', isBusy ? 'true' : 'false');
+                button.textContent = isBusy ? 'Verificando acceso...' : button.dataset.idleLabel;
+            });
+        }
 
-            if (isAdmin) {
-                resetChatTarget();
+        function withRequestTimeout(request, timeoutMs, message) {
+            let timeoutId = null;
+            const timeout = new Promise((_, reject) => {
+                timeoutId = setTimeout(() => reject(new Error(message)), timeoutMs);
+            });
+            return Promise.race([Promise.resolve(request), timeout])
+                .finally(() => clearTimeout(timeoutId));
+        }
+
+        async function hydrateTenantSessionAfterLogin(user, email, options = {}) {
+            const userId = String(user?.id || '');
+            if (!userId) return;
+
+            const fallbackProfile = {
+                auth_user_id: user.id,
+                email,
+                display_name: user.user_metadata?.brand_name || email.split('@')[0],
+                role: 'registered_visitor'
+            };
+
+            // La autoridad administrativa no se descarta por timeout. Cuando Supabase
+            // responde, se reaplican los controles y se cargan todos los locales.
+            const adminAccessPromise = options.adminAccessPromise
+                || refreshAuthoritativeAdminAccess(user, { sessionAlreadyVerified: true });
+            void adminAccessPromise
+                .then(async isAuthorized => {
+                    if (!isAuthorized || String(currentTenantUser?.id || '') !== userId) return;
+                    applyUserRole(currentUserProfile || fallbackProfile, user);
+                    try {
+                        await refreshMyOwnedStoresFromSupabase();
+                        syncTenantManagementAccess();
+                    } catch (error) {
+                        console.warn('No se pudieron cargar todos los locales del administrador:', error);
+                    }
+                })
+                .catch(error => {
+                    console.warn('No se pudo completar la verificación administrativa:', error);
+                });
+
+            const [profileResult, storesResult] = await Promise.allSettled([
+                withRequestTimeout(
+                    loadUserProfile(user),
+                    8000,
+                    'La carga del perfil tardó demasiado.'
+                ),
+                withRequestTimeout(
+                    mallUiScopeQuery(
+                        supabaseClient.from('stores').select('*').eq('owner_id', user.id)
+                    ).limit(20),
+                    8000,
+                    'La carga de locales tardó demasiado.'
+                )
+            ]);
+
+            if (String(currentTenantUser?.id || '') !== userId) return;
+
+            const profile = profileResult.status === 'fulfilled' && profileResult.value
+                ? profileResult.value
+                : fallbackProfile;
+            applyUserRole(profile, user);
+
+            const storesResponse = storesResult.status === 'fulfilled' ? storesResult.value : null;
+            if (storesResult.status === 'rejected' || storesResponse?.error) {
+                console.warn(storesResult.reason?.message || storesResponse?.error?.message || 'No se pudieron cargar los locales.');
             } else {
-                chatTarget = "";
-                document.getElementById('chat-target-text').innerText = "Clickea un jugador para hablarle";
+                myOwnedStores = storesResponse?.data || [];
+                myOwnedStore = myOwnedStores[0] || null;
             }
+            syncTenantManagementAccess();
 
-            document.getElementById('login-overlay').style.opacity = '0';
-            setTimeout(() => {
-                document.getElementById('login-overlay').style.display = 'none';
-                document.getElementById('main-header').style.display = 'flex';
-                
-                let restored = false;
-                /* 
-                if (isAdmin) {
-                    const savedState = currentUserProfile?.last_pos || JSON.parse(localStorage.getItem('mall_admin_last_pos') || "null");
-                    if (savedState && typeof savedState.px === 'number') {
-                        try {
-                            const s = savedState;
-                            if (Math.abs(s.px) > 2 || Math.abs(s.pz) > 2) {
-                                const safeY = Math.max(s.py || 0, 1.2);
-                                camera.position.set(s.px, safeY, s.pz);
-                                controls.target.set(s.tx, s.ty, s.tz);
-                                restored = true;
-                            }
-                        } catch(e) { console.warn("Error al restaurar posición admin:", e); }
+            try {
+                await refreshMyOwnedStoresFromSupabase();
+                syncTenantManagementAccess();
+            } catch (error) {
+                console.warn('No se pudieron refrescar los locales vinculados al usuario:', error);
+            }
+        }
+
+        async function clearLocalSupabaseSessionStorage() {
+            const auth = supabaseClient?.auth;
+            const storageKey = auth?.storageKey;
+            if (!storageKey) return;
+
+            try {
+                if (auth.storage?.removeItem) {
+                    await auth.storage.removeItem(storageKey);
+                } else {
+                    window.localStorage?.removeItem(storageKey);
+                }
+            } catch (error) {
+                console.warn('No se pudo limpiar el almacenamiento local de autenticación:', error);
+            }
+        }
+
+        async function clearAuthenticatedSessionForGuestEntry() {
+            if (supabaseClient?.auth) {
+                const hasKnownAuthenticatedSession = Boolean(currentTenantUser || hasPrivilegedMallSession);
+                // El almacenamiento local se limpia sin pasar por el lock de getSession,
+                // que puede quedar pendiente tras un login interrumpido.
+                await clearLocalSupabaseSessionStorage();
+
+                if (hasKnownAuthenticatedSession) {
+                    try {
+                        const { error: signOutError } = await withRequestTimeout(
+                            supabaseClient.auth.signOut({ scope: 'local' }),
+                            900,
+                            'El cierre de la sesión anterior tardó demasiado.'
+                        );
+                        if (signOutError) {
+                            console.warn('La sesión local se limpió, pero signOut informó un error no bloqueante:', signOutError);
+                        }
+                    } catch (error) {
+                        // La sesión persistida ya fue retirada. No dejamos que un lock
+                        // antiguo de Auth bloquee la entrada visual del visitante.
+                        console.warn('El cierre de sesión anterior continúa en segundo plano:', error);
                     }
                 }
-                */
+            }
 
-                if (!isWalking) {
-                    window.toggleWalkMode();
-                } 
-                if (window.mallMobileViewport) {
-                    window.mallMobileViewport.requestLandscape();
+            currentTenantUser = null;
+            currentMemberProfile = null;
+            currentUserProfile = null;
+            currentUserRole = "guest";
+            hasPrivilegedMallSession = false;
+            myOwnedStores = [];
+            myOwnedStore = null;
+            clearAuthoritativeAdminAccess();
+            resetPrivilegedClientState();
+            syncTenantManagementAccess();
+            return true;
+        }
+
+        function finalizeMallEntryUi() {
+            const loginOverlay = document.getElementById('login-overlay');
+            if (loginOverlay) {
+                loginOverlay.style.opacity = '0';
+                loginOverlay.style.display = 'none';
+            }
+            const mainHeader = document.getElementById('main-header');
+            if (mainHeader) mainHeader.style.display = 'flex';
+            const brandOverlay = document.getElementById('ui-overlay');
+            if (brandOverlay) brandOverlay.style.display = 'none';
+            controls.update();
+            focusMallCanvas();
+            showMallQuickStart();
+            startProximityContext();
+        }
+
+        async function performMallEntry({
+            nickname,
+            role = "guest",
+            user = null,
+            profile = null,
+            skipTenantAutoArrival = false
+        }) {
+            mallEntryInFlight = true;
+            const entrySequence = ++mallEntrySequence;
+
+            try {
+                if (role === "guest") {
+                    // Set the public role first so delayed auth hydration cannot expose
+                    // controls from the previous signed-in session.
+                    currentAccessRole = "guest";
+                    currentUserRole = "guest";
+                    currentUserProfile = null;
+                    currentMemberProfile = null;
+                    if (!(await clearAuthenticatedSessionForGuestEntry())) {
+                        mallEntryInFlight = false;
+                        return false;
+                    }
                 }
+                if (entrySequence !== mallEntrySequence) return false;
+
+                tenantAutoArrivalSequence++;
+                if (role === "tenant") tenantAutoArrivalUserId = "";
+                resetMallEntrySpawnPoint();
+                myNickname = nickname;
+                window.mallMazePlayerName = String(nickname || "Jugador local").trim() || "Jugador local";
+                currentAccessRole = role;
+                currentMemberProfile = role === "member" ? profile : currentMemberProfile;
+                hasEnteredMall = true;
+                const analyticsIdentity = { role, source: 'entry' };
+                if (window.mallAnalytics?.startMallSession) {
+                    window.mallAnalytics.startMallSession(analyticsIdentity);
+                } else {
+                    window.__pendingMallAnalyticsIdentity = analyticsIdentity;
+                }
+                if (window.mallMobileViewport) {
+                    window.mallMobileViewport.activate();
+                }
+                applyUserRole(currentUserProfile, currentTenantUser || user);
+                if (hasMemberBenefitAccess()) void loadMemberBenefitsSummary();
+                if (currentUserRole === 'admin') void triggerPendingPromotionAnnouncements();
+
+                if (isAdmin) {
+                    resetChatTarget();
+                } else {
+                    chatTarget = "";
+                    document.getElementById('chat-target-text').innerText = "Clickea un jugador para hablarle";
+                }
+
+                if (!isWalking) window.toggleWalkMode({ preservePosition: true });
+                if (window.mallMobileViewport) window.mallMobileViewport.requestLandscape();
                 if (role === "guest" || role === "member" || role === "registered_visitor") {
                     preloadStoreContent(renameStoreCode('O101'));
                 }
-                
-                if (!restored) {
-                    forceEntrySpawn();
-                    requestAnimationFrame(() => {
-                        forceEntrySpawn();
-                    });
-                }
-                controls.update();
-                focusMallCanvas();
-            }, 500);
+                const isVisitorEntry = role === "guest"
+                    || role === "member"
+                    || role === "registered_visitor";
 
-            initPresence();
+                let placementCompleted = true;
+                // El locatario aparece primero en un punto seguro. La resolución de su local
+                // continúa en segundo plano para que una consulta lenta no bloquee el ingreso.
+                if (role === "tenant" && user && currentUserRole !== "admin" && !skipTenantAutoArrival) {
+                    forceEntrySpawn();
+                    showInteractionFeedback('Entrando al mall. Ubicaré tu local en unos segundos.', { duration: 3200 });
+                    void scheduleTenantAutoArrival(user).catch(error => {
+                        console.warn('No se pudo ubicar automáticamente el local del locatario:', error);
+                    });
+                } else if (isVisitorEntry) {
+                    forceInformationDeskVisitorSpawn();
+                } else {
+                    forceEntrySpawn();
+                }
+                if (!placementCompleted || entrySequence !== mallEntrySequence || !hasEnteredMall) return false;
+
+                const loginOverlay = document.getElementById('login-overlay');
+                if (loginOverlay) loginOverlay.style.opacity = '0';
+                await new Promise(resolve => setTimeout(resolve, 160));
+                if (entrySequence !== mallEntrySequence || !hasEnteredMall) return false;
+
+                finalizeMallEntryUi();
+                mallEntryCompleted = true;
+                document.body.dataset.mallEntryState = "complete";
+                document.body.dataset.mallEntryRole = role;
+                document.body.dataset.mallEntryPlacements = "1";
+                document.body.dataset.mallEntrySequence = String(entrySequence);
+                try {
+                    initPresence();
+                } catch (presenceError) {
+                    console.warn('El ingreso termino correctamente, pero no se pudo iniciar presencia:', presenceError);
+                }
+                return true;
+            } catch (error) {
+                if (entrySequence === mallEntrySequence) {
+                    mallEntryInFlight = false;
+                    mallEntryCompleted = false;
+                    hasEnteredMall = false;
+                }
+                console.error('No se pudo completar el ingreso unico al mall:', error);
+                showInteractionFeedback('No fue posible completar el ingreso. Intenta nuevamente.');
+                return false;
+            } finally {
+                if (entrySequence === mallEntrySequence) mallEntryInFlight = false;
+            }
+        }
+
+        async function enterMallWithIdentity(options) {
+            if (mallEntryCompleted) {
+                finalizeMallEntryUi();
+                return true;
+            }
+            if (mallEntryPromise) return mallEntryPromise;
+
+            mallEntryPromise = performMallEntry(options);
+            try {
+                return await mallEntryPromise;
+            } finally {
+                mallEntryPromise = null;
+            }
         }
 
         async function resolveTenantEmail(identifier) {
@@ -851,6 +3168,7 @@
         }
 
         window.tenantLogin = async function(source = 'modal') {
+            if (tenantLoginInFlight) return;
             const emailInput = source === 'main' ? document.getElementById('tenant-login-email-main') : document.getElementById('tenant-email');
             const passInput = source === 'main' ? document.getElementById('tenant-login-pass-main') : document.getElementById('tenant-pass');
             const identifier = emailInput.value.trim();
@@ -878,56 +3196,101 @@
                 if (source === 'main') return setTenantLoginStatus(msg, true);
                 return alert(msg);
             }
-            
-            const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password: pass });
-            if (error) {
-                const msg = error.message === "Invalid API key"
-                    ? "La clave pública de Supabase no es válida. Revisa que el proyecto use la publishable key correcta."
-                    : `No se pudo entrar con "${identifier}" (${email}): ` + error.message;
-                if (source === 'main') return setTenantLoginStatus(msg, true);
-                return alert(msg);
-            }
-            
-            currentTenantUser = data.user;
-            hasPrivilegedMallSession = true;
-            let profile = await loadUserProfile(data.user);
-            if (!profile) {
-                profile = { auth_user_id: data.user.id, email, display_name: data.user.user_metadata?.brand_name || email.split('@')[0], role: "registered_visitor" };
-            }
-            applyUserRole(profile, data.user);
-            
-            if (source !== 'main') {
-                const modal = document.getElementById('tenant-login-modal');
-                if (modal) modal.style.display = 'none';
-            }
-            
-            // Buscar la tienda del dueño
-            const { data: storeData } = await supabaseClient.from('stores').select('*').eq('owner_id', data.user.id).limit(20);
-            myOwnedStores = storeData || [];
-            myOwnedStore = myOwnedStores[0] || null;
-            syncTenantManagementAccess();
 
-            if (source === 'main') {
-                if (tenantHasDismissedPasswordSetup(data.user)) {
-                    const tenantName = myOwnedStore?.name || data.user.user_metadata?.brand_name || email.split('@')[0];
-                    setTenantLoginStatus("Sesión iniciada. Entrando al mall...", false);
-                    await enterMallWithIdentity({ nickname: `Locatario ${tenantName}`, role: "tenant", user: data.user });
-                    applyUserRole(currentUserProfile, data.user);
+            setTenantLoginBusy(true);
+            if (source === 'main') setTenantLoginStatus('Verificando credenciales...', false);
+
+            try {
+                const { data, error } = await withRequestTimeout(
+                    supabaseClient.auth.signInWithPassword({ email, password: pass }),
+                    15000,
+                    'La autenticación está tardando demasiado. Revisa tu conexión e intenta nuevamente.'
+                );
+                if (error) {
+                    const msg = error.message === "Invalid API key"
+                        ? "La clave pública de Supabase no es válida. Revisa que el proyecto use la publishable key correcta."
+                        : `No se pudo entrar con "${identifier}" (${email}): ` + error.message;
+                    if (source === 'main') return setTenantLoginStatus(msg, true);
+                    return alert(msg);
+                }
+
+                currentTenantUser = data.user;
+                hasPrivilegedMallSession = true;
+                if (authoritativeAdminUserId !== String(data.user.id)) {
+                    clearAuthoritativeAdminAccess();
+                }
+                const fallbackProfile = {
+                    auth_user_id: data.user.id,
+                    email,
+                    display_name: data.user.user_metadata?.brand_name || email.split('@')[0],
+                    role: 'registered_visitor'
+                };
+                applyUserRole(fallbackProfile, data.user);
+
+                const adminAccessPromise = refreshAuthoritativeAdminAccess(data.user, {
+                    sessionAlreadyVerified: true
+                });
+
+                // Perfil, permisos y locales se hidratan en paralelo. Ninguno bloquea la entrada al mall.
+                void hydrateTenantSessionAfterLogin(data.user, email, { adminAccessPromise }).catch(error => {
+                    console.warn('No se pudo completar la carga posterior al ingreso:', error);
+                });
+
+                if (source !== 'main') {
+                    const modal = document.getElementById('tenant-login-modal');
+                    if (modal) modal.style.display = 'none';
+                    alert("Sesión iniciada con éxito.");
                     return;
                 }
+
+                if (tenantHasDismissedPasswordSetup(data.user)) {
+                    const tenantName = data.user.user_metadata?.brand_name || email.split('@')[0];
+                    setTenantLoginStatus("Sesión iniciada. Validando permisos...", false);
+                    let adminValidationTimedOut = false;
+                    let hasAdminAccess = false;
+                    try {
+                        hasAdminAccess = Boolean(await withRequestTimeout(
+                            adminAccessPromise,
+                            1800,
+                            'La validación de permisos continúa en segundo plano.'
+                        ));
+                    } catch (adminError) {
+                        adminValidationTimedOut = true;
+                        console.warn(adminError?.message || 'La validación administrativa continúa en segundo plano.');
+                    }
+                    applyUserRole(currentUserProfile || fallbackProfile, data.user);
+                    const enterAsAdmin = hasAdminAccess || currentUserRole === 'admin';
+                    setTenantLoginStatus("Acceso validado. Entrando al mall...", false);
+                    const entered = await enterMallWithIdentity({
+                        nickname: `${enterAsAdmin ? 'Administrador' : 'Locatario'} ${tenantName}`,
+                        role: enterAsAdmin ? "admin" : "tenant",
+                        user: data.user,
+                        // Si el permiso administrativo tarda, no encadenamos otra espera de
+                        // local. El ingreso usa el punto seguro y la hidratación continúa aparte.
+                        skipTenantAutoArrival: adminValidationTimedOut || enterAsAdmin
+                    });
+                    if (!entered) throw new Error('No se pudo completar la transición de entrada al mall.');
+                    return;
+                }
+
                 setTenantLoginStatus("Acceso validado. Puedes cambiar tu clave ahora sin correo o continuar al mall.", false);
                 openTenantPasswordSetup({ continueToMall: true });
-                return;
+            } catch (error) {
+                const msg = error?.message || 'No se pudo completar el ingreso.';
+                if (source === 'main') setTenantLoginStatus(msg, true);
+                else alert(msg);
+            } finally {
+                setTenantLoginBusy(false);
             }
-            
-            if (source === 'main') setTenantLoginStatus("Sesión iniciada. Entrando al mall...");
-            else alert("Sesión iniciada con éxito.");
-            
         }
 
         window.openTenantAdminFromMenu = async function() {
             closeControlsMenu();
-            if (!currentTenantUser) return alert("Primero inicia sesión como locatario.");
+            if (hasEnteredMall && currentAccessRole === 'guest') {
+                return alert("Inicia sesión como locatario para administrar un local.");
+            }
+            const sessionUser = await getVerifiedTenantSessionUser({ forceAdminRefresh: true });
+            if (!sessionUser) return alert("Primero inicia sesión como locatario.");
             try {
                 await refreshMyOwnedStoresFromSupabase();
             } catch (error) {
@@ -936,27 +3299,161 @@
             if (!myOwnedStores.length) return alert("Tu cuenta aún no tiene locales asignados.");
             await refreshAdminStoreDisplayCodes();
 
-            if (myOwnedStores.length > 1) {
-                const options = myOwnedStores.map(s => `${getAdminStoreDisplayCode(s) || getStoreCode(s)}: ${s.name || 'Local sin nombre'}`).join('\n');
-                const selectedCode = prompt(`Tienes más de un local. Escribe el código que quieres gestionar:\n\n${options}`, getAdminStoreDisplayCode(myOwnedStore) || getStoreCode(myOwnedStore) || getAdminStoreDisplayCode(myOwnedStores[0]) || getStoreCode(myOwnedStores[0]));
-                if (!selectedCode) return;
-                const normalizedSelectedCode = selectedCode.trim().toLowerCase();
-                const selected = myOwnedStores.find(s => {
-                    const visibleCode = (getAdminStoreDisplayCode(s) || "").toLowerCase();
-                    const legacyCode = (getStoreCode(s) || "").toLowerCase();
-                    return visibleCode === normalizedSelectedCode || legacyCode === normalizedSelectedCode;
-                });
-                let currentModalStoreCode = "";
-                let currentModalStoreId = "";
-                let currentModalStoreData = null;
-                if (!selected) return alert("No encontré ese código entre tus locales asignados.");
-                myOwnedStore = selected;
-            } else {
-                myOwnedStore = myOwnedStores[0];
-            }
+            const selectedStoreStillOwned = myOwnedStores.find(store => String(store.id) === String(myOwnedStore?.id));
+            myOwnedStore = selectedStoreStillOwned || myOwnedStores[0];
+
+            const access = await verifyTenantStoreAccess(myOwnedStore);
+            if (!access.allowed) return alert("No tienes autorización para administrar este local.");
+            myOwnedStore = { ...myOwnedStore, ...(access.store || {}) };
 
             currentModalStoreCode = getStoreCode(myOwnedStore);
+            currentModalStoreId = myOwnedStore.id || currentModalStoreCode;
+            currentModalStoreData = myOwnedStore;
             await openTenantAdmin();
+        }
+
+        function ensureAdminSectionButton(section) {
+            return Array.from(document.querySelectorAll('.admin-section-tab'))
+                .find(button => button.dataset.mallSection === section);
+        }
+
+        window.setAdminPanelSection = function(section = 'tenants') {
+            const target = String(section || 'tenants').trim() || 'tenants';
+            document.querySelectorAll('[data-admin-section]').forEach(panel => {
+                const isActive = panel.dataset.adminSection === target;
+                panel.hidden = !isActive;
+                panel.classList.toggle('is-active', isActive);
+            });
+            document.querySelectorAll('.admin-section-tab').forEach(button => {
+                const isActive = button.dataset.mallSection === target;
+                button.classList.toggle('is-active', isActive);
+                button.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+            });
+        };
+
+        function setupAdminPanelLayout() {
+            const modal = document.getElementById('super-admin-modal');
+            if (!modal) return;
+
+            const header = modal.querySelector('.admin-modal-header');
+            const legacyGrid = modal.querySelector('.admin-overview-grid');
+            if (!header || !legacyGrid) return;
+
+            let switcher = modal.querySelector('.admin-section-switcher');
+            let sectionStack = modal.querySelector('.admin-section-stack');
+            if (switcher && sectionStack) return;
+
+            const applicationsCard = legacyGrid.querySelector(':scope > .admin-card');
+            const sideStack = legacyGrid.querySelector(':scope > .admin-side-stack');
+            if (!applicationsCard || !sideStack) return;
+
+            const sideCards = Array.from(sideStack.children).filter(node => node.classList?.contains('admin-card'));
+            const summaryCard = sideCards[0] || null;
+            const analyticsCard = sideCards[1] || null;
+            const toolsCard = sideCards[2] || null;
+            const assignmentCard = sideCards[3] || null;
+            const rentalCard = sideCards[4] || null;
+            const mallAssistantCard = sideCards[5] || null;
+            if (!summaryCard || !analyticsCard || !toolsCard || !assignmentCard || !rentalCard) return;
+
+            switcher = document.createElement('div');
+            switcher.className = 'admin-section-switcher';
+            switcher.setAttribute('role', 'tablist');
+            switcher.setAttribute('aria-label', 'Secciones del panel administrador');
+            switcher.innerHTML = [
+                ['tenants', 'Gestion de locatarios'],
+                ['stats', 'Estadisticas'],
+                ['tools', 'Herramientas'],
+                ['assistant', 'Asistente del Mall']
+            ].map(([section, label], index) => `
+                <button type="button" class="admin-section-tab${index === 0 ? ' is-active' : ''}" data-mall-section="${section}" aria-pressed="${index === 0 ? 'true' : 'false'}">${label}</button>
+            `).join('');
+
+            sectionStack = document.createElement('div');
+            sectionStack.className = 'admin-section-stack';
+
+            const tenantsSection = document.createElement('section');
+            tenantsSection.id = 'admin-section-tenants';
+            tenantsSection.dataset.adminSection = 'tenants';
+            tenantsSection.className = 'admin-section-view is-active';
+
+            const statsSection = document.createElement('section');
+            statsSection.id = 'admin-section-stats';
+            statsSection.dataset.adminSection = 'stats';
+            statsSection.className = 'admin-section-view';
+            statsSection.hidden = true;
+
+            const toolsSection = document.createElement('section');
+            toolsSection.id = 'admin-section-tools';
+            toolsSection.dataset.adminSection = 'tools';
+            toolsSection.className = 'admin-section-view';
+            toolsSection.hidden = true;
+
+            const assistantSection = document.createElement('section');
+            assistantSection.id = 'admin-section-assistant';
+            assistantSection.dataset.adminSection = 'assistant';
+            assistantSection.className = 'admin-section-view';
+            assistantSection.hidden = true;
+
+            const tenantsGrid = document.createElement('div');
+            tenantsGrid.className = 'admin-overview-grid admin-overview-grid--tenants';
+            const tenantsSideStack = document.createElement('div');
+            tenantsSideStack.className = 'admin-side-stack';
+
+            const statsStack = document.createElement('div');
+            statsStack.className = 'admin-overview-grid--stats';
+
+            const applicationsTitle = applicationsCard.querySelector('.admin-card-title');
+            if (applicationsTitle && !applicationsCard.querySelector('.admin-card-heading')) {
+                const heading = document.createElement('div');
+                heading.className = 'admin-card-heading';
+                applicationsTitle.parentNode.insertBefore(heading, applicationsTitle);
+                heading.appendChild(applicationsTitle);
+                const subtitle = document.createElement('p');
+                subtitle.className = 'admin-card-subtitle';
+                subtitle.textContent = 'Revisa solicitudes, crea accesos y asigna locales.';
+                heading.appendChild(subtitle);
+            }
+
+            const toolsTitle = toolsCard.querySelector('.admin-card-title');
+            if (toolsTitle && !toolsCard.querySelector('.admin-card-heading')) {
+                const heading = document.createElement('div');
+                heading.className = 'admin-card-heading';
+                toolsTitle.parentNode.insertBefore(heading, toolsTitle);
+                heading.appendChild(toolsTitle);
+                const subtitle = document.createElement('p');
+                subtitle.className = 'admin-card-subtitle';
+                subtitle.textContent = 'Instrumentos tecnicos y desplazamiento rapido para revisar el mall.';
+                heading.appendChild(subtitle);
+            }
+
+            tenantsGrid.appendChild(applicationsCard);
+            tenantsSideStack.appendChild(assignmentCard);
+            tenantsSideStack.appendChild(rentalCard);
+            tenantsGrid.appendChild(tenantsSideStack);
+            tenantsSection.appendChild(tenantsGrid);
+
+            statsStack.appendChild(summaryCard);
+            statsStack.appendChild(analyticsCard);
+            statsSection.appendChild(statsStack);
+
+            toolsSection.appendChild(toolsCard);
+
+            if (mallAssistantCard) assistantSection.appendChild(mallAssistantCard);
+
+            sectionStack.appendChild(tenantsSection);
+            sectionStack.appendChild(statsSection);
+            sectionStack.appendChild(toolsSection);
+            if (mallAssistantCard) sectionStack.appendChild(assistantSection);
+
+            legacyGrid.replaceWith(sectionStack);
+            header.insertAdjacentElement('afterend', switcher);
+
+            switcher.addEventListener('click', (event) => {
+                const button = event.target.closest('.admin-section-tab');
+                if (!button) return;
+                window.setAdminPanelSection(button.dataset.mallSection || 'tenants');
+            });
         }
 
         window.openSuperAdmin = async function() {
@@ -964,11 +3461,8 @@
                 return alert("Primero entra al mall con tu cuenta administradora.");
             }
 
-            let sessionUser = currentTenantUser || null;
-            if (supabaseClient && !sessionUser) {
-                const { data } = await supabaseClient.auth.getUser();
-                sessionUser = data?.user || null;
-            }
+            const sessionUser = await requireAuthoritativeAdminAccess();
+            if (!sessionUser) return;
 
             let freshProfile = currentUserProfile;
             if (supabaseClient && sessionUser) {
@@ -979,53 +3473,40 @@
                 applyUserRole(freshProfile, sessionUser);
             }
 
-            if (!userHasAdminAccess(freshProfile, sessionUser)) {
-                return alert("Esta sección es solo para administradores del mall.");
-            }
             const modal = document.getElementById('super-admin-modal');
             if (modal) {
+                setupAdminPanelLayout();
                 modal.style.display = 'block';
-                loadAdminData();
+                window.setAdminPanelSection('tenants');
+                await window.loadAdminMallAssistantPanel?.();
+                await loadAdminData();
             } else {
                 alert("Error: Modal de administración no encontrado.");
             }
         }
 
         function escapeHtml(value = "") {
-            return String(value)
-                .replace(/&/g, "&amp;")
-                .replace(/</g, "&lt;")
-                .replace(/>/g, "&gt;")
-                .replace(/"/g, "&quot;")
-                .replace(/'/g, "&#39;");
+            return window.mallSecurity.escapeHtml(value);
         }
 
         function safeHttpUrl(value = "") {
-            const raw = String(value || "").trim();
-            if (!raw) return "";
-            try {
-                const url = new URL(raw, window.location.origin);
-                if (url.protocol !== "https:" && url.protocol !== "http:") return "";
-                return url.href;
-            } catch (_) {
-                return "";
-            }
+            return window.mallSecurity.safeHttpUrl(value, window.location.origin);
         }
 
         function safeImageUrl(value = "") {
-            return safeHttpUrl(value);
+            return window.mallSecurity.safeImageUrl(value, window.location.origin);
         }
 
         function buildSafeMailtoHref(email = "", subject = "") {
-            const clean = String(email || "").trim();
-            if (!/^[^\s@<>"']+@[^\s@<>"']+\.[^\s@<>"']+$/.test(clean)) return "";
-            return `mailto:${clean}?subject=${encodeURIComponent(String(subject || ""))}`;
+            return window.mallSecurity.buildSafeMailtoHref(email, subject);
         }
 
         function buildSafeWhatsAppHref(phone = "", text = "") {
-            const digits = String(phone || "").replace(/[^\d]/g, "");
-            if (digits.length < 8 || digits.length > 15) return "";
-            return `https://wa.me/${digits}?text=${encodeURIComponent(String(text || ""))}`;
+            return window.mallSecurity.buildSafeWhatsAppHref(phone, text);
+        }
+
+        function buildSafeTelHref(phone = "") {
+            return window.mallSecurity.buildSafeTelHref(phone);
         }
 
         function parseLocalCodes(raw = "") {
@@ -1039,6 +3520,7 @@
 
         let adminApplicationsCache = [];
         let selectedAdminApplicationId = null;
+        let selectedAdminAccountExists = false;
         let adminManagedStore = null;
         let adminManagedLease = null;
         let adminRentalLoadTimer = null;
@@ -1050,6 +3532,104 @@
         const tenantAdminProductsCache = new Map();
         const tenantAdminProductDrafts = new Map();
         let tenantAdminOpenRequestId = 0;
+        let currentTenantProductLimit = 10;
+        let tenantAdminHasUnsavedChanges = false;
+        let tenantAdminDirtyTrackingBound = false;
+        let physicalTeleportRowsCache = [];
+        let physicalTeleportRowsLoadedAt = 0;
+        const PHYSICAL_TELEPORT_ROWS_TTL_MS = 60 * 1000;
+
+        function resetPrivilegedClientState() {
+            const adminModal = document.getElementById('super-admin-modal');
+            const tenantModal = document.getElementById('tenant-admin-modal');
+            const privilegedPanelWasOpen = [adminModal, tenantModal]
+                .some(modal => modal && modal.style.display !== 'none' && getComputedStyle(modal).display !== 'none');
+
+            if (adminModal) adminModal.style.display = 'none';
+            if (tenantModal) tenantModal.style.display = 'none';
+            if (privilegedPanelWasOpen) {
+                const overlay = document.getElementById('modal-overlay');
+                if (overlay) overlay.style.display = 'none';
+            }
+
+            tenantAdminOpenRequestId++;
+            tenantAdminProductsCache.clear();
+            tenantAdminProductDrafts.clear();
+            tenantAdminHasUnsavedChanges = false;
+            currentTenantProductLimit = 10;
+
+            adminApplicationsCache = [];
+            selectedAdminApplicationId = null;
+            selectedAdminAccountExists = false;
+            adminManagedStore = null;
+            adminManagedLease = null;
+            adminAssignableStoresCache = [];
+            physicalTeleportRowsCache = [];
+            if (adminRentalLoadTimer) {
+                clearTimeout(adminRentalLoadTimer);
+                adminRentalLoadTimer = null;
+            }
+
+            const adminList = document.getElementById('admin-apps-list');
+            if (adminList) adminList.replaceChildren();
+            const adminSelection = document.getElementById('admin-selection-content');
+            if (adminSelection) adminSelection.style.display = 'none';
+            const adminEmpty = document.getElementById('admin-selection-empty');
+            if (adminEmpty) adminEmpty.style.display = '';
+
+            const tenantStoreSelect = document.getElementById('tenant-store-select');
+            if (tenantStoreSelect) tenantStoreSelect.replaceChildren();
+            const tenantProducts = document.getElementById('edit-products-list');
+            if (tenantProducts) tenantProducts.replaceChildren();
+            const tenantMessages = document.getElementById('tenant-messages-list');
+            if (tenantMessages) tenantMessages.replaceChildren();
+
+            document.querySelectorAll('#tenant-admin-modal input, #tenant-admin-modal textarea').forEach(field => {
+                if (field.type === 'checkbox' || field.type === 'radio') field.checked = false;
+                else field.value = '';
+            });
+            document.querySelectorAll('#tenant-admin-modal [id^="tenant-metric-"]').forEach(metric => {
+                metric.textContent = metric.id === 'tenant-metric-conversion' ? '0%' : '0';
+            });
+        }
+
+        async function requireAuthoritativeAdminAccess(options = {}) {
+            if (hasEnteredMall && currentAccessRole === 'guest') {
+                clearAuthoritativeAdminAccess();
+                applyUserRole(null, null);
+                resetPrivilegedClientState();
+                if (options.showAlert !== false) {
+                    alert("Debes cerrar la entrada anónima e iniciar sesión con la cuenta administradora.");
+                }
+                return null;
+            }
+            const sessionUser = await getVerifiedTenantSessionUser({ forceAdminRefresh: true });
+            const allowed = !!sessionUser && userHasAdminAccess(currentUserProfile, sessionUser);
+            if (allowed) return sessionUser;
+
+            clearAuthoritativeAdminAccess();
+            applyUserRole(currentUserProfile, sessionUser);
+            resetPrivilegedClientState();
+            if (options.showAlert !== false) {
+                alert("Esta sección es solo para el administrador autorizado del mall.");
+            }
+            return null;
+        }
+
+        window.closeSuperAdmin = function() {
+            resetPrivilegedClientState();
+        };
+        const PHYSICAL_TELEPORT_SELECT_COLUMNS = [
+            'physical_space_id',
+            'display_code',
+            'floor_label',
+            'teleport_x',
+            'teleport_y',
+            'teleport_z',
+            'teleport_target_x',
+            'teleport_target_y',
+            'teleport_target_z'
+        ].join(',');
         const ADMIN_FALLBACK_DISPLAY_CODE_MAP = {
             S101: 'OS-10',
             S102: 'O-107',
@@ -1126,48 +3706,34 @@
             if (!supabaseClient) return;
 
             try {
-                let spaces = [];
-                const spacesPlural = await supabaseClient
-                    .from('physical_spaces')
-                    .select('id, source_code, display_code');
-                if (!spacesPlural.error && spacesPlural.data?.length) {
-                    spaces = spacesPlural.data;
-                } else {
-                    const spacesSingular = await supabaseClient
-                        .from('physical_space')
-                        .select('physical_space_id, source_code, display_code');
-                    if (!spacesSingular.error && spacesSingular.data?.length) {
-                        spaces = spacesSingular.data.map(row => ({
-                            id: row.physical_space_id,
-                            source_code: row.source_code,
-                            display_code: row.display_code
-                        }));
-                    }
-                }
+                const spacesResult = await mallUiScopeQuery(
+                    supabaseClient
+                        .from('physical_spaces')
+                        .select('physical_space_id, display_code')
+                );
+                const spaces = spacesResult.error ? [] : (spacesResult.data || []);
 
                 if (spaces.length) {
                     spaces.forEach((space) => {
                         const displayCode = String(space?.display_code || "").trim();
-                        const sourceCode = String(space?.source_code || "").trim().toUpperCase();
-                        const spaceId = String(space?.id || "").trim();
-                        if (sourceCode && displayCode) {
-                            adminLegacyStoreCodeMap.set(sourceCode, displayCode);
-                        }
+                        const spaceId = String(space?.physical_space_id || "").trim();
                         if (spaceId && displayCode) {
                             adminLegacyStoreCodeMap.set(spaceId.toUpperCase(), displayCode);
                         }
                     });
                 }
 
-                const links = await supabaseClient
-                    .from('store_physical_links')
-                    .select('store_id, physical_space_id');
+                const links = await mallUiScopeQuery(
+                    supabaseClient
+                        .from('store_physical_links')
+                        .select('store_id, physical_space_id')
+                );
                 if (links.error || !links.data?.length || !spaces.length) return;
 
                 const spaceCodeById = new Map(
                     spaces
-                        .filter(space => (space?.id || '') && (space?.display_code || ''))
-                        .map(space => [String(space.id).trim(), String(space.display_code).trim()])
+                        .filter(space => (space?.physical_space_id || '') && (space?.display_code || ''))
+                        .map(space => [String(space.physical_space_id).trim(), String(space.display_code).trim()])
                 );
 
                 (links.data || []).forEach((link) => {
@@ -1192,6 +3758,432 @@
             }
             return getStoreCode(store);
         }
+
+        function setAdminTeleportStatus(message = "", tone = "muted") {
+            const statusEl = document.getElementById('admin-teleport-status');
+            if (!statusEl) return;
+            const palette = {
+                muted: '#888',
+                error: '#ff8866',
+                success: '#7fcf8d',
+                warn: '#c5a059'
+            };
+            statusEl.style.color = palette[tone] || palette.muted;
+            statusEl.textContent = message;
+        }
+
+        function isMissingPhysicalTeleportColumnsError(error) {
+            const message = String(error?.message || "").toLowerCase();
+            return error?.code === '42703'
+                || message.includes('teleport_x')
+                || message.includes('teleport_target_x')
+                || message.includes('column');
+        }
+
+        function isMissingPhysicalTeleportRpcError(error) {
+            const message = String(error?.message || "").toLowerCase();
+            return error?.code === 'PGRST202'
+                || error?.code === '42883'
+                || message.includes('get_physical_space_teleport_points')
+                || message.includes('could not find the function')
+                || message.includes('function') && message.includes('not found');
+        }
+
+        function normalizePhysicalTeleportCode(value = "") {
+            return String(value || "").trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
+        }
+
+        async function loadPhysicalTeleportRows(force = false) {
+            if (!supabaseClient) return physicalTeleportRowsCache;
+            if (
+                !force
+                && physicalTeleportRowsLoadedAt
+                && (Date.now() - physicalTeleportRowsLoadedAt) < PHYSICAL_TELEPORT_ROWS_TTL_MS
+            ) {
+                return physicalTeleportRowsCache;
+            }
+
+            let data = null;
+            let error = null;
+            const rpcResult = await supabaseClient.rpc('get_physical_space_teleport_points', {
+                p_mall_id: window.mallContext?.id || null
+            });
+            if (!rpcResult.error) {
+                data = rpcResult.data;
+            } else if (isMissingPhysicalTeleportRpcError(rpcResult.error)) {
+                const tableResult = await mallUiScopeQuery(
+                    supabaseClient
+                        .from('physical_spaces')
+                        .select(PHYSICAL_TELEPORT_SELECT_COLUMNS)
+                );
+                data = tableResult.data;
+                error = tableResult.error;
+            } else {
+                error = rpcResult.error;
+            }
+
+            if (error) {
+                if (isMissingPhysicalTeleportColumnsError(error)) {
+                    console.warn("[Teleport] Faltan columnas teleport_* en physical_spaces:", error.message);
+                } else {
+                    console.warn("[Teleport] No pude cargar puntos guardados:", error.message);
+                }
+                return physicalTeleportRowsCache;
+            }
+
+            physicalTeleportRowsCache = data || [];
+            physicalTeleportRowsLoadedAt = Date.now();
+            return physicalTeleportRowsCache;
+        }
+
+        async function loadAdminPhysicalTeleportRowsForRegistration() {
+            if (!supabaseClient) return { rows: [], error: new Error("Supabase no disponible") };
+            const result = await mallUiScopeQuery(
+                supabaseClient
+                    .from('physical_spaces')
+                    .select(PHYSICAL_TELEPORT_SELECT_COLUMNS)
+            );
+            if (result.error) return { rows: [], error: result.error };
+            return { rows: result.data || [], error: null };
+        }
+
+        function getPhysicalTeleportRowsForCode(code = "") {
+            const wanted = normalizePhysicalTeleportCode(code);
+            if (!wanted) return [];
+            return (physicalTeleportRowsCache || []).filter((row) => {
+                const candidates = [
+                    row?.display_code,
+                    row?.physical_space_id
+                ].map(normalizePhysicalTeleportCode).filter(Boolean);
+                return candidates.includes(wanted);
+            });
+        }
+
+        function getAdminPhysicalTeleportRowsForDisplayCode(code = "", rows = physicalTeleportRowsCache) {
+            const wanted = normalizePhysicalTeleportCode(code);
+            if (!wanted) return [];
+            return (rows || []).filter((row) => (
+                normalizePhysicalTeleportCode(row?.display_code) === wanted
+            ));
+        }
+
+        function getRenderedPhysicalSpaceIdsForCode(code = "", targetFloor = 1) {
+            const ids = [];
+            const addId = (value) => {
+                const id = String(value || "").trim();
+                if (id && !ids.includes(id)) ids.push(id);
+            };
+            getStoreGroupsForTeleport(code)
+                .filter(group => {
+                    if (!group) return false;
+                    if (group.userData?.isAnchor) return true;
+                    if (!group.userData?.isBoutique) return true;
+                    return getTeleportGroupFloor(group) === targetFloor;
+                })
+                .sort((a, b) => getGroupCodeMatchScore(a, code) - getGroupCodeMatchScore(b, code))
+                .forEach(group => {
+                    addId(group.userData?.physicalSpaceId);
+                    addId(group.userData?.physicalSpaceMeta?.id);
+                });
+            return ids;
+        }
+
+        function getRenderedPhysicalGroupById(physicalSpaceId = "", code = "", targetFloor = 1) {
+            const wantedId = String(physicalSpaceId || "").trim();
+            if (!wantedId) return null;
+            return getStoreGroupsForTeleport(code).find(group => {
+                if (!group || getTeleportGroupFloor(group) !== targetFloor) return false;
+                const groupIds = [
+                    group.userData?.physicalSpaceId,
+                    group.userData?.physicalSpaceMeta?.id
+                ].map(value => String(value || "").trim()).filter(Boolean);
+                return groupIds.includes(wantedId);
+            }) || null;
+        }
+
+        function savedTeleportMatchesRenderedGeometry(row, storeCode = "", targetFloor = 1) {
+            if (!row || !hasUsableTeleportPoint(row)) return false;
+            const group = getRenderedPhysicalGroupById(row.physical_space_id, storeCode, targetFloor);
+            if (!group) return false;
+
+            const groupPosition = group.getWorldPosition(new THREE.Vector3());
+            const cameraCoords = getTeleportCameraCoords(row);
+            const lookCoords = getTeleportLookCoords(row);
+            const cameraDistance = groupPosition.distanceTo(new THREE.Vector3(
+                cameraCoords.x,
+                groupPosition.y,
+                cameraCoords.z
+            ));
+            const lookDistance = groupPosition.distanceTo(new THREE.Vector3(
+                lookCoords.x,
+                groupPosition.y,
+                lookCoords.z
+            ));
+
+            // Una fachada puede tener su camara varios metros fuera del local, pero
+            // nunca en el cuadrante opuesto. Esto descarta coordenadas heredadas de
+            // otro local aunque el physical_space_id haya quedado bien rotulado.
+            return cameraDistance <= 22 && lookDistance <= 18;
+        }
+
+        function getTeleportCameraCoords(row = {}) {
+            return {
+                x: Number(row.camera_x ?? row.teleport_x),
+                y: Number(row.camera_y ?? row.teleport_y),
+                z: Number(row.camera_z ?? row.teleport_z)
+            };
+        }
+
+        function getTeleportLookCoords(row = {}) {
+            return {
+                x: Number(row.look_x ?? row.teleport_target_x),
+                y: Number(row.look_y ?? row.teleport_target_y),
+                z: Number(row.look_z ?? row.teleport_target_z)
+            };
+        }
+
+        function hasUsableTeleportPoint(row) {
+            const cameraCoords = getTeleportCameraCoords(row);
+            const lookCoords = getTeleportLookCoords(row);
+            return [
+                cameraCoords.x,
+                cameraCoords.y,
+                cameraCoords.z,
+                lookCoords.x,
+                lookCoords.y,
+                lookCoords.z
+            ].every(Number.isFinite);
+        }
+
+        function floorMatchesTeleportRow(row, targetFloor = 1) {
+            const label = String(row?.floor_label || "").trim();
+            if (!label) return true;
+            return label === String(targetFloor);
+        }
+
+        async function resolveSavedStorefrontTeleportTarget(storeCode = "", targetFloor = 1) {
+            if (!storeCode || !supabaseClient) return null;
+            await loadPhysicalTeleportRows(false);
+            const matches = getPhysicalTeleportRowsForCode(storeCode);
+            const renderedPhysicalIds = getRenderedPhysicalSpaceIdsForCode(storeCode, targetFloor);
+            // Si la geometria activa identifica los componentes del local, una fila
+            // guardada con el mismo display_code pero perteneciente a otro espacio
+            // fisico es obsoleta y nunca debe decidir el destino del visitante.
+            const eligibleMatches = renderedPhysicalIds.length
+                ? matches.filter(row => renderedPhysicalIds.includes(String(row?.physical_space_id || "").trim()))
+                : matches;
+            const scoreSavedRow = (row) => {
+                if (!hasUsableTeleportPoint(row)) return 10000;
+                let score = floorMatchesTeleportRow(row, targetFloor) ? 0 : 500;
+                const rowPhysicalId = String(row?.physical_space_id || "").trim();
+                const rowDisplayCode = normalizePhysicalTeleportCode(row?.display_code);
+                const rowPhysicalCode = normalizePhysicalTeleportCode(rowPhysicalId);
+                const wantedCode = normalizePhysicalTeleportCode(storeCode);
+                const renderedIndex = renderedPhysicalIds.indexOf(rowPhysicalId);
+                if (renderedIndex >= 0) score -= 1000 - renderedIndex;
+                if (rowPhysicalCode === wantedCode) score -= 120;
+                if (rowDisplayCode === wantedCode) score -= 80;
+                return score;
+            };
+            const savedRow = eligibleMatches
+                .filter(hasUsableTeleportPoint)
+                .filter(row => savedTeleportMatchesRenderedGeometry(row, storeCode, targetFloor))
+                .sort((a, b) => scoreSavedRow(a) - scoreSavedRow(b))[0] || null;
+            if (!savedRow) return null;
+
+            const cameraCoords = getTeleportCameraCoords(savedRow);
+            const lookCoords = getTeleportLookCoords(savedRow);
+            const candidate = {
+                position: new THREE.Vector3(
+                    cameraCoords.x,
+                    cameraCoords.y,
+                    cameraCoords.z
+                ),
+                target: new THREE.Vector3(
+                    lookCoords.x,
+                    lookCoords.y,
+                    lookCoords.z
+                )
+            };
+
+            if (!isWalkableTeleportPosition(candidate.position)) {
+                window.mallLastTeleportDebug = {
+                    selectedCode: storeCode,
+                    resolvedPhysicalSpaceId: savedRow.physical_space_id || "",
+                    savedTeleport: true,
+                    blocked: true,
+                    worldPosition: {
+                        x: Number(candidate.position.x.toFixed(2)),
+                        y: Number(candidate.position.y.toFixed(2)),
+                        z: Number(candidate.position.z.toFixed(2))
+                    }
+                };
+                return { blocked: true };
+            }
+
+            window.mallLastTeleportDebug = {
+                selectedCode: storeCode,
+                resolvedPhysicalSpaceId: savedRow.physical_space_id || "",
+                resolvedDisplayCode: savedRow.display_code || "",
+                savedTeleport: true,
+                savedTeleportSource: 'supabase',
+                renderedPhysicalIds,
+                targetFloor,
+                rawCameraColumns: {
+                    camera_x: savedRow.camera_x ?? null,
+                    camera_y: savedRow.camera_y ?? null,
+                    camera_z: savedRow.camera_z ?? null,
+                    teleport_x: savedRow.teleport_x ?? null,
+                    teleport_y: savedRow.teleport_y ?? null,
+                    teleport_z: savedRow.teleport_z ?? null
+                },
+                rawLookColumns: {
+                    look_x: savedRow.look_x ?? null,
+                    look_y: savedRow.look_y ?? null,
+                    look_z: savedRow.look_z ?? null,
+                    teleport_target_x: savedRow.teleport_target_x ?? null,
+                    teleport_target_y: savedRow.teleport_target_y ?? null,
+                    teleport_target_z: savedRow.teleport_target_z ?? null
+                },
+                worldPosition: {
+                    x: Number(candidate.position.x.toFixed(2)),
+                    y: Number(candidate.position.y.toFixed(2)),
+                    z: Number(candidate.position.z.toFixed(2))
+                },
+                worldTarget: {
+                    x: Number(candidate.target.x.toFixed(2)),
+                    y: Number(candidate.target.y.toFixed(2)),
+                    z: Number(candidate.target.z.toFixed(2))
+                }
+            };
+            return { ...candidate, savedPhysicalSpace: savedRow };
+        }
+
+        function getCurrentAdminTeleportPose() {
+            if (typeof camera === "undefined" || typeof controls === "undefined") return null;
+            const position = camera.position.clone();
+            let target = controls.target.clone();
+            if (!target || target.distanceTo(position) < 0.4) {
+                const direction = new THREE.Vector3();
+                camera.getWorldDirection(direction);
+                target = position.clone().add(direction.multiplyScalar(8));
+            }
+            const round = value => Number(Number(value).toFixed(2));
+            return {
+                teleport_x: round(position.x),
+                teleport_y: round(position.y),
+                teleport_z: round(position.z),
+                teleport_target_x: round(target.x),
+                teleport_target_y: round(target.y),
+                teleport_target_z: round(target.z)
+            };
+        }
+
+        function renderAdminTeleportPosePreview(pose = null) {
+            const preview = document.getElementById('admin-teleport-current-preview');
+            if (!preview) return;
+            if (!pose) {
+                preview.textContent = "Posicion actual: sin capturar.";
+                return;
+            }
+            preview.textContent = `Camara X ${pose.teleport_x}, Y ${pose.teleport_y}, Z ${pose.teleport_z} - Mira hacia X ${pose.teleport_target_x}, Y ${pose.teleport_target_y}, Z ${pose.teleport_target_z}`;
+        }
+
+        window.registerAdminTeleportPosition = async function() {
+            const adminUser = await requireAuthoritativeAdminAccess({ showAlert: false });
+            if (!adminUser) {
+                setAdminTeleportStatus("Esta herramienta es solo para administradores del mall.", "error");
+                return;
+            }
+            if (!supabaseClient) {
+                setAdminTeleportStatus("Supabase no está disponible. Abre la app desde el servidor local.", "error");
+                return;
+            }
+
+            const localCode = getTrimmedValue('admin-teleport-local-code').toUpperCase();
+            if (!localCode) {
+                setAdminTeleportStatus("Ingresa el codigo visible del local, por ejemplo O-101.", "warn");
+                return;
+            }
+
+            const pose = getCurrentAdminTeleportPose();
+            if (!pose) {
+                setAdminTeleportStatus("No pude leer la posicion actual de la camara.", "error");
+                return;
+            }
+            if (pose.teleport_y > 11) {
+                setAdminTeleportStatus("Estas en una altura de vista aerea. Baja a modo paseo frente al local antes de registrar.", "warn");
+                return;
+            }
+            const posePosition = new THREE.Vector3(pose.teleport_x, pose.teleport_y, pose.teleport_z);
+            if (!isWalkableTeleportPosition(posePosition)) {
+                setAdminTeleportStatus("La posicion actual no parece transitable. Muevete un poco fuera de muros, vitrinas o mobiliario y vuelve a registrar.", "error");
+                return;
+            }
+            renderAdminTeleportPosePreview(pose);
+
+            setAdminTeleportStatus("Buscando el local fisico en Supabase...", "muted");
+            const adminRowsResult = await loadAdminPhysicalTeleportRowsForRegistration();
+            if (adminRowsResult.error) {
+                if (isMissingPhysicalTeleportColumnsError(adminRowsResult.error)) {
+                    setAdminTeleportStatus("Faltan columnas teleport_* en Supabase. Ejecuta supabase/add_physical_space_teleport_points_20260718.sql y vuelve a registrar.", "error");
+                } else {
+                    setAdminTeleportStatus("No pude leer physical_spaces: " + adminRowsResult.error.message, "error");
+                }
+                return;
+            }
+            physicalTeleportRowsCache = adminRowsResult.rows;
+            physicalTeleportRowsLoadedAt = Date.now();
+            const rows = adminRowsResult.rows;
+            const matches = getAdminPhysicalTeleportRowsForDisplayCode(localCode, rows);
+            if (!rows.length) {
+                setAdminTeleportStatus("physical_spaces no tiene registros para buscar locales fisicos.", "error");
+                return;
+            }
+            if (!matches.length) {
+                setAdminTeleportStatus(`No encontre un espacio fisico con display_code ${localCode}. Revisa el codigo visible del local.`, "error");
+                return;
+            }
+
+            const ids = matches
+                .map(row => String(row.physical_space_id || "").trim())
+                .filter(Boolean);
+            if (!ids.length) {
+                setAdminTeleportStatus("El espacio encontrado no tiene physical_space_id válido.", "error");
+                return;
+            }
+
+            const payload = {
+                ...pose,
+                updated_at: new Date().toISOString()
+            };
+            const { error } = await mallUiScopeQuery(
+                supabaseClient
+                    .from('physical_spaces')
+                    .update(payload)
+                    .in('physical_space_id', ids)
+            );
+
+            if (error) {
+                if (isMissingPhysicalTeleportColumnsError(error)) {
+                    setAdminTeleportStatus("Faltan columnas teleport_* en Supabase. Ejecuta supabase/add_physical_space_teleport_points_20260718.sql y vuelve a registrar.", "error");
+                } else {
+                    setAdminTeleportStatus("No pude guardar la posicion: " + error.message, "error");
+                }
+                return;
+            }
+
+            const idSet = new Set(ids);
+            physicalTeleportRowsCache = (physicalTeleportRowsCache || []).map(row => (
+                idSet.has(String(row.physical_space_id || "").trim())
+                    ? { ...row, ...payload }
+                    : row
+            ));
+            physicalTeleportRowsLoadedAt = 0;
+            await loadPhysicalTeleportRows(true);
+            setAdminTeleportStatus(`Posicion registrada para ${localCode}. Espacios actualizados: ${ids.length}.`, "success");
+            showInteractionFeedback(`Posicion de llegada guardada para ${localCode}.`);
+        };
 
         function compareAdminStoreCodes(a = "", b = "") {
             return String(a || "").localeCompare(String(b || ""), undefined, { numeric: true, sensitivity: 'base' });
@@ -1540,16 +4532,20 @@
             const code = String(rawCode || "").trim().toUpperCase();
             if (!code) return { store: null, error: null };
 
-            const byLocalCode = await supabaseClient
-                .from('stores')
-                .select('*')
+            const byLocalCode = await mallUiScopeQuery(
+                supabaseClient
+                    .from('stores')
+                    .select('*')
+            )
                 .ilike('local_code', code)
                 .maybeSingle();
             if (!byLocalCode.error && byLocalCode.data) return { store: byLocalCode.data, error: null };
 
-            const byId = await supabaseClient
-                .from('stores')
-                .select('*')
+            const byId = await mallUiScopeQuery(
+                supabaseClient
+                    .from('stores')
+                    .select('*')
+            )
                 .eq('id', code)
                 .maybeSingle();
             if (!byId.error && byId.data) return { store: byId.data, error: null };
@@ -1568,9 +4564,11 @@
             const lookup = await findAssignableProfileForApplication(app);
             if (lookup.error) return { store: null, error: lookup.error };
             if (lookup.profile?.auth_user_id) {
-                const owned = await supabaseClient
-                    .from('stores')
-                    .select('*')
+                const owned = await mallUiScopeQuery(
+                    supabaseClient
+                        .from('stores')
+                        .select('*')
+                )
                     .eq('owner_id', lookup.profile.auth_user_id)
                     .order('local_code', { ascending: true })
                     .limit(1)
@@ -1630,9 +4628,11 @@
             const rate = !rateRes.error ? rateRes.data : null;
             fillAdminRateForm(rate, store);
 
-            const leaseRes = await supabaseClient
-                .from('tenant_leases')
-                .select('*')
+            const leaseRes = await mallUiScopeQuery(
+                supabaseClient
+                    .from('tenant_leases')
+                    .select('*')
+            )
                 .eq('store_id', store.id)
                 .order('created_at', { ascending: false })
                 .limit(1)
@@ -1641,9 +4641,11 @@
             fillAdminLeaseForm(adminManagedLease, app, rate);
             fillAdminPaymentForm(adminManagedLease, rate);
 
-            const paymentsRes = await supabaseClient
-                .from('tenant_payments')
-                .select('*')
+            const paymentsRes = await mallUiScopeQuery(
+                supabaseClient
+                    .from('tenant_payments')
+                    .select('*')
+            )
                 .eq('store_id', store.id)
                 .order('due_date', { ascending: false })
                 .limit(8);
@@ -1651,9 +4653,11 @@
             renderAdminPaymentsHistory(paymentRows);
             renderAdminBalanceSummary(store, paymentRows, adminManagedLease);
 
-            const notesRes = await supabaseClient
-                .from('tenant_notes')
-                .select('*')
+            const notesRes = await mallUiScopeQuery(
+                supabaseClient
+                    .from('tenant_notes')
+                    .select('*')
+            )
                 .eq('store_id', store.id)
                 .order('created_at', { ascending: false })
                 .limit(8);
@@ -1816,13 +4820,18 @@
         }
 
         async function findAssignableProfileForApplication(app) {
+            const applicationEmail = String(app?.email || "").trim().toLowerCase();
             const directAuthId = app?.applicant_auth_user_id || app?.auth_user_id || app?.user_id || null;
+            let directLookup = null;
             if (directAuthId) {
-                const byAuthId = await findAssignableProfileByAuthId(directAuthId);
-                if (byAuthId.profile || byAuthId.error) return byAuthId;
+                directLookup = await findAssignableProfileByAuthId(directAuthId);
+                if (directLookup.error) return directLookup;
+                const directEmail = String(directLookup.profile?.email || "").trim().toLowerCase();
+                if (directLookup.profile && (!applicationEmail || directEmail === applicationEmail)) return directLookup;
             }
             const byEmail = await findAssignableProfileByEmail(app?.email || "");
             if (byEmail.profile || byEmail.error) return byEmail;
+            if (directLookup?.profile) return directLookup;
 
             const fallbackProfile = buildFallbackProfileFromApplication(app);
             return {
@@ -1834,15 +4843,13 @@
         }
 
         async function persistTenantRole(profile, brandName = "") {
-            if (profile?.role === 'admin') {
-                return { ok: true, fallback: false, skipped: true, error: null };
-            }
+            const mustRemainAdmin = userHasAdminAccess(profile, null);
 
             const payload = {
                 auth_user_id: profile.auth_user_id,
                 email: profile.email,
                 display_name: profile.display_name || brandName || profile.email.split('@')[0],
-                role: 'tenant',
+                role: mustRemainAdmin ? 'admin' : 'tenant',
                 updated_at: new Date().toISOString()
             };
 
@@ -1851,7 +4858,7 @@
                 .upsert(payload, { onConflict: 'auth_user_id' });
 
             if (!profileWrite.error) {
-                return { ok: true, fallback: false, error: null };
+                return { ok: true, fallback: false, skipped: mustRemainAdmin, error: null };
             }
 
             if (!isMissingUserProfilesError(profileWrite.error)) {
@@ -1866,6 +4873,7 @@
             return {
                 ok: !memberWrite.error,
                 fallback: true,
+                skipped: mustRemainAdmin,
                 error: memberWrite.error || null
             };
         }
@@ -1960,6 +4968,242 @@
             statusEl.textContent = message;
         }
 
+        function setAdminTenantAuthStatus(message = "", tone = "muted") {
+            const statusEl = document.getElementById('admin-tenant-auth-status');
+            if (!statusEl) return;
+            const palette = {
+                muted: '#888',
+                error: '#ff8866',
+                success: '#7fcf8d',
+                warn: '#c5a059'
+            };
+            statusEl.style.color = palette[tone] || palette.muted;
+            statusEl.textContent = message;
+        }
+
+        function buildTemporaryPassword(length = 16) {
+            const groups = [
+                'ABCDEFGHJKLMNPQRSTUVWXYZ',
+                'abcdefghijkmnopqrstuvwxyz',
+                '23456789',
+                '!@#$%*-_'
+            ];
+            const allCharacters = groups.join('');
+            const randomIndex = (max) => {
+                const value = new Uint32Array(1);
+                crypto.getRandomValues(value);
+                return value[0] % max;
+            };
+            const characters = groups.map(group => group[randomIndex(group.length)]);
+            while (characters.length < length) {
+                characters.push(allCharacters[randomIndex(allCharacters.length)]);
+            }
+            for (let index = characters.length - 1; index > 0; index--) {
+                const target = randomIndex(index + 1);
+                [characters[index], characters[target]] = [characters[target], characters[index]];
+            }
+            return characters.join('');
+        }
+
+        function populateAdminTenantAuthForm(app = null) {
+            const emailInput = document.getElementById('admin-tenant-auth-email');
+            const nameInput = document.getElementById('admin-tenant-auth-name');
+            const passwordInput = document.getElementById('admin-tenant-temp-password');
+            const createButton = document.getElementById('admin-create-tenant-access-btn');
+            const resetButton = document.getElementById('admin-reset-tenant-password-btn');
+            if (emailInput) emailInput.value = String(app?.email || '').trim().toLowerCase();
+            if (nameInput) nameInput.value = String(app?.brand_name || '').trim();
+            if (passwordInput) passwordInput.value = buildTemporaryPassword();
+            if (createButton) {
+                createButton.disabled = false;
+                createButton.textContent = 'Crear acceso';
+            }
+            if (resetButton) {
+                resetButton.disabled = true;
+                resetButton.textContent = 'Restablecer clave';
+            }
+            selectedAdminAccountExists = false;
+            setAdminTenantAuthStatus('', 'muted');
+        }
+
+        function setAdminTenantAuthEmail(email = '') {
+            const emailInput = document.getElementById('admin-tenant-auth-email');
+            if (!emailInput) return;
+            emailInput.value = String(email || '').trim().toLowerCase();
+        }
+
+        window.generateTenantTemporaryPassword = function() {
+            const passwordInput = document.getElementById('admin-tenant-temp-password');
+            if (!passwordInput) return;
+            passwordInput.value = buildTemporaryPassword();
+            passwordInput.focus();
+            passwordInput.select();
+            setAdminTenantAuthStatus('Clave temporal nueva generada.', 'success');
+        };
+
+        window.copyTenantTemporaryPassword = async function() {
+            const passwordInput = document.getElementById('admin-tenant-temp-password');
+            const password = String(passwordInput?.value || '');
+            if (!password) {
+                setAdminTenantAuthStatus('Primero genera una clave temporal.', 'warn');
+                return;
+            }
+            try {
+                await navigator.clipboard.writeText(password);
+                setAdminTenantAuthStatus('Clave temporal copiada.', 'success');
+            } catch (_) {
+                passwordInput.focus();
+                passwordInput.select();
+                setAdminTenantAuthStatus('La clave quedó seleccionada para copiar.', 'warn');
+            }
+        };
+
+        async function getFunctionsInvokeErrorMessage(error) {
+            const fallback = String(error?.message || 'No se pudo crear el acceso.');
+            const response = error?.context;
+            if (!response || typeof response.clone !== 'function') return fallback;
+            try {
+                const body = await response.clone().json();
+                return String(body?.error || body?.message || fallback);
+            } catch (_) {
+                return fallback;
+            }
+        }
+
+        window.resetTenantAccessPassword = async function() {
+            if (!await requireAuthoritativeAdminAccess()) return;
+            const app = getAdminApplicationById(selectedAdminApplicationId);
+            if (!app) {
+                setAdminTenantAuthStatus('Selecciona una postulación primero.', 'error');
+                return;
+            }
+
+            const email = String(document.getElementById('admin-tenant-auth-email')?.value || '').trim().toLowerCase();
+            const password = String(document.getElementById('admin-tenant-temp-password')?.value || '');
+            const resetButton = document.getElementById('admin-reset-tenant-password-btn');
+
+            if (!email) {
+                setAdminTenantAuthStatus('No encontre un correo de acceso valido para esta cuenta.', 'error');
+                return;
+            }
+            if (password.length < 6 || password.length > 72) {
+                setAdminTenantAuthStatus('La nueva clave debe tener entre 6 y 72 caracteres.', 'error');
+                return;
+            }
+            if (!selectedAdminAccountExists) {
+                setAdminTenantAuthStatus('Primero crea o vincula la cuenta del locatario.', 'warn');
+                return;
+            }
+
+            const confirmed = confirm(`Se reemplazará la clave actual de ${email} por la clave temporal mostrada.\n\n¿Continuar?`);
+            if (!confirmed) return;
+
+            if (resetButton) resetButton.disabled = true;
+            setAdminTenantAuthStatus('Restableciendo clave temporal...', 'muted');
+
+            try {
+                const { data, error } = await supabaseClient.functions.invoke('admin-reset-tenant-password', {
+                    body: {
+                        email,
+                        password,
+                        must_change_password: true
+                    }
+                });
+                if (error) {
+                    setAdminTenantAuthStatus(await getFunctionsInvokeErrorMessage(error), 'error');
+                    return;
+                }
+                if (!data?.ok) {
+                    setAdminTenantAuthStatus(data?.error || 'Supabase no confirmó el restablecimiento.', 'error');
+                    return;
+                }
+
+                setAdminTenantAuthStatus(
+                    `Clave restablecida. UID: ${data.user_id}. Entrega al locatario el correo y la clave temporal mostrada.`,
+                    'success'
+                );
+            } catch (error) {
+                setAdminTenantAuthStatus('No se pudo contactar la función segura: ' + String(error?.message || error), 'error');
+            } finally {
+                if (resetButton) resetButton.disabled = !selectedAdminAccountExists;
+            }
+        };
+
+        window.createTenantAccess = async function() {
+            if (!await requireAuthoritativeAdminAccess()) return;
+            const app = getAdminApplicationById(selectedAdminApplicationId);
+            if (!app) {
+                setAdminTenantAuthStatus('Selecciona una postulación primero.', 'error');
+                return;
+            }
+
+            const email = String(document.getElementById('admin-tenant-auth-email')?.value || '').trim().toLowerCase();
+            const displayName = String(document.getElementById('admin-tenant-auth-name')?.value || '').trim();
+            const password = String(document.getElementById('admin-tenant-temp-password')?.value || '');
+            const createButton = document.getElementById('admin-create-tenant-access-btn');
+
+            if (!email) {
+                setAdminTenantAuthStatus('No encontre un correo de acceso valido para esta cuenta.', 'error');
+                return;
+            }
+            if (password.length < 12 || password.length > 72) {
+                setAdminTenantAuthStatus('La clave temporal debe tener entre 12 y 72 caracteres.', 'error');
+                return;
+            }
+
+            const resetExistingPassword = selectedAdminAccountExists;
+            if (resetExistingPassword) {
+                const confirmed = confirm(`La cuenta ${email} ya existe. Se reemplazará su clave actual por la clave temporal mostrada.\n\n¿Continuar?`);
+                if (!confirmed) return;
+            }
+
+            if (createButton) createButton.disabled = true;
+            setAdminTenantAuthStatus('Validando al administrador y creando el acceso...', 'muted');
+
+            try {
+                const { data, error } = await supabaseClient.functions.invoke('admin-create-tenant', {
+                    body: {
+                        email,
+                        password,
+                        display_name: displayName || app.brand_name || email.split('@')[0],
+                        application_id: app.id,
+                        reset_existing_password: resetExistingPassword
+                    }
+                });
+                if (error) {
+                    setAdminTenantAuthStatus(await getFunctionsInvokeErrorMessage(error), 'error');
+                    return;
+                }
+                if (!data?.ok) {
+                    setAdminTenantAuthStatus(data?.error || 'Supabase no confirmó la creación.', 'error');
+                    return;
+                }
+
+                await loadAdminData();
+                if (selectedAdminApplicationId) await openTenantApproval(selectedAdminApplicationId);
+                const passwordInputAfterRefresh = document.getElementById('admin-tenant-temp-password');
+                if (passwordInputAfterRefresh) passwordInputAfterRefresh.value = password;
+                const linkedStores = Number(data.linked_stores || 0);
+                const actionLabel = data.created
+                    ? 'Acceso creado'
+                    : data.password_reset
+                        ? 'Cuenta vinculada y clave restablecida'
+                        : 'Cuenta existente vinculada';
+                setAdminTenantAuthStatus(
+                    `${actionLabel}. UID: ${data.user_id}. Locales vinculados: ${linkedStores}. Entrega al locatario el correo y la clave temporal mostrada.`,
+                    'success'
+                );
+                const createButtonAfterRefresh = document.getElementById('admin-create-tenant-access-btn');
+                if (createButtonAfterRefresh) createButtonAfterRefresh.textContent = 'Vincular nuevamente';
+                const resetButtonAfterRefresh = document.getElementById('admin-reset-tenant-password-btn');
+                if (resetButtonAfterRefresh) resetButtonAfterRefresh.disabled = false;
+            } catch (error) {
+                setAdminTenantAuthStatus('No se pudo contactar la función segura: ' + String(error?.message || error), 'error');
+            } finally {
+                if (createButton) createButton.disabled = false;
+            }
+        };
+
         function getAdminApplicationById(appId) {
             return adminApplicationsCache.find(app => String(app.id) === String(appId)) || null;
         }
@@ -1981,16 +5225,40 @@
 
             const profile = lookup.profile;
             if (profile?.auth_user_id) {
+                selectedAdminAccountExists = true;
+                const effectiveRole = userHasAdminAccess(profile, null) ? 'admin' : (profile.role || 'sin rol');
                 target.style.color = '#7fcf8d';
                 target.textContent = lookup.missingUserProfilesTable
                     ? `Cuenta encontrada en mall_members. Falta aplicar user_profiles; continuaré con compatibilidad temporal.`
-                    : `Cuenta encontrada. Rol actual: ${profile.role || 'sin rol'}.`;
+                    : `Cuenta encontrada. Rol efectivo: ${effectiveRole}.`;
+                setAdminTenantAuthEmail(profile.email || email || app?.email || '');
+                const createButton = document.getElementById('admin-create-tenant-access-btn');
+                if (createButton) createButton.textContent = 'Vincular cuenta existente';
+                const resetButton = document.getElementById('admin-reset-tenant-password-btn');
+                if (resetButton) resetButton.disabled = false;
             } else {
+                selectedAdminAccountExists = false;
                 target.style.color = '#c5a059';
                 target.textContent = lookup.missingUserProfilesTable
                     ? "No encontré al usuario en mall_members. Puedes reservar locales ahora y vincularlos cuando se registre."
                     : "Todavía no tiene cuenta creada. Puedes reservar locales ahora y vincularlos cuando se registre.";
+                const resetButton = document.getElementById('admin-reset-tenant-password-btn');
+                if (resetButton) resetButton.disabled = true;
             }
+        }
+
+        function storeBelongsToTenantAccount(store, profile = null, email = "") {
+            const ownerId = String(profile?.auth_user_id || "").trim();
+            const accountEmail = String(profile?.email || email || "").trim().toLowerCase();
+            const storeOwnerId = String(store?.owner_id || "").trim();
+            const storeEmail = String(store?.contact_email || "").trim().toLowerCase();
+            const ownedById = !!ownerId && storeOwnerId === ownerId;
+            const pendingLinkByEmail = !storeOwnerId && !!accountEmail && storeEmail === accountEmail;
+            return ownedById || pendingLinkByEmail;
+        }
+
+        function getStoresForTenantAccount(stores = [], profile = null, email = "") {
+            return (stores || []).filter(store => storeBelongsToTenantAccount(store, profile, email));
         }
 
         async function refreshAdminAssignedStores(app = null) {
@@ -2009,9 +5277,11 @@
 
             const profile = lookup.profile;
             if (!profile?.auth_user_id) {
-                const { data: reservedStores, error: reservedError } = await supabaseClient
-                    .from('stores')
-                    .select('id, local_code, name, owner_id, contact_email')
+                const { data: reservedStores, error: reservedError } = await mallUiScopeQuery(
+                    supabaseClient
+                        .from('stores')
+                        .select('id, local_code, name, owner_id, contact_email')
+                )
                     .ilike('contact_email', app.email)
                     .order('local_code', { ascending: true });
 
@@ -2034,10 +5304,11 @@
                 return reservedStores || [];
             }
 
-            const { data: ownedStores, error } = await supabaseClient
-                .from('stores')
-                .select('id, local_code, name, owner_id')
-                .eq('owner_id', profile.auth_user_id)
+            const { data: allStores, error } = await mallUiScopeQuery(
+                supabaseClient
+                    .from('stores')
+                    .select('id, local_code, name, owner_id, contact_email')
+            )
                 .order('local_code', { ascending: true });
 
             if (error) {
@@ -2046,17 +5317,20 @@
                 return [];
             }
 
-            const labels = (ownedStores || []).map(store => {
+            const ownedStores = getStoresForTenantAccount(allStores, profile, app.email);
+
+            const labels = ownedStores.map(store => {
                 const code = getAdminStoreDisplayCode(store) || 'Sin código';
                 const name = store.name ? ` (${store.name})` : '';
-                return `${code}${name}`;
+                const pendingLink = !store.owner_id ? ' [pendiente de vincular]' : '';
+                return `${code}${name}${pendingLink}`;
             });
 
             target.style.color = labels.length ? '#7fcf8d' : '#888';
             target.textContent = labels.length
                 ? `Locales asignados: ${labels.join(', ')}`
                 : "Locales asignados: ninguno.";
-            return ownedStores || [];
+            return ownedStores;
         }
 
         async function refreshAdminAvailableStores(app = null) {
@@ -2139,6 +5413,7 @@
         };
 
         window.openTenantApproval = async function(appId) {
+            if (!await requireAuthoritativeAdminAccess()) return;
             const app = getAdminApplicationById(appId);
             const emptyState = document.getElementById('admin-selection-empty');
             const content = document.getElementById('admin-selection-content');
@@ -2151,9 +5426,10 @@
             document.getElementById('admin-selected-category').textContent = app.category || 'Sin categoria';
             document.getElementById('admin-selected-contact').textContent = `${app.email || ''}${app.phone ? ' | ' + app.phone : ''}`;
             document.getElementById('admin-selected-status').textContent = `Estado: ${(app.status || 'pending').toUpperCase()}`;
+            populateAdminTenantAuthForm(app);
             setSelectedAdminStoreCodes([], false);
             setAdminStoreSelectOptions([]);
-            setAdminAssignmentStatus("Selecciona los locales que debe conservar esta cuenta. La asignación reemplaza los locales anteriores.", "muted");
+            setAdminAssignmentStatus("Selecciona uno o varios locales. Los nuevos se agregarán a la cuenta y los locales anteriores se mantendrán.", "muted");
             await refreshAdminProfileIndicator(app.email || "");
             const ownedStores = await refreshAdminAssignedStores(app);
             const ownedCodes = (ownedStores || []).map(store => getAdminStoreDisplayCode(store)).filter(Boolean);
@@ -2163,6 +5439,7 @@
         }
 
         async function assignStoresToApplicant(appId) {
+            if (!await requireAuthoritativeAdminAccess()) return;
             const app = getAdminApplicationById(appId);
             if (!app?.email) {
                 setAdminAssignmentStatus("No encontré la postulación seleccionada.", "error");
@@ -2194,9 +5471,11 @@
             const effectiveProfile = profile?.auth_user_id ? profile : fallbackProfile;
             const hasLinkedAccount = !!effectiveProfile?.auth_user_id;
 
-            const { data: allStores, error: storesErr } = await supabaseClient
-                .from('stores')
-                .select('*');
+            const { data: allStores, error: storesErr } = await mallUiScopeQuery(
+                supabaseClient
+                    .from('stores')
+                    .select('*')
+            );
             if (storesErr) {
                 setAdminAssignmentStatus("No pude leer locales: " + storesErr.message, "error");
                 return;
@@ -2232,10 +5511,14 @@
                 return;
             }
 
+            const previouslyLinkedStores = hasLinkedAccount
+                ? getStoresForTenantAccount(allStores, effectiveProfile, app.email)
+                : [];
             const storesToAssign = [...new Map(
-                resolved
-                    .filter(x => x.store?.id)
-                    .map(x => [String(x.store.id), x.store])
+                [
+                    ...previouslyLinkedStores,
+                    ...resolved.filter(x => x.store?.id).map(x => x.store)
+                ].map(store => [String(store.id), store])
             ).values()];
             const storeIdsToAssign = storesToAssign.map(store => store.id);
             const storeCodesToAssign = storesToAssign.map(store => getAdminStoreDisplayCode(store)).filter(Boolean);
@@ -2269,12 +5552,14 @@
                     await supabaseClient
                         .from('tenant_applications')
                         .update({ status: 'approved' })
-                        .eq('id', app.id);
+                        .eq('id', app.id)
+                        .eq('mall_id', window.mallContext?.id || '');
                 } else {
                     await supabaseClient
                         .from('tenant_applications')
                         .update({ status: 'approved' })
-                        .eq('email', app.email);
+                        .eq('email', app.email)
+                        .eq('mall_id', window.mallContext?.id || '');
                 }
 
                 await loadAdminData();
@@ -2287,23 +5572,6 @@
                 return;
             }
 
-            const currentlyOwnedStores = (allStores || []).filter(store => store.owner_id === effectiveProfile.auth_user_id);
-            const selectedStoreIds = new Set(storeIdsToAssign.map(id => String(id)));
-            const storeIdsToRelease = currentlyOwnedStores
-                .filter(store => !selectedStoreIds.has(String(store.id)))
-                .map(store => store.id);
-
-            if (storeIdsToRelease.length) {
-                const { error: releaseErr } = await supabaseClient
-                    .from('stores')
-                    .update({ owner_id: null })
-                    .in('id', storeIdsToRelease);
-                if (releaseErr) {
-                    setAdminAssignmentStatus("No pude liberar los locales anteriores: " + releaseErr.message, "error");
-                    return;
-                }
-            }
-
             const { error: assignErr } = await supabaseClient
                 .from('stores')
                 .update({ owner_id: effectiveProfile.auth_user_id })
@@ -2313,9 +5581,11 @@
                 return;
             }
 
-            const { data: verificationRows, error: verificationErr } = await supabaseClient
-                .from('stores')
-                .select('id, owner_id')
+            const { data: verificationRows, error: verificationErr } = await mallUiScopeQuery(
+                supabaseClient
+                    .from('stores')
+                    .select('id, owner_id')
+            )
                 .in('id', storeIdsToAssign);
             if (verificationErr) {
                 setAdminAssignmentStatus("No pude verificar la asignación: " + verificationErr.message, "error");
@@ -2331,19 +5601,21 @@
 
             const roleWrite = await persistTenantRole(effectiveProfile, app.brand_name || "");
             const roleWarningMessage = !roleWrite.ok
-                ? "El local quedó asignado, pero no pude registrar el rol de locatario: " + roleWrite.error.message
+                ? "Los locales quedaron asignados, pero no pude registrar el rol de locatario: " + roleWrite.error.message
                 : null;
 
             if (app.id) {
                 await supabaseClient
                     .from('tenant_applications')
                     .update({ status: 'approved' })
-                    .eq('id', app.id);
+                    .eq('id', app.id)
+                    .eq('mall_id', window.mallContext?.id || '');
             } else {
                 await supabaseClient
                     .from('tenant_applications')
                     .update({ status: 'approved' })
-                    .eq('email', app.email);
+                    .eq('email', app.email)
+                    .eq('mall_id', window.mallContext?.id || '');
             }
 
             await loadAdminData();
@@ -2356,16 +5628,18 @@
                     ? "Locales asignados. La cuenta mantuvo su rol de administrador."
                 : roleWrite.fallback
                     ? "Locales asignados con compatibilidad temporal. Falta crear user_profiles en Supabase."
-                    : `Locales asignados: ${storeCodesToAssign.join(', ')}${storeIdsToRelease.length ? ` | liberados: ${storeIdsToRelease.length}` : ''}.`,
+                    : `Locales agregados a la cuenta: ${storeCodesToAssign.join(', ')}. Los locales anteriores se mantuvieron.`,
                 roleWarningMessage || roleWrite.fallback ? "warn" : "success"
             );
         }
 
         window.rejectTenantApplication = async function(appId) {
+            if (!await requireAuthoritativeAdminAccess()) return;
             const { error } = await supabaseClient
                 .from('tenant_applications')
                 .update({ status: 'rejected' })
-                .eq('id', appId);
+                .eq('id', appId)
+                .eq('mall_id', window.mallContext?.id || '');
             if (error) {
                 setAdminAssignmentStatus("No se pudo rechazar: " + error.message, "error");
                 return;
@@ -2376,6 +5650,7 @@
         }
 
         window.cancelTenantApplication = async function(appId) {
+            if (!await requireAuthoritativeAdminAccess()) return;
             const app = getAdminApplicationById(appId);
             if (!app) {
                 setAdminAssignmentStatus("Selecciona una postulación primero.", "error");
@@ -2389,7 +5664,8 @@
             const { error } = await supabaseClient
                 .from('tenant_applications')
                 .update({ status: 'cancelled' })
-                .eq('id', appId);
+                .eq('id', appId)
+                .eq('mall_id', window.mallContext?.id || '');
             if (error) {
                 setAdminAssignmentStatus("No se pudo cancelar: " + error.message, "error");
                 return;
@@ -2427,6 +5703,7 @@
         }
 
         window.saveAdminRentRate = async function() {
+            if (!await requireAuthoritativeAdminAccess()) return;
             const app = getAdminApplicationById(selectedAdminApplicationId);
             if (!adminManagedStore || !app) {
                 setAdminRentalStatus("Selecciona un local primero.", "error");
@@ -2463,6 +5740,7 @@
         };
 
         window.saveAdminLease = async function() {
+            if (!await requireAuthoritativeAdminAccess()) return;
             const app = getAdminApplicationById(selectedAdminApplicationId);
             if (!adminManagedStore || !app) {
                 setAdminRentalStatus("Selecciona un local primero.", "error");
@@ -2481,6 +5759,7 @@
             }
 
             const payload = {
+                mall_id: window.mallContext?.id || null,
                 store_id: adminManagedStore.id,
                 local_code: getStoreCode(adminManagedStore) || adminManagedStore.id,
                 tenant_auth_user_id: profile.auth_user_id,
@@ -2508,7 +5787,8 @@
                 response = await supabaseClient
                     .from('tenant_leases')
                     .update(payload)
-                    .eq('id', adminManagedLease.id);
+                    .eq('id', adminManagedLease.id)
+                    .eq('mall_id', window.mallContext?.id || '');
             } else {
                 response = await supabaseClient
                     .from('tenant_leases')
@@ -2525,6 +5805,7 @@
         };
 
         window.saveAdminPayment = async function() {
+            if (!await requireAuthoritativeAdminAccess()) return;
             const app = getAdminApplicationById(selectedAdminApplicationId);
             if (!adminManagedStore || !app) {
                 setAdminRentalStatus("Selecciona un local primero.", "error");
@@ -2536,6 +5817,7 @@
             }
 
             const payload = {
+                mall_id: window.mallContext?.id || null,
                 lease_id: adminManagedLease.id,
                 store_id: adminManagedStore.id,
                 local_code: getStoreCode(adminManagedStore) || adminManagedStore.id,
@@ -2569,6 +5851,7 @@
         };
 
         window.saveAdminServiceStatus = async function(nextStatus = 'active') {
+            if (!await requireAuthoritativeAdminAccess()) return;
             const app = getAdminApplicationById(selectedAdminApplicationId);
             if (!adminManagedStore || !app) {
                 setAdminRentalStatus("Selecciona un local primero.", "error");
@@ -2599,6 +5882,7 @@
         };
 
         window.saveAdminNote = async function() {
+            if (!await requireAuthoritativeAdminAccess()) return;
             const app = getAdminApplicationById(selectedAdminApplicationId);
             if (!adminManagedStore || !app) {
                 setAdminRentalStatus("Selecciona un local primero.", "error");
@@ -2612,6 +5896,7 @@
             }
 
             const payload = {
+                mall_id: window.mallContext?.id || null,
                 store_id: adminManagedStore.id,
                 local_code: getStoreCode(adminManagedStore) || adminManagedStore.id,
                 tenant_auth_user_id: adminManagedLease?.tenant_auth_user_id || app.applicant_auth_user_id || null,
@@ -2637,9 +5922,13 @@
         };
 
         window.loadAdminData = async function() {
-            const { data: apps, error: appsErr } = await supabaseClient
-                .from('tenant_applications')
-                .select('*')
+            if (!await requireAuthoritativeAdminAccess()) return;
+            void window.mallAnalytics?.loadAdminDashboard();
+            const { data: apps, error: appsErr } = await mallUiScopeQuery(
+                supabaseClient
+                    .from('tenant_applications')
+                    .select('*')
+            )
                 .order('created_at', { ascending: false });
             const listDiv = document.getElementById('admin-apps-list');
             listDiv.innerHTML = "";
@@ -2730,7 +6019,9 @@
                 }
             }
 
-            const { data: stores, error: storesErr } = await supabaseClient.from('stores').select('id, owner_id');
+            const { data: stores, error: storesErr } = await mallUiScopeQuery(
+                supabaseClient.from('stores').select('id, owner_id')
+            );
             if (storesErr) {
                 document.getElementById('stat-total-stores').innerText = '-';
                 document.getElementById('stat-occupied-stores').innerText = '-';
@@ -2843,11 +6134,11 @@
             const storeId = myOwnedStore.id || storeCode;
             
             // Intentar cargar de mall_messages (Nueva tabla)
-            let { data, error } = await supabaseClient
+            let { data, error } = await mallUiScopeQuery(supabaseClient
                 .from('mall_messages')
                 .select('*')
                 .or(`store_id.eq.${storeId},local_code.eq.${storeCode}`)
-                .order('created_at', { ascending: false });
+                .order('created_at', { ascending: false }));
 
             // Si mall_messages no existe o falla, intentar fallback a contact_messages (Sin local_code)
             if (error) {
@@ -2947,17 +6238,26 @@
         async function loadStoreProductsFast(storeCode) {
             if (!storeCode) return { products: [], skipped: false, error: null };
 
-            const selectColumns = 'id, store_id, local_code, name, price, image_url';
-            const [byStoreId, byLocalCode] = await Promise.all([
-                supabaseClient
+            const queryWithColumns = async (selectColumns) => Promise.all([
+                mallUiScopeQuery(supabaseClient
                     .from('store_products')
                     .select(selectColumns)
-                    .eq('store_id', storeCode),
-                supabaseClient
+                    .eq('store_id', storeCode)
+                    .order('sort_order', { ascending: true })),
+                mallUiScopeQuery(supabaseClient
                     .from('store_products')
                     .select(selectColumns)
                     .ilike('local_code', storeCode)
+                    .order('sort_order', { ascending: true }))
             ]);
+
+            let [byStoreId, byLocalCode] = await queryWithColumns('id, store_id, local_code, name, price, image_url, description, slot_index, sort_order');
+            if ((byStoreId.error && isMissingColumnError(byStoreId.error, 'slot_index')) || (byLocalCode.error && isMissingColumnError(byLocalCode.error, 'slot_index'))) {
+                [byStoreId, byLocalCode] = await queryWithColumns('id, store_id, local_code, name, price, image_url, description, sort_order');
+            }
+            if ((byStoreId.error && isMissingColumnError(byStoreId.error, 'description')) || (byLocalCode.error && isMissingColumnError(byLocalCode.error, 'description'))) {
+                [byStoreId, byLocalCode] = await queryWithColumns('id, store_id, local_code, name, price, image_url, sort_order');
+            }
 
             if (!byStoreId.error && (byStoreId.data || []).length > 0) {
                 return { products: byStoreId.data || [], skipped: false, error: null };
@@ -2978,32 +6278,41 @@
             const list = document.getElementById('edit-products-list');
             if (!list) return;
 
-            const normalizedProducts = (products || []).slice(0, 10);
+            const slotCount = Math.max(1, Math.min(50, Number(currentTenantProductLimit) || 10));
+            const normalizedProducts = typeof window.arrangeStoreProductsBySlot === 'function'
+                ? window.arrangeStoreProductsBySlot(products, slotCount)
+                : (products || []).slice(0, slotCount);
             list.innerHTML = "";
-            for (let i = 0; i < 10; i++) {
-                const p = normalizedProducts[i] || { name: "", price: "", image_url: "" };
+            for (let i = 0; i < slotCount; i++) {
+                const p = normalizedProducts[i] || { name: "", price: "", image_url: "", description: "" };
                 const slot = document.createElement('div');
                 slot.className = "p-slot";
+                slot.dataset.slotIndex = String(i + 1);
                 slot.style.padding = "10px";
-                slot.style.background = "#111";
+                slot.style.background = "#0c0c0c";
                 slot.style.borderRadius = "8px";
                 slot.innerHTML = `
-                    <input type="text" placeholder="Nombre" value="${escapeHtml(p.name || '')}" class="p-name" style="width:100%; background:#000; border:1px solid #333; color:#fff; font-size:11px; padding:5px; margin-bottom:5px;">
+                    <div style="color:#c5a059; font-size:10px; letter-spacing:1.2px; margin-bottom:7px; text-transform:uppercase;">Casillero ${i + 1}</div>
+                    <input type="text" placeholder="Nombre" value="${escapeHtml(p.name || '')}" class="p-name tenant-product-field" style="width:100%; margin-bottom:5px;">
                     <div style="display:flex; gap:5px;">
-                        <input type="text" placeholder="Precio" value="${escapeHtml(p.price || '')}" class="p-price" style="flex:1; background:#000; border:1px solid #333; color:#fff; font-size:11px; padding:5px;">
-                        <input type="text" placeholder="URL Foto" value="${escapeHtml(p.image_url || '')}" class="p-image" style="flex:2; background:#000; border:1px solid #333; color:#fff; font-size:11px; padding:5px;">
+                        <input type="text" placeholder="Precio" value="${escapeHtml(p.price || '')}" class="p-price tenant-product-field" style="flex:1;">
+                        <input type="text" placeholder="URL Foto" value="${escapeHtml(p.image_url || '')}" class="p-image tenant-product-field" style="flex:2;">
                     </div>
+                    <textarea placeholder="Descripción del producto (máx. 500 caracteres)" maxlength="${window.PRODUCT_DESCRIPTION_MAX_LENGTH || 500}" class="p-description tenant-product-field tenant-product-description" style="width:100%; min-height:66px; margin-top:6px; resize:vertical; line-height:1.35;">${escapeHtml(p.description || '')}</textarea>
                     <div style="display:flex; gap:8px; align-items:center; margin-top:7px;">
-                        <input type="file" accept="image/*" style="display:none;" onchange="uploadTenantProductImage(this, ${i})">
-                        <button type="button" onclick="this.previousElementSibling.click()" style="background:rgba(197,160,89,0.10); border:1px solid rgba(197,160,89,0.25); color:#c5a059; padding:6px 8px; border-radius:5px; cursor:pointer; font-size:9px; text-transform:uppercase;">Subir foto</button>
+                        <input type="file" accept="image/*" class="p-file" hidden aria-hidden="true" tabindex="-1">
+                        <button type="button" class="p-upload-btn" style="background:rgba(197,160,89,0.10); border:1px solid rgba(197,160,89,0.25); color:#c5a059; padding:6px 10px; border-radius:5px; cursor:pointer; font-size:9px; text-transform:uppercase;">Subir foto</button>
                         <span class="p-upload-status" style="font-size:9px; color:#666; line-height:1.2;">${loading ? 'Cargando catálogo...' : (p.image_url ? 'Foto actual cargada.' : 'Opcional')}</span>
                     </div>
                 `;
                 list.appendChild(slot);
+                const fileInput = slot.querySelector('.p-file');
+                slot.querySelector('.p-upload-btn')?.addEventListener('click', () => fileInput?.click());
+                fileInput?.addEventListener('change', () => uploadTenantProductImage(fileInput, i));
             }
 
             list.querySelectorAll('.p-slot').forEach((slot) => {
-                ['.p-name', '.p-price', '.p-image'].forEach((selector) => {
+                ['.p-name', '.p-price', '.p-image', '.p-description'].forEach((selector) => {
                     const input = slot.querySelector(selector);
                     if (input) {
                         input.addEventListener('input', () => {
@@ -3021,11 +6330,14 @@
             if (!storeCode) return [];
             const slots = document.querySelectorAll('.p-slot');
             const drafts = [];
-            slots.forEach((slot) => {
+            slots.forEach((slot, index) => {
                 drafts.push({
+                    slot_index: Number(slot.dataset.slotIndex) || index + 1,
+                    sort_order: (Number(slot.dataset.slotIndex) || index + 1) - 1,
                     name: String(slot.querySelector('.p-name')?.value || '').trim(),
                     price: String(slot.querySelector('.p-price')?.value || '').trim(),
-                    image_url: String(slot.querySelector('.p-image')?.value || '').trim()
+                    image_url: String(slot.querySelector('.p-image')?.value || '').trim(),
+                    description: String(slot.querySelector('.p-description')?.value || '').trim().slice(0, window.PRODUCT_DESCRIPTION_MAX_LENGTH || 500)
                 });
             });
             tenantAdminProductDrafts.set(storeCode, drafts);
@@ -3043,45 +6355,168 @@
 
         function mergeProductsWithDrafts(storeCode, products = []) {
             const drafts = tenantAdminProductDrafts.get(String(storeCode || '').trim());
-            if (!drafts?.length) return (products || []).slice(0, 10);
+            const slotCount = Math.max(1, Math.min(50, Number(currentTenantProductLimit) || 10));
+            const arrangedProducts = typeof window.arrangeStoreProductsBySlot === 'function'
+                ? window.arrangeStoreProductsBySlot(products, slotCount)
+                : (products || []).slice(0, slotCount);
+            if (!drafts?.length) return arrangedProducts;
 
-            const base = Array.from({ length: 10 }, (_, index) => {
-                const product = (products || [])[index] || { name: '', price: '', image_url: '' };
+            const base = Array.from({ length: slotCount }, (_, index) => {
+                const product = arrangedProducts[index] || { name: '', price: '', image_url: '', description: '' };
                 const draft = drafts[index] || {};
                 return {
                     ...product,
+                    slot_index: index + 1,
+                    sort_order: index,
                     name: draft.name !== undefined ? draft.name : (product.name || ''),
                     price: draft.price !== undefined ? draft.price : (product.price || ''),
-                    image_url: draft.image_url !== undefined ? draft.image_url : (product.image_url || '')
+                    image_url: draft.image_url !== undefined ? draft.image_url : (product.image_url || ''),
+                    description: draft.description !== undefined ? draft.description : (product.description || '')
                 };
             });
             return base;
         }
+
+        function getTenantInventoryTitle(store) {
+            const productLimit = currentTenantProductLimit || getFallbackProductLimitForStore(store);
+            const tier = getFallbackProductTierForStore(store);
+            return `Gestión de Inventario (Plan ${tier}, ${productLimit} producto${productLimit === 1 ? '' : 's'} habilitado${productLimit === 1 ? '' : 's'})`;
+        }
+
+        function setTenantAdminDirty(isDirty) {
+            tenantAdminHasUnsavedChanges = !!isDirty;
+            document.getElementById('tenant-admin-modal')?.classList.toggle('tenant-admin-dirty', tenantAdminHasUnsavedChanges);
+        }
+
+        const TENANT_CATALOG_MEMORY_MAX_LENGTH = 3000;
+
+        function updateTenantCatalogMemoryCounter() {
+            const input = document.getElementById('edit-store-catalog-memory');
+            const counter = document.getElementById('edit-store-catalog-memory-count');
+            if (!input || !counter) return;
+            counter.textContent = `${input.value.length}/${TENANT_CATALOG_MEMORY_MAX_LENGTH}`;
+        }
+
+        function bindTenantAdminDirtyTracking() {
+            if (tenantAdminDirtyTrackingBound) return;
+            const modal = document.getElementById('tenant-admin-modal');
+            if (!modal) return;
+
+            const marksStoreAsDirty = (target) => target.matches(
+                '.tenant-admin-input, .tenant-telegram-checkbox, .tenant-bot-input, .p-name, .p-price, .p-image, .p-description, #edit-store-logo-file, .p-file'
+            );
+            const markFromEvent = (event) => {
+                if (marksStoreAsDirty(event.target)) setTenantAdminDirty(true);
+                if (event.target.id === 'edit-store-catalog-memory') updateTenantCatalogMemoryCounter();
+            };
+
+            modal.addEventListener('input', markFromEvent);
+            modal.addEventListener('change', markFromEvent);
+            tenantAdminDirtyTrackingBound = true;
+        }
+
+        function renderTenantStoreSelector() {
+            const select = document.getElementById('tenant-store-select');
+            const count = document.getElementById('tenant-store-count');
+            const label = document.getElementById('tenant-store-switcher-label');
+            if (!select) return;
+
+            const hasAdminAccess = userHasAdminAccess(currentUserProfile, currentTenantUser);
+            if (label) label.textContent = hasAdminAccess ? 'Todos los locales' : 'Mis locales';
+
+            const selectedStoreId = String(myOwnedStore?.id || getStoreCode(myOwnedStore) || '');
+            const sortedStores = [...myOwnedStores].sort((a, b) => {
+                const aCode = getAdminStoreDisplayCode(a) || getStoreCode(a) || a.id || '';
+                const bCode = getAdminStoreDisplayCode(b) || getStoreCode(b) || b.id || '';
+                return String(aCode).localeCompare(String(bCode), 'es', { numeric: true });
+            });
+
+            select.innerHTML = '';
+            sortedStores.forEach((store) => {
+                const option = document.createElement('option');
+                option.value = String(store.id || getStoreCode(store));
+                const code = getAdminStoreDisplayCode(store) || getStoreCode(store) || store.id || 'Sin código';
+                const availability = hasAdminAccess && !store.owner_id ? ' · disponible' : '';
+                option.textContent = `${code} · ${store.name || 'Local sin nombre'}${availability}`;
+                option.selected = String(store.id || getStoreCode(store)) === selectedStoreId;
+                select.appendChild(option);
+            });
+
+            select.disabled = sortedStores.length < 2;
+            if (count) count.textContent = `${sortedStores.length} local${sortedStores.length === 1 ? '' : 'es'}`;
+        }
+
+        window.switchTenantStore = async function(selectElement) {
+            const nextStore = myOwnedStores.find(store => String(store.id || getStoreCode(store)) === String(selectElement?.value || ''));
+            if (!nextStore || String(nextStore.id) === String(myOwnedStore?.id)) return;
+
+            if (tenantAdminHasUnsavedChanges) {
+                const shouldDiscard = confirm('Hay cambios sin guardar en este local. ¿Quieres descartarlos y cambiar de local?');
+                if (!shouldDiscard) {
+                    renderTenantStoreSelector();
+                    return;
+                }
+                window.clearTenantProductDrafts?.(getStoreCode(myOwnedStore));
+            }
+
+            tenantAdminOpenRequestId++;
+            setTenantAdminDirty(false);
+            myOwnedStore = nextStore;
+            currentModalStoreCode = getStoreCode(nextStore);
+            currentModalStoreId = nextStore.id || currentModalStoreCode;
+            currentModalStoreData = nextStore;
+            await openTenantAdmin();
+        };
 
         function populateTenantAdminForm(store) {
             if (!store) return;
             const storeCode = getStoreCode(store);
             const visibleStoreCode = getAdminStoreDisplayCode(store) || storeCode;
             document.getElementById('tenant-store-code-display').textContent = visibleStoreCode || "Sin código";
+            const title = document.getElementById('tenant-products-title');
+            if (title) title.textContent = getTenantInventoryTitle(store);
             document.getElementById('edit-store-name').value = store.name || "";
             document.getElementById('edit-store-category').value = store.category || "";
             document.getElementById('edit-store-email').value = store.contact_email || "";
-            document.getElementById('edit-store-phone').value = store.contact_phone || store.whatsapp || "";
+            document.getElementById('edit-store-phone').value = store.contact_phone || "";
+            document.getElementById('edit-store-whatsapp').value = store.whatsapp || store.contact_phone || "";
+            document.getElementById('edit-store-social-url').value = store.social_url || "";
+            document.getElementById('edit-store-address').value = store.address || "";
+            document.getElementById('edit-store-maps-url').value = store.maps_url || "";
             document.getElementById('edit-store-telegram-enabled').checked = !!store.telegram_notifications_enabled;
             document.getElementById('edit-store-telegram-link-code').value = store.telegram_link_code || "";
             document.getElementById('edit-store-logo').value = store.logo_url || "";
             setTenantUploadStatus('edit-store-logo-status', store.logo_url ? "Logo actual cargado." : "Puedes pegar una URL o subir un logo optimizado.", "muted");
             document.getElementById('edit-store-shelf-style').value = store.shelf_style || "madera";
+            document.getElementById('edit-store-catalog-theme').value = window.normalizeMallCatalogTheme?.(store.catalog_theme) || "elegant";
+            const memoryInput = document.getElementById('edit-store-catalog-memory');
+            if (memoryInput) memoryInput.value = String(store.catalog_memory || "").slice(0, TENANT_CATALOG_MEMORY_MAX_LENGTH);
+            updateTenantCatalogMemoryCounter();
             refreshTenantTelegramUi(store);
         }
 
         window.closeTenantAdmin = function() {
+            if (tenantAdminHasUnsavedChanges) {
+                const shouldDiscard = confirm('Hay cambios sin guardar. ¿Quieres cerrar el panel y descartarlos?');
+                if (!shouldDiscard) return;
+                window.clearTenantProductDrafts?.(getStoreCode(myOwnedStore));
+            }
             tenantAdminOpenRequestId++;
+            setTenantAdminDirty(false);
             document.getElementById('tenant-admin-modal').style.display = 'none';
             document.getElementById('modal-overlay').style.display = 'none';
         }
 
         window.openTenantAdmin = async function() {
+            const sessionUser = await getVerifiedTenantSessionUser({ forceAdminRefresh: true });
+            if (!sessionUser) return alert("Primero inicia sesión como locatario.");
+
+            try {
+                await refreshMyOwnedStoresFromSupabase();
+            } catch (error) {
+                console.error("No pude verificar los locales autorizados:", error);
+                return alert("No se pudo verificar tu acceso a los locales.");
+            }
             if (!myOwnedStores.length && !myOwnedStore) {
                 try {
                     await refreshMyOwnedStoresFromSupabase();
@@ -3098,18 +6533,33 @@
             }) || myOwnedStore;
             if (!selectedStore) return alert("No tienes un local asignado.");
 
-            myOwnedStore = selectedStore;
+            const access = await verifyTenantStoreAccess(selectedStore);
+            if (!access.allowed) return alert("No tienes autorización para administrar este local.");
+
+            myOwnedStore = { ...selectedStore, ...(access.store || {}) };
+            currentModalStoreCode = getStoreCode(myOwnedStore);
+            currentModalStoreId = myOwnedStore.id || currentModalStoreCode;
+            currentModalStoreData = myOwnedStore;
+            currentTenantProductLimit = await resolveStoreProductLimit(myOwnedStore);
+            myOwnedStore = {
+                ...myOwnedStore,
+                product_limit: currentTenantProductLimit
+            };
             const storeCode = getStoreCode(myOwnedStore);
 
             document.getElementById('tenant-admin-modal').style.display = 'block';
             document.getElementById('modal-overlay').style.display = 'block';
+            void window.mallAnalytics?.loadTenantDashboard(myOwnedStore.id || storeCode);
 
+            bindTenantAdminDirtyTracking();
+            renderTenantStoreSelector();
             populateTenantAdminForm(myOwnedStore);
             renderTenantProductSlots(
                 mergeProductsWithDrafts(storeCode, tenantAdminProductsCache.get(storeCode) || []),
                 !tenantAdminProductsCache.has(storeCode)
             );
             loadStoreMessages(storeCode);
+            void window.loadTenantStoreAssistantPanel?.(myOwnedStore);
 
             const requestId = ++tenantAdminOpenRequestId;
             Promise.allSettled([
@@ -3131,9 +6581,20 @@
                 }) || myOwnedStore;
 
                 myOwnedStore = refreshedSelection;
+                currentModalStoreCode = getStoreCode(myOwnedStore);
+                currentModalStoreId = myOwnedStore.id || currentModalStoreCode;
+                currentModalStoreData = myOwnedStore;
+                currentTenantProductLimit = await resolveStoreProductLimit(myOwnedStore);
+                myOwnedStore = {
+                    ...myOwnedStore,
+                    product_limit: currentTenantProductLimit
+                };
+                renderTenantStoreSelector();
                 populateTenantAdminForm(myOwnedStore);
+                void window.loadTenantStoreAssistantPanel?.(myOwnedStore);
 
                 const latestStoreCode = getStoreCode(myOwnedStore);
+                void window.mallAnalytics?.loadTenantDashboard(myOwnedStore.id || latestStoreCode);
                 const productsResult = await loadStoreProductsFast(latestStoreCode);
                 if (requestId !== tenantAdminOpenRequestId) return;
 
@@ -3144,13 +6605,21 @@
                     console.warn("Falta store_products.local_code. Ejecuta supabase/store_products_local_code_fix.sql para activar inventario por local.");
                 }
 
-                const products = (productsResult.products || []).slice(0, 10);
+                const products = (productsResult.products || []).slice(0, currentTenantProductLimit);
                 tenantAdminProductsCache.set(latestStoreCode, products);
                 renderTenantProductSlots(mergeProductsWithDrafts(latestStoreCode, products), false);
             });
         }
 
         window.previewTenantStore = function() {
+            const tenantAdminModal = document.getElementById('tenant-admin-modal');
+            const manageBtn = document.getElementById('btn-manage-store');
+            window.tenantPreviewContext = {
+                active: true,
+                previousManageDisplay: manageBtn?.style.display || ''
+            };
+            if (tenantAdminModal) tenantAdminModal.style.display = 'none';
+
             const storeCode = getStoreCode(myOwnedStore);
             const data = {
                 name: document.getElementById('edit-store-name').value,
@@ -3158,14 +6627,31 @@
                 category: document.getElementById('edit-store-category').value,
                 contactEmail: document.getElementById('edit-store-email').value,
                 contactPhone: document.getElementById('edit-store-phone').value,
-                products: []
+                catalogMemory: document.getElementById('edit-store-catalog-memory').value,
+                catalog_theme: window.normalizeMallCatalogTheme?.(document.getElementById('edit-store-catalog-theme').value) || "elegant",
+                storeRecord: {
+                    ...myOwnedStore,
+                    contact_email: document.getElementById('edit-store-email').value,
+                    contact_phone: document.getElementById('edit-store-phone').value,
+                    whatsapp: document.getElementById('edit-store-whatsapp').value,
+                    social_url: document.getElementById('edit-store-social-url').value,
+                    address: document.getElementById('edit-store-address').value,
+                    maps_url: document.getElementById('edit-store-maps-url').value,
+                    catalog_memory: document.getElementById('edit-store-catalog-memory').value,
+                    catalog_theme: window.normalizeMallCatalogTheme?.(document.getElementById('edit-store-catalog-theme').value) || "elegant"
+                },
+                logo_url: document.getElementById('edit-store-logo')?.value || myOwnedStore?.logo_url || "",
+                products: [],
+                previewMode: true
             };
             
-            const slots = document.querySelectorAll('.p-slot');
-            slots.forEach(slot => {
+            const slots = Array.from(document.querySelectorAll('.p-slot')).slice(0, currentTenantProductLimit);
+            slots.forEach((slot, index) => {
                 const n = slot.querySelector('.p-name').value;
                 const p = slot.querySelector('.p-price').value;
-                if(n) data.products.push({ n: n, p: p });
+                const img = slot.querySelector('.p-image')?.value || "";
+                const description = slot.querySelector('.p-description')?.value || "";
+                if(n) data.products.push({ n: n, p: p, image_url: img, description: description, slot_index: Number(slot.dataset.slotIndex) || index + 1 });
             });
             
             openModal(data);
@@ -3173,38 +6659,56 @@
 
         window.saveTenantData = async function() {
             if (!myOwnedStore || !currentTenantUser) return;
+            const access = await verifyTenantStoreAccess(myOwnedStore);
+            if (!access.allowed) {
+                alert("Tu sesión no tiene autorización para modificar este local.");
+                return;
+            }
+            myOwnedStore = { ...myOwnedStore, ...(access.store || {}) };
             const storeCode = getStoreCode(myOwnedStore);
             
             const newName = document.getElementById('edit-store-name').value;
             const newCat = document.getElementById('edit-store-category').value;
             const newEmail = document.getElementById('edit-store-email').value;
             const newPhone = normalizePhone(document.getElementById('edit-store-phone').value);
+            const newWhatsApp = normalizePhone(document.getElementById('edit-store-whatsapp').value);
+            const newSocialUrl = document.getElementById('edit-store-social-url').value.trim();
+            const newAddress = document.getElementById('edit-store-address').value.trim();
+            const newMapsUrl = document.getElementById('edit-store-maps-url').value.trim();
             const telegramEnabled = !!document.getElementById('edit-store-telegram-enabled')?.checked;
             const telegramLinkCode = telegramEnabled
                 ? (document.getElementById('edit-store-telegram-link-code')?.value || myOwnedStore.telegram_link_code || generateTenantTelegramLinkCode())
                 : null;
             const newLogo = document.getElementById('edit-store-logo').value;
             const newStyle = document.getElementById('edit-store-shelf-style').value;
+            const newCatalogTheme = window.normalizeMallCatalogTheme?.(document.getElementById('edit-store-catalog-theme').value) || "elegant";
+            const newCatalogMemory = document.getElementById('edit-store-catalog-memory').value.trim().slice(0, TENANT_CATALOG_MEMORY_MAX_LENGTH);
             
-            // 1. Actualizar tienda (Asegurar owner_id si somos admins)
+            // 1. Actualizar los datos del local seleccionado.
             let storeUpdatePayload = {
                 name: newName,
                 category: newCat,
                 contact_email: newEmail,
+                contact_phone: newPhone,
                 telegram_notifications_enabled: telegramEnabled,
                 telegram_link_code: telegramLinkCode,
-                whatsapp: newPhone,
+                whatsapp: newWhatsApp,
+                social_url: newSocialUrl || null,
+                address: newAddress || null,
+                maps_url: newMapsUrl || null,
                 logo_url: newLogo,
-                shelf_style: newStyle
+                shelf_style: newStyle,
+                catalog_theme: newCatalogTheme,
+                catalog_memory: newCatalogMemory
             };
             
-            // Reclamar propiedad si el local no tiene dueño o somos el super-admin
-            if (!myOwnedStore.owner_id && currentTenantUser) {
+            // Un locatario puede completar un local sin dueño; el administrador nunca altera owner_id desde este panel.
+            if (!myOwnedStore.owner_id && currentTenantUser && !userHasAdminAccess(currentUserProfile, currentTenantUser)) {
                 storeUpdatePayload.owner_id = currentTenantUser.id;
             }
 
             let { data: updatedStore, error: storeUpdateError } = await updateStoreByCode(myOwnedStore, storeUpdatePayload);
-            if (storeUpdateError && /schema cache|column|contact_phone|whatsapp|shelf_style|logo_url|contact_email|telegram_notifications_enabled|telegram_link_code|telegram_chat_id|telegram_chat_username/i.test(storeUpdateError.message || "")) {
+            if (storeUpdateError && /schema cache|column|contact_phone|whatsapp|social_url|address|maps_url|shelf_style|catalog_theme|catalog_memory|logo_url|contact_email|telegram_notifications_enabled|telegram_link_code|telegram_chat_id|telegram_chat_username/i.test(storeUpdateError.message || "")) {
                 const fallbackPayload = {
                     name: newName,
                     category: newCat,
@@ -3224,17 +6728,35 @@
             
             // 2. Actualizar productos (limpiar y re-insertar)
             const productsToInsert = [];
-            const slots = document.querySelectorAll('.p-slot');
-            slots.forEach(slot => {
+            const slots = Array.from(document.querySelectorAll('.p-slot')).slice(0, currentTenantProductLimit);
+            slots.forEach((slot, index) => {
                 const n = slot.querySelector('.p-name').value;
                 const p = slot.querySelector('.p-price').value;
                 const img = slot.querySelector('.p-image').value;
-                if(n.trim()) productsToInsert.push({ local_code: storeCode, name: n, price: p, image_url: img });
+                const description = slot.querySelector('.p-description')?.value || "";
+                if(n.trim()) {
+                    const slotIndex = Number(slot.dataset.slotIndex) || index + 1;
+                    productsToInsert.push({
+                        local_code: storeCode,
+                        name: n,
+                        price: p,
+                        image_url: img,
+                        description,
+                        slot_index: slotIndex,
+                        sort_order: slotIndex - 1
+                    });
+                }
             });
 
             const productsWrite = await replaceStoreProducts(myOwnedStore, productsToInsert);
             if (!productsWrite.ok) {
                 alert("No pude guardar productos: " + productsWrite.error.message);
+                return;
+            }
+
+            const botWrite = await window.saveTenantStoreAssistantSettings?.(myOwnedStore);
+            if (botWrite?.error) {
+                alert("No pude guardar el asistente de tienda: " + botWrite.error.message);
                 return;
             }
 
@@ -3252,14 +6774,23 @@
                 contact_phone: newPhone,
                 telegram_notifications_enabled: telegramEnabled,
                 telegram_link_code: telegramLinkCode,
-                whatsapp: newPhone,
+                whatsapp: newWhatsApp,
+                social_url: newSocialUrl,
+                address: newAddress,
+                maps_url: newMapsUrl,
                 logo_url: newLogo,
-                shelf_style: newStyle
+                shelf_style: newStyle,
+                catalog_theme: newCatalogTheme,
+                catalog_memory: newCatalogMemory
             };
+            myOwnedStores = myOwnedStores.map(store => String(store.id) === String(myOwnedStore.id) ? myOwnedStore : store);
+            currentModalStoreData = myOwnedStore;
+            renderTenantStoreSelector();
 
             // 4. Actualizar visuales 3D inmediatamente
             const updatedProductsResult = await loadStoreProducts(storeCode);
             updateStoreVisuals(storeCode, myOwnedStore, updatedProductsResult.products || []);
+            await window.refreshTotemSearchInventory?.();
             
             if (productsWrite.ok) {
                 alert(productsWrite.skipped 
@@ -3268,6 +6799,7 @@
             } else {
                 alert("Error al guardar productos: " + productsWrite.error.message);
             }
+            setTenantAdminDirty(false);
             closeTenantAdmin();
         }
 
@@ -3302,23 +6834,39 @@
             };
 
             // Enviar a la nueva tabla dedicada mall_messages
-            const { error } = await supabaseClient.from('mall_messages').insert([messagePayload]);
-            
+            const { error } = await supabaseClient.from('mall_messages').insert([
+                mallUiScopePayload(messagePayload)
+            ]);
+            let messageDelivered = !error;
+
             if(error) {
                 console.error("Error mall_messages:", error);
                 // Fallback a contact_messages si la nueva tabla no existe aún
-                await supabaseClient.from('contact_messages').insert([{
+                const { error: fallbackError } = await supabaseClient.from('contact_messages').insert([{
                     name: name,
                     email: email,
                     requirement: msg,
                     store_id: targetId
                 }]);
-                alert("¡Mensaje enviado con éxito!");
+                messageDelivered = !fallbackError;
+                if (fallbackError) {
+                    console.error("Error contact_messages:", fallbackError);
+                    alert("No se pudo enviar el mensaje. Intenta nuevamente.");
+                } else {
+                    alert("¡Mensaje enviado con éxito!");
+                }
             } else {
                 alert("¡Mensaje enviado con éxito! El dueño del local lo recibirá en su panel.");
             }
-            if (!error) notifyTelegramForStoreMessage(messagePayload);
-            document.getElementById('store-contact-form').reset();
+            if (messageDelivered) {
+                window.mallAnalytics?.track('message_sent', {
+                    storeCode: currentModalStoreCode,
+                    channel: 'form',
+                    source: 'store_modal'
+                });
+                if (!error) notifyTelegramForStoreMessage(messagePayload);
+                document.getElementById('store-contact-form').reset();
+            }
         }
         let otherPlayers = {}; // { sessionId: { mesh, label, targetPos, targetRot } }
         let presenceChannel = null;
@@ -3326,8 +6874,13 @@
         // Variables de optimización (ahorro de datos)
         let lastSentPos = new THREE.Vector3();
         let lastSentRot = 0;
+        let lastMovementSamplePos = new THREE.Vector3();
+        let lastMovementSampleAt = performance.now();
+        let myIsMoving = false;
+        let myMoveSpeed = 0;
         const POS_THRESHOLD = 0.2; // Sensibilidad de movimiento (20cm)
         const ROT_THRESHOLD = 0.05; // Sensibilidad de giro mucho más alta (~3 grados)
+        const MOVEMENT_SPEED_THRESHOLD = 0.08;
         // Supabase ya inicializado arriba - no sobreescribir
 
         async function upsertMemberProfile(user, extra = {}) {
@@ -3359,6 +6912,49 @@
             return data || profile;
         }
 
+        async function refreshMemberProfileAfterPasswordLogin(user, existingProfile = null, fallback = {}) {
+            if (!supabaseClient || !user) return existingProfile;
+            if (!existingProfile) {
+                return upsertMemberProfile(user, {
+                    nickname: user.user_metadata?.nickname || fallback.nickname,
+                    phone: user.user_metadata?.phone || fallback.phone,
+                    phoneVerified: false
+                });
+            }
+
+            const updates = {
+                updated_at: new Date().toISOString()
+            };
+            const emailVerified = !!user.email_confirmed_at;
+            if (existingProfile.email_verified !== emailVerified) updates.email_verified = emailVerified;
+            if (!existingProfile.email && user.email) updates.email = user.email;
+            if (!existingProfile.phone && (user.user_metadata?.phone || fallback.phone)) {
+                updates.phone = user.user_metadata?.phone || fallback.phone;
+            }
+
+            if (Object.keys(updates).length <= 1) return existingProfile;
+
+            const { data, error } = await supabaseClient
+                .from('mall_members')
+                .update(updates)
+                .eq('auth_user_id', user.id)
+                .select()
+                .maybeSingle();
+            if (error) {
+                console.warn("No se pudo actualizar estado de visitante inscrito:", error.message);
+                return { ...existingProfile, ...updates };
+            }
+            return data || { ...existingProfile, ...updates };
+        }
+
+        function getMemberLoginNotice(user, profile = null) {
+            const pending = [];
+            if (!user?.email_confirmed_at) pending.push("correo");
+            if (!profile?.phone_verified) pending.push("celular");
+            if (!pending.length) return "";
+            return `Ingresaste como visitante inscrito. Tienes pendiente verificar ${pending.join(" y ")} para activar todos los beneficios.`;
+        }
+
         window.memberRegister = async function() {
             if (!supabaseClient) return setMemberStatus("No hay conexión con Supabase.", true);
             const email = document.getElementById('member-login-email').value.trim();
@@ -3387,11 +6983,19 @@
             pendingMemberPhone = phone;
             pendingMemberEmail = email;
             if (data.session && data.user) {
-                await upsertMemberProfile(data.user, { nickname, phone, phoneVerified: false });
-                setMemberStatus("Cuenta creada. Revisa tu correo y valida el código SMS para activar beneficios.");
-                await sendMemberPhoneOtp();
+                currentTenantUser = data.user;
+                hasPrivilegedMallSession = true;
+                currentMemberProfile = await upsertMemberProfile(data.user, { nickname, phone, phoneVerified: false });
+                currentUserProfile = await upsertUserProfile(data.user, "registered_visitor", currentMemberProfile?.nickname || nickname);
+                setMemberStatus("Cuenta creada. Entrando como visitante inscrito. Verifica correo y celular para activar beneficios.");
+                await enterMallWithIdentity({
+                    nickname: getMemberDisplayName(data.user, email),
+                    role: "member",
+                    user: data.user,
+                    profile: currentMemberProfile
+                });
             } else {
-                setMemberStatus("Cuenta creada. Revisa tu correo para confirmar propiedad. Luego inicia sesión aquí para validar tu celular por SMS.");
+                setMemberStatus("Cuenta creada. Revisa tu correo para confirmar propiedad. Luego podrás entrar aquí con tu correo y contraseña.");
             }
         }
 
@@ -3444,7 +7048,55 @@
             return "";
         }
 
+        async function hydrateMemberSessionAfterLogin(user, email) {
+            const userId = String(user?.id || '').trim();
+            if (!userId || !supabaseClient) return;
+
+            const fallbackPhone = normalizePhone(document.getElementById('member-register-phone')?.value || '');
+            try {
+                const { data: profile, error: profileError } = await withRequestTimeout(
+                    supabaseClient
+                        .from('mall_members')
+                        .select('*')
+                        .eq('auth_user_id', user.id)
+                        .maybeSingle(),
+                    5000,
+                    'La carga del perfil de visitante tardó demasiado.'
+                );
+                if (profileError) console.warn("No se pudo leer perfil de visitante inscrito:", profileError.message);
+                if (String(currentTenantUser?.id || '').trim() !== userId) return;
+
+                const memberProfile = await withRequestTimeout(
+                    refreshMemberProfileAfterPasswordLogin(user, profile, {
+                        nickname: user.user_metadata?.nickname,
+                        phone: fallbackPhone
+                    }),
+                    5000,
+                    'La actualización del perfil de visitante tardó demasiado.'
+                );
+                if (String(currentTenantUser?.id || '').trim() !== userId) return;
+                currentMemberProfile = memberProfile;
+                currentUserProfile = await withRequestTimeout(
+                    upsertUserProfile(user, "registered_visitor", currentMemberProfile?.nickname || getMemberDisplayName(user, email)),
+                    5000,
+                    'La sincronización del perfil tardó demasiado.'
+                );
+                if (String(currentTenantUser?.id || '').trim() !== userId) return;
+
+                const notice = getMemberLoginNotice(user, currentMemberProfile);
+                if (notice) {
+                    pendingMemberPhone = currentMemberProfile?.phone || user.user_metadata?.phone || fallbackPhone;
+                    const panel = document.getElementById('member-phone-verify-panel');
+                    if (panel) panel.style.display = 'grid';
+                    setMemberStatus(notice, false);
+                }
+            } catch (error) {
+                console.warn('La entrada continúa, pero no se pudo completar la carga del perfil de visitante:', error);
+            }
+        }
+
         window.memberLogin = async function(identifierOverride = null, passwordOverride = null) {
+            if (memberLoginInFlight) return;
             if (!supabaseClient) return setMemberStatus("No hay conexión con Supabase.", true);
             const identifier = (identifierOverride || document.getElementById('member-login-email').value).trim();
             const password = passwordOverride || document.getElementById('member-login-pass').value;
@@ -3452,58 +7104,81 @@
 
             const email = await resolveMemberEmail(identifier);
             if (!email || !email.includes('@')) return setMemberStatus("Por seguridad, el ingreso con contraseña ahora requiere correo directo.", true);
-            const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
-            if (error) return setMemberStatus("No se pudo iniciar sesión: " + error.message, true);
 
-            const user = data.user;
-            const { data: profile } = await supabaseClient
-                .from('mall_members')
-                .select('*')
-                .eq('auth_user_id', user.id)
-                .maybeSingle();
-            currentMemberProfile = profile || await upsertMemberProfile(user, {
-                nickname: user.user_metadata?.nickname,
-                phone: user.user_metadata?.phone || normalizePhone(document.getElementById('member-register-phone').value),
-                phoneVerified: false
-            });
+            memberLoginInFlight = true;
+            try {
+                const { data, error } = await withRequestTimeout(
+                    supabaseClient.auth.signInWithPassword({ email, password }),
+                    15000,
+                    'La autenticación está tardando demasiado. Revisa tu conexión e intenta nuevamente.'
+                );
+                if (error) {
+                    const message = String(error.message || "");
+                    if (message.toLowerCase().includes("email not confirmed")) {
+                        return setMemberStatus("Tu cuenta existe, pero Supabase exige confirmar el correo antes de aceptar la contraseña. Revisa el email de confirmación o usa recuperación de contraseña.", true);
+                    }
+                    return setMemberStatus("No se pudo iniciar sesión: " + message, true);
+                }
 
-            if (!user.email_confirmed_at) {
-                setMemberStatus("Tu correo aún no aparece confirmado. Revisa el email de Supabase antes de usar beneficios.", true);
-                return;
+                const user = data.user;
+                currentTenantUser = user;
+                hasPrivilegedMallSession = true;
+                currentMemberProfile = null;
+                currentUserProfile = null;
+                if (authoritativeAdminUserId !== String(user.id)) {
+                    clearAuthoritativeAdminAccess();
+                }
+
+                // La entrada no espera perfil, beneficios ni sincronizaciones secundarias.
+                void hydrateMemberSessionAfterLogin(user, email);
+
+                const entered = await enterMallWithIdentity({
+                    nickname: getMemberDisplayName(user, email),
+                    role: "member",
+                    user,
+                    profile: null
+                });
+                if (!entered) throw new Error('No se pudo completar la transición de entrada al mall.');
+            } catch (error) {
+                setMemberStatus(error?.message || 'No se pudo completar el ingreso.', true);
+            } finally {
+                memberLoginInFlight = false;
             }
-            if (!currentMemberProfile?.phone_verified) {
-                pendingMemberPhone = currentMemberProfile?.phone || user.user_metadata?.phone || normalizePhone(document.getElementById('member-register-phone').value);
-                const panel = document.getElementById('member-phone-verify-panel');
-                if (panel) panel.style.display = 'grid';
-                setMemberStatus("Tu celular aún no está verificado. Valida el código SMS para activar beneficios.", true);
-                if (pendingMemberPhone) await sendMemberPhoneOtp();
-                return;
-            }
-
-            await enterMallWithIdentity({
-                nickname: getMemberDisplayName(user, email),
-                role: "member",
-                user,
-                profile: currentMemberProfile
-            });
         }
 
         window.startMallExperience = async function () {
             const nicknameInput = document.getElementById('nickname-input');
             const nick = nicknameInput.value.trim();
-            const password = document.getElementById('visitor-password-input').value;
-            if (password) {
-                if (!nick) return alert("Para entrar con contraseña, ingresa tu correo.");
-                setMemberStatus("Validando cuenta inscrita...");
-                await window.memberLogin(nick, password);
-                return;
-            }
+
+            // El boton principal es siempre anonimo. El acceso inscrito se inicia
+            // exclusivamente desde Login > Visitante registrado.
             const effectiveNick = nick || buildGuestNickname();
             if (!nick && nicknameInput) nicknameInput.value = effectiveNick;
             await enterMallWithIdentity({ nickname: effectiveNick, role: "guest" });
         };
 
-        const HEARTBEAT_LIMIT = 4000; // Enviar cada 4 seg aunque esté quieto
+        window.toggleEntryPreferences = function () {
+            const panel = document.getElementById('entry-preferences-panel');
+            const trigger = document.getElementById('entry-preferences-toggle');
+            const chevron = document.getElementById('entry-preferences-chevron');
+            if (!panel || !trigger) return;
+            const willOpen = panel.hidden;
+            panel.hidden = !willOpen;
+            trigger.setAttribute('aria-expanded', String(willOpen));
+            if (chevron) chevron.textContent = willOpen ? '▴' : '▾';
+        };
+
+        window.setEntryShoppingPreference = function (value) {
+            const selectedValue = ['makers', 'retail', 'surprise'].includes(value) ? value : '';
+            document.querySelectorAll('[data-entry-preference]').forEach((button) => {
+                const selected = button.dataset.entryPreference === selectedValue;
+                button.classList.toggle('selected', selected);
+                button.setAttribute('aria-pressed', String(selected));
+            });
+            window.setMallEntryShoppingPreference?.(selectedValue);
+        };
+
+        const HEARTBEAT_LIMIT = 30000; // Respaldo de pose en reposo; Presence mantiene la conexion.
         let lastUpdateTime = 0;
 
         function initPresence() {
@@ -3512,59 +7187,90 @@
                 return;
             }
             if (presenceChannel) return;
-            presenceChannel = supabaseClient.channel('mall_presence', {
+            const presenceChannelName = window.mallContext?.channelName('mall_presence') || 'mall_presence:providencia';
+            presenceChannel = supabaseClient.channel(presenceChannelName, {
                 config: {
-                    presence: { key: myNickname },
+                    presence: { key: myPresenceId },
                     broadcast: { self: true }
                 }
             });
 
             presenceChannel
                 .on('presence', { event: 'sync' }, () => {
-                    const state = presenceChannel.presenceState();
-                    Object.keys(state).forEach(id => {
-                        if (id === myNickname) return;
-                        if (!otherPlayers[id]) otherPlayers[id] = createAvatar(id);
-                    });
+                    syncPlayers(presenceChannel.presenceState());
                 })
-                .on('presence', { event: 'leave' }, ({ key }) => {
+                .on('presence', { event: 'leave' }, ({ key, leftPresences }) => {
+                    const displayName = otherPlayers[key]?.nickname
+                        || leftPresences?.[0]?.nickname
+                        || key;
                     removePlayer(key);
-                    addChatMessage("Sistema", `${key} ha salido del mall.`);
+                    if (key !== myPresenceId) addChatMessage("Sistema", `${displayName} ha salido del mall.`);
                 })
-                .on('presence', { event: 'join' }, ({ key }) => {
-                    if (key !== myNickname) {
-                        addChatMessage("Sistema", `${key} ha entrado al mall.`);
+                .on('presence', { event: 'join' }, ({ key, newPresences }) => {
+                    if (key !== myPresenceId) {
+                        const displayName = newPresences?.[0]?.nickname || key;
+                        addChatMessage("Sistema", `${displayName} ha entrado al mall.`);
                         broadcastMyPosition(); // Responder inmediatamente al que acaba de entrar
                     }
                 })
                 .on('broadcast', { event: 'chat_msg' }, payload => {
-                    const { user, text, to } = payload.payload;
-                    if (to !== "Todos" && to !== myNickname && user !== myNickname) return; // Filtrar mensajes que no son para ti
+                    if (!hasMemberBenefitAccess()) return;
+                    const { user, text, to, toId, senderId } = payload.payload;
+                    if (
+                        to !== "Todos"
+                        && toId !== myPresenceId
+                        && to !== myNickname
+                        && senderId !== myPresenceId
+                        && user !== myNickname
+                    ) return;
                     addChatMessage(user, text, to);
                 })
                 .on('broadcast', { event: 'pos_update' }, payload => {
-                    const id = payload.payload.user;
-                    if (id === myNickname) return;
-                    // Pasamos también el estilo en el payload por si no lo teníamos en presence inicial
-                    if (!otherPlayers[id]) otherPlayers[id] = createAvatar(id, payload.payload.style || "1");
+                    const pData = payload.payload || {};
+                    const id = String(pData.playerId || pData.user || "");
+                    if (!id || id === myPresenceId || (!pData.playerId && pData.user === myNickname)) return;
+                    const displayName = String(pData.nickname || pData.user || "Visitante");
+                    if (!otherPlayers[id]) {
+                        otherPlayers[id] = createAvatar(id, displayName, pData.style || "1");
+                    }
                     const p = otherPlayers[id];
-                    const pData = payload.payload;
+                    updateRemotePlayerIdentity(p, displayName);
+                    p.remoteMoving = Boolean(pData.moving);
+                    p.remoteSpeed = Number.isFinite(pData.speed) ? Math.max(0, pData.speed) : 0;
+                    p.lastPoseReceivedAt = performance.now();
                     if (typeof pData.escId === 'number' && typeof pData.escT === 'number' && escalatorList[pData.escId]) {
                         const escalator = escalatorList[pData.escId];
                         const escProgress = THREE.MathUtils.clamp(pData.escT, 0, 1) * escalator.pathLenZ;
                         p.targetPos.copy(getEscalatorRidePosition(escalator, escProgress, AVATAR_FLOOR_OFFSET));
                         p.targetRot = escalator.travelDir > 0 ? 0 : Math.PI;
                         p.escalatorState = { id: escalator.id, t: pData.escT };
+                        p.remoteMoving = true;
                     } else {
-                        p.targetPos.set(pData.x, pData.y - PLAYER_EYE_HEIGHT + AVATAR_FLOOR_OFFSET, pData.z);
+                        const remoteGroundY = pData.y - PLAYER_EYE_HEIGHT + AVATAR_FLOOR_OFFSET;
+                        p.targetPos.set(pData.x, remoteGroundY, pData.z);
                         p.targetRot = pData.r;
                         p.escalatorState = null;
+                        if (Math.abs(p.mesh.position.y - remoteGroundY) > 0.75) {
+                            p.mesh.position.y = remoteGroundY;
+                        }
                     }
+                    if (!p.hasReceivedPose) {
+                        p.mesh.position.copy(p.targetPos);
+                        p.mesh.rotation.y = p.targetRot;
+                        p.hasReceivedPose = true;
+                    } else if (!p.remoteMoving && !p.escalatorState) {
+                        p.mesh.position.copy(p.targetPos);
+                    }
+                    p.mesh.visible = true;
                 })
                 .subscribe(async (status) => {
+                    presenceReady = status === 'SUBSCRIBED';
+                    document.documentElement.dataset.mallPresenceReady = presenceReady ? 'true' : 'false';
                     if (status === 'SUBSCRIBED') {
                         await trackMySelf();
-                        document.getElementById('chat-minimized-btn').style.display = 'flex';
+                        if (hasMemberBenefitAccess()) {
+                            document.getElementById('chat-minimized-btn').style.display = 'flex';
+                        }
                         // window.toggleChat(); // El chat ahora comienza cerrado por defecto
                         addChatMessage("Sistema", `¡Hola ${myNickname}! Presiona Enter para enviar mensajes.`);
                         broadcastMyPosition();
@@ -3572,6 +7278,9 @@
                 });
 
             // Intervalo de Broadcast en lugar de Presence Track
+            lastSentPos.copy(camera.position);
+            lastMovementSamplePos.copy(camera.position);
+            lastMovementSampleAt = performance.now();
             setInterval(() => {
                 if (!presenceChannel) return;
 
@@ -3582,9 +7291,22 @@
                 const dist = camera.position.distanceTo(lastSentPos);
                 const rotDiff = Math.abs(realRot - lastSentRot);
                 const now = Date.now();
+                const sampleNow = performance.now();
+                const sampleSeconds = Math.max(0.016, (sampleNow - lastMovementSampleAt) / 1000);
+                const sampleDistance = Math.hypot(
+                    camera.position.x - lastMovementSamplePos.x,
+                    camera.position.z - lastMovementSamplePos.z
+                );
+                const sampledSpeed = sampleDistance / sampleSeconds;
+                const nextMoving = Boolean(currentEscalatorState) || sampledSpeed > MOVEMENT_SPEED_THRESHOLD;
+                const movementChanged = nextMoving !== myIsMoving;
+                myIsMoving = nextMoving;
+                myMoveSpeed = nextMoving ? sampledSpeed : 0;
+                lastMovementSamplePos.copy(camera.position);
+                lastMovementSampleAt = sampleNow;
 
                 // LÓGICA DE OPTIMIZACIÓN: Solo enviar si hubo cambio o pasó el tiempo límite
-                if (dist > POS_THRESHOLD || rotDiff > ROT_THRESHOLD || (now - lastUpdateTime) > HEARTBEAT_LIMIT) {
+                if (movementChanged || dist > POS_THRESHOLD || rotDiff > ROT_THRESHOLD || (now - lastUpdateTime) > HEARTBEAT_LIMIT) {
                     broadcastMyPosition();
                     lastSentPos.copy(camera.position);
                     lastSentRot = realRot;
@@ -3594,13 +7316,18 @@
         }
 
         async function trackMySelf() {
-            if (!presenceChannel) return;
+            if (!presenceChannel || !presenceReady) return;
             // Solo registrar presencia física y qué avatar escogimos
-            await presenceChannel.track({ nickname: myNickname, style: myAvatarStyle, role: currentAccessRole });
+            await presenceChannel.track({
+                playerId: myPresenceId,
+                nickname: myNickname,
+                style: myAvatarStyle,
+                role: currentAccessRole
+            });
         }
 
         function broadcastMyPosition() {
-            if (!presenceChannel) return;
+            if (!presenceChannel || !presenceReady) return;
             
             // Calcular la rotación real basada en hacia dónde mira la cámara
             const dir = new THREE.Vector3();
@@ -3611,6 +7338,8 @@
                 type: 'broadcast',
                 event: 'pos_update',
                 payload: {
+                    playerId: myPresenceId,
+                    nickname: myNickname,
                     user: myNickname,
                     style: myAvatarStyle,
                     role: currentAccessRole,
@@ -3618,6 +7347,8 @@
                     y: camera.position.y,
                     z: camera.position.z,
                     r: realRot,
+                    moving: myIsMoving,
+                    speed: Number(myMoveSpeed.toFixed(3)),
                     escId: currentEscalatorState ? currentEscalatorState.id : null,
                     escT: currentEscalatorState ? currentEscalatorState.t : null
                 }
@@ -3648,7 +7379,18 @@
 
         function sendChat() {
             const text = chatInput.value.trim();
-            if (!text || !presenceChannel) return;
+            if (!text) return;
+            if (!hasMemberBenefitAccess()) {
+                window.showMemberBenefitRequired('el chat interno');
+                return;
+            }
+            if (!presenceChannel || !presenceReady) {
+                showInteractionFeedback('El chat se está conectando. Intenta nuevamente en un momento.', {
+                    duration: 2600,
+                    kind: 'guidance'
+                });
+                return;
+            }
 
             if (!isAdmin && chatTarget === "") {
                 return alert("Para conversar, debes acercarte y darle clic a otro avatar en el Mall primero.");
@@ -3657,7 +7399,13 @@
             presenceChannel.send({
                 type: 'broadcast',
                 event: 'chat_msg',
-                payload: { user: myNickname, text: text, to: chatTarget }
+                payload: {
+                    senderId: myPresenceId,
+                    user: myNickname,
+                    text: text,
+                    to: chatTarget === "Todos" ? "Todos" : (otherPlayers[chatTarget]?.nickname || chatTarget),
+                    toId: chatTarget === "Todos" ? null : chatTarget
+                }
             });
             chatInput.value = '';
             chatInput.blur(); // Quitar el foco para devolver el control a la cámara/teclado del mall
@@ -4232,8 +7980,27 @@
             };
         }
 
-        function createAvatar(nickname, styleCode = "1") {
-            return createProceduralAvatar(nickname, styleCode);
+        function createAvatar(playerId, nickname = playerId, styleCode = "1") {
+            const actor = createProceduralAvatar(nickname, styleCode);
+            actor.playerId = playerId;
+            actor.nickname = nickname;
+            actor.isRemotePlayer = true;
+            actor.hasReceivedPose = false;
+            actor.remoteMoving = false;
+            actor.remoteSpeed = 0;
+            actor.lastPoseReceivedAt = 0;
+            actor.mesh.visible = false;
+            actor.label.style.display = 'none';
+            actor.mesh.traverse((obj) => {
+                obj.userData.playerId = playerId;
+            });
+            return actor;
+        }
+
+        function updateRemotePlayerIdentity(actor, nickname) {
+            if (!actor || !nickname || actor.nickname === nickname) return;
+            actor.nickname = nickname;
+            if (actor.label) actor.label.innerText = nickname;
         }
 
         function updateAvatarLabelPosition(actor, labelOffsetY, farDistanceOverride = null) {
@@ -4343,6 +8110,31 @@
             const base = rig.base;
             const moving = movementAmount > 0.0015;
 
+            if (!moving && actor.isRemotePlayer) {
+                rig.shoulders.position.y = base.shouldersY;
+                rig.torso.position.y = base.torsoY;
+                rig.waist.position.y = base.waistY;
+                rig.neck.position.y = base.neckY;
+                rig.headPivot.position.y = base.headY;
+
+                rig.shoulders.rotation.set(0.01, 0, 0);
+                rig.torso.rotation.set(0.012, 0, 0);
+                rig.waist.rotation.set(0, 0, 0);
+                rig.headPivot.rotation.set(0, 0, 0);
+
+                rig.armL.root.rotation.set(-0.1, 0, base.armLRotZ);
+                rig.armR.root.rotation.set(0.07, 0, base.armRRotZ);
+                rig.armL.lower.rotation.x = -0.18;
+                rig.armR.lower.rotation.x = -0.14;
+                rig.legL.root.rotation.set(-0.018, 0, 0);
+                rig.legR.root.rotation.set(0.018, 0, 0);
+                rig.legL.lower.rotation.x = 0.07;
+                rig.legR.lower.rotation.x = 0.07;
+                rig.footL.rotation.x = -0.01;
+                rig.footR.rotation.x = -0.01;
+                return;
+            }
+
             if (typeof actor.motionPhase !== "number") actor.motionPhase = Math.random() * Math.PI * 2;
             if (typeof actor.idlePhase !== "number") actor.idlePhase = Math.random() * Math.PI * 2;
 
@@ -4401,13 +8193,21 @@
         }
 
         function syncPlayers(state) {
-            Object.keys(state).forEach(id => {
-                if (id === myNickname) return;
+            const activeIds = new Set();
+            Object.entries(state || {}).forEach(([id, presences]) => {
+                if (id === myPresenceId) return;
+                activeIds.add(id);
+                const presence = presences?.[presences.length - 1] || {};
                 let remoteStyle = "1";
-                if (state[id] && state[id][0] && state[id][0].style) remoteStyle = state[id][0].style;
-                if (!otherPlayers[id]) otherPlayers[id] = createAvatar(id, remoteStyle);
-                // No configuramos posiciones iniciales aquí porque vendrán vía Broadcast
+                if (presence.style) remoteStyle = presence.style;
+                const displayName = String(presence.nickname || id);
+                if (!otherPlayers[id]) otherPlayers[id] = createAvatar(id, displayName, remoteStyle);
+                updateRemotePlayerIdentity(otherPlayers[id], displayName);
             });
+            Object.keys(otherPlayers).forEach((id) => {
+                if (!activeIds.has(id)) removePlayer(id);
+            });
+            document.documentElement.dataset.mallPresenceCount = String(activeIds.size + 1);
         }
 
         function removePlayer(id) {
@@ -4421,17 +8221,32 @@
         function updateOtherPlayers(nowMs = performance.now(), updateLabels = true) {
             Object.values(otherPlayers).forEach(p => {
                 if (p.mesh) {
+                    if (!p.hasReceivedPose) {
+                        p.mesh.visible = false;
+                        if (p.label) p.label.style.display = 'none';
+                        return;
+                    }
                     const prevPos = p.mesh.position.clone();
-                    p.mesh.position.lerp(p.targetPos, 0.1);
+                    if (p.escalatorState) {
+                        p.mesh.position.lerp(p.targetPos, 0.1);
+                    } else if (!p.remoteMoving) {
+                        p.mesh.position.copy(p.targetPos);
+                    } else {
+                        p.mesh.position.x = THREE.MathUtils.lerp(p.mesh.position.x, p.targetPos.x, 0.1);
+                        p.mesh.position.z = THREE.MathUtils.lerp(p.mesh.position.z, p.targetPos.z, 0.1);
+                        p.mesh.position.y = p.targetPos.y;
+                    }
                     let targetRot = p.targetRot; // El valor ya viene corregido desde el emisor
                     let rotDiff = targetRot - p.mesh.rotation.y;
                     while (rotDiff < -Math.PI) rotDiff += Math.PI * 2;
                     while (rotDiff > Math.PI) rotDiff -= Math.PI * 2;
                     p.mesh.rotation.y += rotDiff * 0.35; // Giro más rápido y reactivo
 
-                    const stepDistance = prevPos.distanceTo(p.mesh.position);
-                    applyAvatarPose(p, stepDistance, nowMs);
-                    const distToCam = camera.position.distanceTo(p.mesh.position);
+                    const stepDistance = p.remoteMoving ? prevPos.distanceTo(p.mesh.position) : 0;
+                    const poseMovement = p.remoteMoving
+                        ? Math.max(stepDistance, THREE.MathUtils.clamp((p.remoteSpeed || 0) / 60, 0.002, 0.08))
+                        : 0;
+                    applyAvatarPose(p, poseMovement, nowMs);
                     p.mesh.visible = true;
                     if (updateLabels) updateAvatarLabelPosition(p, 2.15);
                 }

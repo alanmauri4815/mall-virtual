@@ -1,10 +1,10 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="es">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
-    <title>Mall Emprendimientos PRO - REPARACIÓN TOTAL</title>
+    <title data-mall-context-name>Mall Creaciones</title>
     <!-- Google Fonts & Icons -->
     <link
         href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;600&family=Inter:wght@300;400;600&display=swap"
@@ -16,8 +16,9 @@
     <script src="assets/vendor/three/GLTFLoader.r128.js" defer></script>
     <script src="assets/vendor/three/SkeletonUtils.r128.js" defer></script>
     <script src="assets/vendor/sb-client/client-v2.min.js" defer></script>
-    <script src="js/mall/mall-boot.js" defer></script>
-    <link rel="stylesheet" href="css/mall.css">
+    <script src="js/mall/mall-context.js?v=20260910-test-mall-context-v3" defer></script>
+    <script src="js/mall/mall-boot.js?v=20260908-multimall-context-v1" defer></script>
+    <link rel="stylesheet" href="css/mall.css?v=20260906-golden-balloon-v2">
 </head>
 
 <body>
@@ -32,54 +33,41 @@
             <div class="orientation-title">Modo horizontal</div>
             <div class="orientation-text">Para recorrer la plataforma con joystick y botones, gira el celular o toca el bot&oacute;n para intentar bloquear la pantalla horizontal.</div>
             <button type="button" class="orientation-btn" data-mall-action="requestLandscape">Poner horizontal</button>
+            <button type="button" class="orientation-btn orientation-btn-secondary" data-mall-action="dismissOrientation">Continuar igualmente</button>
         </div>
     </div>
 
     <!-- LOGIN PARA EL METAVERSO -->
     <div id="login-overlay">
         <div class="welcome-shell">
+            <nav class="entry-top-actions" aria-label="Acceso a cuenta">
+                <button type="button" data-mall-action="openLoginChooser">Login</button>
+                <button type="button" class="entry-top-actions__register" data-mall-action="entryMemberRegister">Registro</button>
+            </nav>
             <section class="welcome-stage">
-                <div class="welcome-kicker">Mall Emprendimientos</div>
-                <h1 class="welcome-headline">Bienvenido al Mall Virtual</h1>
-                <p class="welcome-subtitle">Un entorno comercial inmersivo para recorrer vitrinas, descubrir marcas, consultar catalogos publicos y proyectar una experiencia premium para visitantes, locatarios y administracion.</p>
-                <div class="welcome-highlights">
-                    <div class="welcome-highlight">
-                        <strong>Recorrido 3D</strong>
-                        <span>Explora pasillos, fachadas y locales con una navegacion continua orientada a exhibicion comercial.</span>
-                    </div>
-                    <div class="welcome-highlight">
-                        <strong>Catalogos Vivos</strong>
-                        <span>Revisa productos, precios, logos y contenido publico de cada tienda desde la misma experiencia.</span>
-                    </div>
-                    <div class="welcome-highlight">
-                        <strong>Gestion Central</strong>
-                        <span>Locatarios y administracion pueden actualizar contenido, presencia visual y operacion del mall.</span>
-                    </div>
-                </div>
-                <div class="welcome-metrics">
-                    <div class="welcome-metric">
-                        <b>3D</b>
-                        <small>Experiencia inmersiva</small>
-                    </div>
-                    <div class="welcome-metric">
-                        <b>24/7</b>
-                        <small>Acceso permanente</small>
-                    </div>
-                    <div class="welcome-metric">
-                        <b>Live</b>
-                        <small>Contenido actualizable</small>
-                    </div>
-                </div>
-                <div class="welcome-note">Una portada comercial pensada para dar contexto, confianza y bienvenida antes del ingreso al recorrido del mall.</div>
+                <div class="welcome-kicker" data-mall-context-name>Mall Creaciones</div>
+                <h1 class="welcome-headline">Bienvenido al <span data-mall-context-name>Mall Creaciones</span></h1>
+                <p class="welcome-subtitle">Explora, descubre y conversa con los emprendimientos del mall.</p>
+                <button id="guest-entry-button" class="enter-btn welcome-enter-btn" data-mall-action="startMallExperience" data-stop-propagation="true">Entrar al Mall</button>
+                <p class="welcome-entry-note">No necesitas crear una cuenta para comenzar.</p>
             </section>
-        <div class="login-card">
-            <h2 class="welcome-access-title">Ingreso</h2>
-            <p class="welcome-access-copy">Accede como visitante, inscrito o locatario aprobado.</p>
+        <div id="entry-account-card" class="login-card" hidden>
+            <button type="button" class="entry-account-close" data-mall-action="entryGuest" aria-label="Cerrar">×</button>
+            <h2 id="welcome-access-title" class="welcome-access-title">Tu cuenta</h2>
+            <p id="welcome-access-copy" class="welcome-access-copy">Ingresa o crea una cuenta para acceder a beneficios.</p>
+            <div id="login-choice-panel" class="entry-login-choice">
+                <button type="button" data-mall-action="entryMember">
+                    <span>Visitante registrado</span>
+                    <small>Ingresa con tu cuenta para acceder a tus beneficios.</small>
+                </button>
+                <button type="button" data-mall-action="entryTenant">
+                    <span>Locatario registrado</span>
+                    <small>Accede a las herramientas de gestión de tu local.</small>
+                </button>
+            </div>
             <div id="guest-entry-panel">
                 <input type="text" id="nickname-input" placeholder="Nick o correo" maxlength="80">
-                <input type="password" id="visitor-password-input" placeholder="Contraseña si ya estás inscrito"
-                    class="entry-input-line">
-                <p class="entry-help-copy entry-guest-note">Sin contraseña entras anónimo. Con contraseña entras como inscrito.</p>
+                <p class="entry-help-copy entry-guest-note">La entrada general es anónima. Si tienes cuenta, usa Login y elige Visitante registrado.</p>
                 <button type="button" class="entry-link-btn" data-mall-action="recoverMember">Recuperar contraseña</button>
                 <p id="visitor-login-status" class="entry-status-copy"></p>
             </div>
@@ -90,15 +78,15 @@
                     class="entry-input-line">
                 <input type="password" id="member-login-pass" placeholder="Contraseña"
                     class="entry-input-line">
-                <input type="password" id="member-register-pass-confirm" placeholder="Repite la contraseña (solo registro)"
-                    class="entry-input-box">
-                <input type="text" id="member-register-nick" placeholder="Nick visible (solo para registro)" maxlength="50"
-                    class="entry-input-box">
+                <input type="password" id="member-register-pass-confirm" placeholder="Repite la contraseña"
+                    class="entry-input-box member-registration-only">
+                <input type="text" id="member-register-nick" placeholder="Nick visible" maxlength="50"
+                    class="entry-input-box member-registration-only">
                 <input type="tel" id="member-register-phone" placeholder="Celular verificado por SMS (ej: +569...)"
-                    class="entry-input-box">
+                    class="entry-input-box member-registration-only">
                 <div class="entry-button-grid">
                     <button type="button" class="enter-btn entry-compact-btn" data-mall-action="memberLogin">Entrar</button>
-                    <button type="button" class="enter-btn entry-compact-btn entry-outline-btn" data-mall-action="memberRegister">Crear cuenta</button>
+                    <button type="button" class="enter-btn entry-compact-btn entry-outline-btn member-registration-only" data-mall-action="memberRegister">Crear cuenta</button>
                 </div>
                 <button type="button" class="entry-link-btn" data-mall-action="recoverMember">Recuperar contraseña</button>
                 <div id="member-phone-verify-panel">
@@ -107,6 +95,7 @@
                     <button type="button" class="entry-verify-btn" data-mall-action="verifyMemberPhoneOtp">Validar</button>
                 </div>
                 <p id="member-entry-status" class="entry-status-copy">Cuenta inscrita: correo + contraseña, promociones, descuentos y notificaciones. El correo se confirma por email y el celular por código SMS.</p>
+                <button type="button" class="entry-link-btn" data-mall-action="openLoginChooser">Cambiar tipo de cuenta</button>
                 <button type="button" class="entry-link-btn entry-back-btn" data-mall-action="entryGuest">Regresar</button>
             </div>
 
@@ -120,39 +109,16 @@
                 <p class="entry-help-copy">Si te dieron una clave temporal, entra con ella. Luego podrás dejar tu clave definitiva dentro del mall, sin esperar correos.</p>
                 <button type="button" class="entry-link-btn" data-mall-action="recoverTenant">Recuperar contraseña</button>
                 <p id="tenant-login-status" class="entry-status-copy"></p>
+                <button type="button" class="entry-link-btn" data-mall-action="openLoginChooser">Cambiar tipo de cuenta</button>
                 <button type="button" class="entry-link-btn entry-back-btn" data-mall-action="entryGuest">Regresar</button>
             </div>
-
-            <div id="avatar-selection">
-                <p class="avatar-section-label">Elige tu cuerpo:</p>
-                <div class="avatar-opt selected" data-avatar-kind="body" data-mall-action="avatarBody" data-mall-value="male">Hombre</div>
-                <div class="avatar-opt" data-avatar-kind="body" data-mall-action="avatarBody" data-mall-value="female">Mujer</div>
-                <div class="avatar-opt" data-avatar-kind="body" data-mall-action="avatarBody" data-mall-value="neutral">Otro</div>
-                <p class="avatar-section-label">Elige tu vestimenta:</p>
-                <div class="avatar-opt selected" data-avatar-kind="outfit" data-mall-action="avatarOutfit" data-mall-value="formal">Formal</div>
-                <div class="avatar-opt" data-avatar-kind="outfit" data-mall-action="avatarOutfit" data-mall-value="sport">Deportivo</div>
-                <div class="avatar-opt" data-avatar-kind="outfit" data-mall-action="avatarOutfit" data-mall-value="urban">Urbano</div>
-            </div>
-            <button id="guest-entry-button" class="enter-btn" data-mall-action="startMallExperience" data-stop-propagation="true">Entrar al Mall</button>
-
-            <!-- ACCESO RÁPIDO LOCATARIOS -->
-            <div id="entry-secondary-actions" class="entry-secondary-actions">
-                <button type="button" data-mall-action="entryMember">Inscribirse como visitante</button>
-                <button type="button" data-mall-action="toggleTenantApply">Postular como locatario</button>
-                <button type="button" class="entry-tenant-link" data-mall-action="entryTenant">Acceso locatarios aprobados</button>
-            </div>
-
-            <!-- BOTÓN ADMIN PERSISTENTE (DENTRO DEL MALL) -->
-            <button id="super-admin-btn-persistent" data-mall-action="openSuperAdmin">ADMIN MALL</button>
-            
-            <p class="mt-8 text-[9px] text-gray-600 tracking-widest uppercase">Experiencia Multijugador Sincronizada</p>
         </div>
         </div>
     </div>
 
     <!-- Chat Icon (Minimized state) -->
     <div id="chat-minimized-btn" data-mall-action="toggleChat">
-        <span class="chat-minimized-icon">ðŸ’¬</span>
+        <span class="material-symbols-outlined chat-minimized-icon" aria-hidden="true">chat_bubble</span>
         <div id="chat-badge">
             0</div>
     </div>
@@ -177,23 +143,114 @@
 
     <header id="main-header" class="fixed top-0 w-full p-8 flex justify-between items-start pointer-events-none">
         <div id="ui-overlay">
-            <h1 class="text-4xl font-extralight luxury-gradient tracking-[10px]">MALL EMPRENDIMIENTOS</h1>
+            <h1 class="text-4xl font-extralight luxury-gradient tracking-[10px]" data-mall-context-name>MALL CREACIONES</h1>
             <p class="ui-overlay-tagline">ARQUITECTURA DE LUJO & NEGOCIOS PRO</p>
         </div>
         <div id="controls-menu" class="controls-menu pointer-events-auto" data-stop-propagation="true">
             <button id="controls-menu-btn" class="controls-menu-btn" data-mall-action="toggleControlsMenu" data-stop-propagation="true">
                 <span>Controles</span>
-                <span id="controls-menu-chevron">▾</span>
+                <span id="controls-menu-chevron">?</span>
             </button>
             <div id="controls-dropdown" class="controls-dropdown">
                 <div class="controls-dropdown-title">Controles del Mall</div>
                 <button id="walk-mode-menu-item" class="controls-menu-item" data-mall-action="toggleWalkMode" data-stop-propagation="true">Cambiar a Modo Paseo</button>
-                <button id="avatar-label-mode-btn" class="controls-menu-item" data-mall-action="toggleAvatarLabelMode" data-stop-propagation="true">Nombres: Lejos</button>
+                <button id="avatar-label-mode-btn" class="controls-menu-item" data-mall-action="toggleAvatarLabelMode" data-stop-propagation="true">Nombres: Cerca</button>
                 <button id="tenant-access-btn" class="controls-menu-item" data-mall-action="toggleTenantLogin" data-stop-propagation="true">Panel Locatario</button>
                 <button id="admin-manage-menu-item" class="controls-menu-item is-hidden" data-mall-action="openSuperAdmin" data-stop-propagation="true">Panel administrador</button>
             </div>
         </div>
+        <nav id="guest-account-actions" class="guest-account-actions" aria-label="Acceso de visitante" hidden>
+            <button type="button" data-mall-action="openLoginChooser" data-stop-propagation="true">Login</button>
+            <button type="button" class="guest-account-actions__register" data-mall-action="entryMemberRegister" data-stop-propagation="true">Registro</button>
+        </nav>
+        <div id="mall-quick-tools" class="mall-quick-tools pointer-events-auto">
+            <button id="quick-navigator-toggle" class="quick-navigator-toggle" type="button" data-mall-action="toggleQuickNavigator" data-stop-propagation="true" aria-expanded="false">
+                <span class="material-symbols-outlined" aria-hidden="true">search</span>
+                <span>Encontrar</span>
+            </button>
+            <section id="quick-navigator-panel" class="quick-navigator-panel" hidden aria-label="Navegador rápido">
+                <p>¿Qué quieres encontrar?</p>
+                <div class="quick-navigator-actions">
+                    <button type="button" data-mall-action="openQuickSearch" data-mall-value="product"><span class="material-symbols-outlined" aria-hidden="true">inventory_2</span>Producto</button>
+                    <button type="button" data-mall-action="openQuickSearch" data-mall-value="store"><span class="material-symbols-outlined" aria-hidden="true">storefront</span>Local</button>
+                    <button type="button" data-mall-action="openMallOrientation"><span class="material-symbols-outlined" aria-hidden="true">support_agent</span>Orientación</button>
+                </div>
+                <div class="quick-navigator-categories" aria-label="Categorías rápidas">
+                    <button type="button" data-mall-action="openQuickSearch" data-mall-value="Moda">Moda</button>
+                    <button type="button" data-mall-action="openQuickSearch" data-mall-value="Hogar">Hogar</button>
+                    <button type="button" data-mall-action="openQuickSearch" data-mall-value="Belleza">Belleza</button>
+                    <button type="button" data-mall-action="openQuickSearch" data-mall-value="Tecnología">Tecnología</button>
+                </div>
+            </section>
+        </div>
+        <aside id="compact-route-map" class="compact-route-map pointer-events-auto" hidden aria-label="Ruta al local seleccionado">
+            <header class="compact-route-map__header">
+                <div>
+                    <p>Ruta activa</p>
+                    <strong id="compact-route-map-title">Local</strong>
+                </div>
+                <button type="button" data-mall-action="closeCompactRouteMap" aria-label="Cerrar mapa">&times;</button>
+            </header>
+            <p id="compact-route-map-floor" class="compact-route-map__floor">Planta 1</p>
+            <svg id="compact-route-map-svg" viewBox="0 0 100 100" aria-label="Mapa de ruta">
+                <rect x="42" y="10" width="16" height="80" fill="rgba(255,255,255,0.12)" rx="2" />
+                <rect x="10" y="42" width="80" height="16" fill="rgba(255,255,255,0.12)" rx="2" />
+                <circle cx="50" cy="50" r="8" stroke="#c5a059" stroke-width="0.5" fill="none" />
+                <g id="compact-route-path"></g>
+                <g id="compact-route-user"></g>
+                <g id="compact-route-target"></g>
+            </svg>
+            <p id="compact-route-map-copy" class="compact-route-map__copy"></p>
+            <button id="compact-route-map-teleport" class="compact-route-map__teleport" type="button" data-mall-action="teleportFromCompactRoute" hidden>Llévame al local</button>
+        </aside>
     </header>
+
+    <button id="member-pedometer" type="button" data-mall-action="openMemberBenefits" aria-label="Abrir mis beneficios">
+        <span class="material-symbols-outlined" aria-hidden="true">directions_walk</span>
+        <span><b id="member-pedometer-value">0 m</b><small>este mes</small></span>
+    </button>
+
+    <aside id="maze-timer" class="maze-timer" hidden aria-live="polite" aria-label="Cronómetro del laberinto">
+        <span class="maze-timer__eyebrow">Recorrido laberinto</span>
+        <strong id="maze-timer-value">00:00</strong>
+        <small id="maze-timer-status">Pasa por la entrada para comenzar</small>
+        <div class="maze-route-progress" aria-live="polite">
+            <span id="maze-route-progress">0/5 puntos de control</span>
+            <span id="maze-route-validation">Modo local</span>
+        </div>
+        <small class="maze-timer__safety">Salida de emergencia: vuelve a la entrada o usa AYUDA.</small>
+        <button id="maze-panic-button" class="maze-timer__panic" type="button" hidden>Solicitar salida</button>
+    </aside>
+
+    <section id="maze-time-limit" class="maze-time-limit" hidden role="dialog" aria-modal="true" aria-labelledby="maze-time-limit-title">
+        <div class="maze-time-limit__card">
+            <span class="maze-timer__eyebrow">Aviso de seguridad</span>
+            <h2 id="maze-time-limit-title">Llevas 15 minutos dentro</h2>
+            <p>¿Quieres continuar recorriendo el laberinto o prefieres salir al boulevard?</p>
+            <div class="maze-time-limit__actions">
+                <button id="maze-time-limit-continue" type="button">Continuar dentro</button>
+                <button id="maze-time-limit-exit" type="button">Salir al boulevard</button>
+            </div>
+        </div>
+    </section>
+
+    <section id="maze-complete" class="maze-complete" hidden role="dialog" aria-modal="true" aria-labelledby="maze-complete-title">
+        <div class="maze-complete__card">
+            <span class="maze-timer__eyebrow">Meta alcanzada</span>
+            <h2 id="maze-complete-title">Recorrido completado</h2>
+            <p>Has llegado al final del laberinto. Este es tu tiempo registrado en la sesión actual:</p>
+            <strong id="maze-complete-time">00:00</strong>
+            <p id="maze-record-message" class="maze-complete__record-message" aria-live="polite"></p>
+            <div class="maze-complete__records">
+                <h3 id="maze-record-heading">Récords globales</h3>
+                <div id="maze-record-list">Aún no hay tiempos registrados.</div>
+            </div>
+            <div class="maze-complete__actions">
+                <button id="maze-complete-continue" type="button">Seguir dentro</button>
+                <button id="maze-complete-exit" type="button">Volver al boulevard</button>
+            </div>
+        </div>
+    </section>
 
     <div id="canvas-container" class="canvas-container" tabindex="0"></div>
     <div id="object-debug-panel" class="is-hidden">
@@ -203,7 +260,58 @@
 
     <div class="view-indicator" id="view-indicator">VISTA SUR</div>
     <div id="debug-build-stamp">VERSION LOCAL 05-05 11:00</div>
-    <div class="interaction-hint">Haz clic en un local para ver su ficha comercial</div>
+    <section id="mall-quick-start" class="mall-quick-start" hidden aria-label="Accesos rápidos">
+        <p class="mall-quick-start__eyebrow">Comienza rápido</p>
+        <p class="mall-quick-start__title">¿Qué necesitas hoy?</p>
+        <div class="mall-quick-start__actions">
+            <button type="button" data-mall-action="openQuickSearch" data-mall-value="product"><span class="material-symbols-outlined" aria-hidden="true">search</span>Buscar producto</button>
+            <button type="button" data-mall-action="openMallOrientation"><span class="material-symbols-outlined" aria-hidden="true">support_agent</span>Orientarme</button>
+            <button type="button" class="mall-quick-start__dismiss" data-mall-action="dismissMallQuickStart">Explorar por mi cuenta</button>
+        </div>
+    </section>
+    <section id="proximity-context" class="proximity-context" hidden aria-live="polite">
+        <span id="proximity-context-icon" class="material-symbols-outlined" aria-hidden="true">info</span>
+        <div class="proximity-context__copy">
+            <p id="proximity-context-title"></p>
+            <small id="proximity-context-description"></small>
+        </div>
+        <button id="proximity-context-action" type="button" data-mall-action="openProximityContextAction" hidden></button>
+    </section>
+
+    <div id="member-benefits-backdrop" data-mall-action="closeMemberBenefits"></div>
+    <section id="member-benefits-modal" role="dialog" aria-modal="true" aria-labelledby="member-benefits-title">
+        <header class="member-benefits-header">
+            <div>
+                <span id="member-benefits-kicker" class="member-benefits-kicker">Cuenta inscrita</span>
+                <h2 id="member-benefits-title">Mis beneficios</h2>
+            </div>
+            <button type="button" class="member-benefits-close" data-mall-action="closeMemberBenefits" aria-label="Cerrar beneficios">&times;</button>
+        </header>
+        <div class="member-benefits-distance">
+            <span>Recorrido mensual</span>
+            <strong id="member-benefits-distance-value">0 m</strong>
+            <small id="member-benefits-distance-next">Camina por el mall para acumular beneficios.</small>
+        </div>
+        <div class="member-benefits-section">
+            <h3>Promociones y concursos</h3>
+            <div id="member-promotions-list" class="member-promotions-list">
+                <p>No hay promociones activas en este momento.</p>
+            </div>
+        </div>
+        <p id="member-benefits-status" class="member-benefits-status"></p>
+    </section>
+    <div id="discount-reward-backdrop" data-mall-action="closeDiscountReward"></div>
+    <section id="discount-reward-modal" role="dialog" aria-modal="true" aria-labelledby="discount-reward-title" hidden>
+        <button type="button" class="discount-reward-close" data-mall-action="closeDiscountReward" aria-label="Cerrar código">&times;</button>
+        <span class="member-benefits-kicker">Globo dorado encontrado</span>
+        <h2 id="discount-reward-title">Tu código de descuento</h2>
+        <p id="discount-reward-copy">Guárdalo y preséntalo según las condiciones de la promoción.</p>
+        <div class="discount-reward-code-row">
+            <code id="discount-reward-code"></code>
+            <button type="button" data-mall-action="copyDiscountCode" aria-label="Copiar código">Copiar</button>
+        </div>
+        <small id="discount-reward-status"></small>
+    </section>
     <div id="gps-display">
         <div class="gps-header">
             <span class="gps-status-dot"></span>
@@ -286,6 +394,28 @@
             </div>
             <div class="mobile-control-note">Mantener para orientar la vista</div>
         </div>
+
+        <div id="mobile-quick-actions">
+            <button type="button" class="mobile-icon-btn" id="mobile-auto-forward-btn" aria-label="Avance automático" aria-pressed="false" title="Avance automático">
+                <span class="material-symbols-outlined" aria-hidden="true">directions_walk</span>
+            </button>
+            <button type="button" class="mobile-icon-btn" id="mobile-settings-btn" aria-label="Ajustes móviles" aria-expanded="false" title="Ajustes móviles">
+                <span class="material-symbols-outlined" aria-hidden="true">tune</span>
+            </button>
+            <div id="mobile-control-settings" hidden>
+                <button type="button" id="mobile-control-settings-close" aria-label="Cerrar ajustes" title="Cerrar ajustes">&times;</button>
+                <label for="mobile-look-sensitivity">Sensibilidad</label>
+                <input type="range" id="mobile-look-sensitivity" min="0.5" max="1.8" step="0.1" value="1">
+                <label class="mobile-toggle-row" for="mobile-left-handed">
+                    <input type="checkbox" id="mobile-left-handed">
+                    <span>Invertir lados</span>
+                </label>
+                <button type="button" id="mobile-reset-zoom-btn">
+                    <span class="material-symbols-outlined" aria-hidden="true">center_focus_strong</span>
+                    Restablecer zoom
+                </button>
+            </div>
+        </div>
     </div>
 
     <!-- MODAL DE FICHA COMERCIAL -->
@@ -334,6 +464,7 @@
         </div>
 
         <button id="btn-manage-store" class="enter-btn is-hidden" data-mall-action="openTenantAdminFromMenu">GESTIONAR MI TIENDA</button>
+        <button id="btn-return-tenant-preview" class="enter-btn tenant-preview-return-btn is-hidden" type="button">VOLVER A EDITAR CATÁLOGO</button>
         
         <div class="store-modal-footer">SISTEMA DE GESTIÓN COMERCIAL PRO</div>
     </div>
@@ -419,6 +550,50 @@
                     </div>
                 </div>
 
+                <div class="admin-card analytics-section">
+                    <div class="analytics-heading-row">
+                        <div>
+                            <h3 class="admin-card-title">Estad&iacute;sticas del Mall</h3>
+                            <p class="analytics-subtitle">Atenci&oacute;n, interacci&oacute;n y conversi&oacute;n agregadas.</p>
+                        </div>
+                        <div class="analytics-period-controls">
+                            <select id="admin-analytics-period" aria-label="Per&iacute;odo de estad&iacute;sticas del mall">
+                                <option value="7">7 d&iacute;as</option>
+                                <option value="30" selected>30 d&iacute;as</option>
+                                <option value="90">90 d&iacute;as</option>
+                            </select>
+                            <button type="button" id="admin-analytics-refresh" title="Actualizar estad&iacute;sticas" aria-label="Actualizar estad&iacute;sticas">
+                                <span class="material-symbols-outlined" aria-hidden="true">refresh</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="analytics-metric-grid analytics-metric-grid--admin">
+                        <div><span>Visitantes</span><strong id="admin-metric-visitors">0</strong></div>
+                        <div><span>Ingresos</span><strong id="admin-metric-entries">0</strong></div>
+                        <div><span>Atenciones</span><strong id="admin-metric-attention">0</strong></div>
+                        <div><span>Locales abiertos</span><strong id="admin-metric-opens">0</strong></div>
+                        <div><span>Productos vistos</span><strong id="admin-metric-products">0</strong></div>
+                        <div><span>Contactos</span><strong id="admin-metric-contacts">0</strong></div>
+                        <div><span>B&uacute;squedas</span><strong id="admin-metric-searches">0</strong></div>
+                        <div><span>Sin resultados</span><strong id="admin-metric-missed-searches">0</strong></div>
+                    </div>
+                    <div class="analytics-chart-block">
+                        <div class="analytics-block-title">Visitantes &uacute;nicos por d&iacute;a</div>
+                        <div id="admin-analytics-daily" class="analytics-daily-bars" aria-label="Actividad diaria"></div>
+                    </div>
+                    <div class="analytics-detail-grid">
+                        <div>
+                            <div class="analytics-block-title">Locales con mayor actividad</div>
+                            <div id="admin-analytics-stores"></div>
+                        </div>
+                        <div>
+                            <div class="analytics-block-title">Demanda sin resultados</div>
+                            <div id="admin-analytics-missed"></div>
+                        </div>
+                    </div>
+                    <p id="admin-analytics-status" class="analytics-status">Esperando datos estad&iacute;sticos.</p>
+                </div>
+
                 <div class="admin-card">
                     <h3 class="admin-card-title">Herramientas de Diagnóstico</h3>
                     <div class="admin-tool-list">
@@ -427,6 +602,9 @@
                         </label>
                         <label class="admin-tool-label">
                             <input type="checkbox" id="admin-toggle-inspector" class="admin-tool-checkbox" data-mall-change="toggleAdminTool" data-mall-tool="inspector"> Activar Inspector de Objetos
+                        </label>
+                        <label class="admin-tool-label">
+                            <input type="checkbox" id="admin-toggle-infrastructure-editor" class="admin-tool-checkbox" data-mall-change="toggleAdminTool" data-mall-tool="infrastructure-editor"> Activar Editor de Infraestructura
                         </label>
                         <label class="admin-tool-label">
                             <input type="checkbox" id="admin-toggle-gps" class="admin-tool-checkbox" data-mall-change="toggleAdminTool" data-mall-tool="gps"> Mostrar Coordenadas Exactas (GPS)
@@ -450,6 +628,17 @@
                             </button>
                             <div id="admin-hotspot-status">Te lleva a puntos seguros del mall para revisión rápida.</div>
                         </div>
+                        <div class="admin-teleport-panel">
+                            <div class="admin-hotspot-title">Registrar posicion de llegada</div>
+                            <label class="admin-small-label" for="admin-teleport-local-code">Local fisico</label>
+                            <input type="text" id="admin-teleport-local-code" class="admin-text-input" placeholder="Ej: O-101, E-105 o SE-10">
+                            <button type="button" class="admin-primary-btn" data-mall-action="registerAdminTeleportPosition">
+                                Registrar posicion
+                            </button>
+                            <div class="admin-help-copy">Primero ubicate frente al local y mira hacia su vitrina. Se guardara tu posicion actual y la orientacion exacta de la camara.</div>
+                            <div id="admin-teleport-current-preview">Posicion actual: sin capturar.</div>
+                            <div id="admin-teleport-status">Usa esta herramienta para definir donde debe aparecer el visitante al presionar "Llevame al local".</div>
+                        </div>
                     </div>
                 </div>
 
@@ -465,6 +654,30 @@
                                 <div id="admin-selected-status" class="admin-selected-status">-</div>
                                 <div id="admin-selected-profile-status" class="admin-success-copy"></div>
                                 <div id="admin-assigned-stores" class="admin-assigned-stores"></div>
+                            </div>
+                            <div class="admin-auth-card">
+                                <div class="admin-grid-title">Acceso del locatario</div>
+                                <div class="admin-auth-grid">
+                                    <div>
+                                        <label for="admin-tenant-auth-email" class="admin-small-label">Correo de acceso</label>
+                                        <input type="email" id="admin-tenant-auth-email" class="admin-field-input" autocomplete="off" readonly>
+                                    </div>
+                                    <div>
+                                        <label for="admin-tenant-auth-name" class="admin-small-label">Nombre del locatario</label>
+                                        <input type="text" id="admin-tenant-auth-name" class="admin-field-input" autocomplete="off">
+                                    </div>
+                                </div>
+                                <label for="admin-tenant-temp-password" class="admin-small-label">Clave temporal</label>
+                                <div class="admin-auth-password-row">
+                                    <input type="text" id="admin-tenant-temp-password" class="admin-field-input" minlength="12" maxlength="72" autocomplete="new-password" spellcheck="false">
+                                    <button type="button" class="admin-secondary-btn" data-mall-action="generateTenantTemporaryPassword">Generar</button>
+                                    <button type="button" class="admin-secondary-btn" data-mall-action="copyTenantTemporaryPassword">Copiar</button>
+                                </div>
+                                <div class="admin-auth-password-row">
+                                    <button id="admin-create-tenant-access-btn" type="button" class="admin-primary-btn" data-mall-action="createTenantAccess">Crear acceso</button>
+                                    <button id="admin-reset-tenant-password-btn" type="button" class="admin-secondary-btn" data-mall-action="resetTenantAccessPassword" disabled>Restablecer clave</button>
+                                </div>
+                                <div id="admin-tenant-auth-status" class="admin-assignment-status" aria-live="polite"></div>
                             </div>
                             <div>
                                 <label for="admin-local-codes" class="admin-field-label">Locales a asignar</label>
@@ -710,6 +923,44 @@
                         </div>
                     </div>
                 </div>
+                <div class="admin-card mall-assistant-admin-card">
+                    <div class="admin-card-heading">
+                        <div>
+                            <h3 class="admin-card-title">Asistente del Mall</h3>
+                            <p class="admin-card-subtitle">Entrena al asistente de informaciones y revisa los reclamos.</p>
+                        </div>
+                    </div>
+                    <div class="mall-assistant-admin-grid">
+                        <label class="tenant-bot-toggle mall-assistant-admin-toggle">
+                            <input type="checkbox" id="admin-mall-assistant-enabled">
+                            Asistente visible en el mesón
+                        </label>
+                        <label>
+                            Nombre del asistente
+                            <input type="text" id="admin-mall-assistant-name" class="admin-field-input" maxlength="80">
+                        </label>
+                        <label>
+                            Saludo inicial
+                            <textarea id="admin-mall-assistant-greeting" class="admin-textarea" rows="2" maxlength="500"></textarea>
+                        </label>
+                        <label class="mall-assistant-admin-wide">
+                            Inducción general del mall
+                            <textarea id="admin-mall-assistant-brief" class="admin-textarea" rows="5" maxlength="4000" placeholder="Describe servicios, horarios, accesos, orientación y reglas que el asistente puede informar."></textarea>
+                        </label>
+                        <label class="mall-assistant-admin-wide">
+                            Preguntas frecuentes
+                            <textarea id="admin-mall-assistant-faq" class="admin-textarea" rows="6" placeholder="Una por línea: pregunta | respuesta"></textarea>
+                        </label>
+                    </div>
+                    <div class="admin-actions-end">
+                        <button type="button" class="admin-save-btn" data-mall-action="saveAdminMallAssistantSettings">Guardar asistente</button>
+                    </div>
+                    <p id="admin-mall-assistant-status" class="tenant-bot-status" aria-live="polite"></p>
+                    <div class="admin-mall-feedback">
+                        <h4>Reclamos y sugerencias</h4>
+                        <div id="admin-mall-feedback-list" class="admin-mall-feedback-list">Cargando...</div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -752,8 +1003,15 @@
     <div id="tenant-admin-modal">
         <h2 class="tenant-admin-title">
             CONFIGURACIÓN DEL LOCAL <span class="close-btn tenant-admin-close" data-mall-action="closeTenantAdmin">&times;</span></h2>
+        <div class="tenant-store-switcher">
+            <label id="tenant-store-switcher-label" for="tenant-store-select">Mis locales</label>
+            <div class="tenant-store-select-row">
+                <select id="tenant-store-select" data-mall-change="switchTenantStore" aria-label="Local que quieres administrar"></select>
+                <span id="tenant-store-count" aria-live="polite"></span>
+            </div>
+        </div>
         <div class="tenant-store-badge-row">
-            <span>Local asignado</span>
+            <span>Administrando</span>
             <span id="tenant-store-code-display">-</span>
         </div>
         
@@ -767,12 +1025,29 @@
                 <input type="text" id="edit-store-category" class="tenant-admin-input">
             </div>
             <div>
-                <label class="tenant-admin-label">Email para Consultas (Dropi / Directo)</label>
-                <input type="email" id="edit-store-email" class="tenant-admin-input">
+                <label class="tenant-admin-label" for="edit-store-email">Correo de contacto</label>
+                <input type="email" id="edit-store-email" class="tenant-admin-input" placeholder="Ej: contacto@mitienda.cl">
             </div>
             <div>
-                <label class="tenant-admin-label">WhatsApp / Celular del Local</label>
-                <input type="tel" id="edit-store-phone" class="tenant-admin-input" placeholder="Ej: +56912345678">
+                <label class="tenant-admin-label" for="edit-store-phone">Teléfono para llamadas</label>
+                <input type="tel" id="edit-store-phone" class="tenant-admin-input" inputmode="tel" autocomplete="tel" placeholder="Ej: +56912345678">
+            </div>
+            <div>
+                <label class="tenant-admin-label" for="edit-store-whatsapp">WhatsApp del local</label>
+                <input type="tel" id="edit-store-whatsapp" class="tenant-admin-input" inputmode="tel" placeholder="Ej: +56912345678">
+            </div>
+            <div>
+                <label class="tenant-admin-label" for="edit-store-social-url">Instagram u otra red social</label>
+                <input type="url" id="edit-store-social-url" class="tenant-admin-input" inputmode="url" placeholder="Ej: https://instagram.com/mitienda">
+            </div>
+            <div class="tenant-admin-wide-field">
+                <label class="tenant-admin-label" for="edit-store-address">Dirección o punto de retiro</label>
+                <input type="text" id="edit-store-address" class="tenant-admin-input" autocomplete="street-address" placeholder="Ej: Av. Principal 123, Santiago">
+            </div>
+            <div class="tenant-admin-wide-field">
+                <label class="tenant-admin-label" for="edit-store-maps-url">Enlace de Google Maps (opcional)</label>
+                <input type="url" id="edit-store-maps-url" class="tenant-admin-input" inputmode="url" placeholder="Si lo dejas vacío, usaremos la dirección para abrir Maps">
+                <small class="tenant-admin-help">En Google Maps, busca tu ubicación, pulsa Compartir y pega aquí el enlace.</small>
             </div>
             <div class="tenant-telegram-card">
                 <div class="tenant-telegram-header">
@@ -807,6 +1082,25 @@
                     <option value="cristal">Cristal y Oro</option>
                 </select>
             </div>
+            <div class="tenant-admin-wide-field">
+                <label class="tenant-admin-label" for="edit-store-catalog-theme">Combinación de colores del catálogo</label>
+                <select id="edit-store-catalog-theme" class="tenant-admin-input">
+                    <option value="elegant">Elegante (por defecto)</option>
+                    <option value="vibrant">Vistoso</option>
+                    <option value="modern">Moderno</option>
+                    <option value="professional">Profesional</option>
+                    <option value="joyful">Alegre</option>
+                </select>
+                <small class="tenant-admin-help">Elige cómo verán los visitantes la ficha, los productos y los datos de contacto de tu catálogo.</small>
+            </div>
+            <div class="tenant-admin-wide-field tenant-memory-field">
+                <label class="tenant-admin-label" for="edit-store-catalog-memory">Novedades, promociones y ofertas del local</label>
+                <textarea id="edit-store-catalog-memory" class="tenant-admin-input tenant-admin-textarea" maxlength="3000" rows="6" placeholder="Ej: Esta semana tenemos 20% de descuento en..., el sábado habrá..., horario especial..."></textarea>
+                <div class="tenant-memory-meta">
+                    <small class="tenant-admin-help">Escribe información vigente que quieras mostrar en tu catálogo y que los visitantes puedan encontrar desde el tótem: promociones, ofertas, eventos, fechas, horarios o noticias.</small>
+                    <span id="edit-store-catalog-memory-count" class="tenant-memory-count" aria-live="polite">0/3000</span>
+                </div>
+            </div>
             <div class="tenant-security-card">
                 <label class="tenant-security-label">Seguridad: Cambiar mi Contraseña</label>
                 <div class="tenant-security-row">
@@ -816,10 +1110,92 @@
             </div>
         </div>
 
-        <h3 class="tenant-section-title">Gestión de Inventario (Máx. 10 productos)</h3>
+        <section class="tenant-analytics-section analytics-section" aria-labelledby="tenant-analytics-title">
+            <div class="analytics-heading-row">
+                <div>
+                    <h3 class="tenant-section-title" id="tenant-analytics-title">Estad&iacute;sticas del Local</h3>
+                    <p class="analytics-subtitle">Atenci&oacute;n frente a vitrina, visitas y acciones comerciales.</p>
+                </div>
+                <div class="analytics-period-controls">
+                    <select id="tenant-analytics-period" aria-label="Per&iacute;odo de estad&iacute;sticas del local">
+                        <option value="7">7 d&iacute;as</option>
+                        <option value="30" selected>30 d&iacute;as</option>
+                        <option value="90">90 d&iacute;as</option>
+                    </select>
+                    <button type="button" id="tenant-analytics-refresh" title="Actualizar estad&iacute;sticas" aria-label="Actualizar estad&iacute;sticas">
+                        <span class="material-symbols-outlined" aria-hidden="true">refresh</span>
+                    </button>
+                </div>
+            </div>
+            <div class="analytics-metric-grid">
+                <div><span>Visitantes</span><strong id="tenant-metric-visitors">0</strong></div>
+                <div><span>Atenciones</span><strong id="tenant-metric-attention">0</strong></div>
+                <div><span>Ficha abierta</span><strong id="tenant-metric-opens">0</strong></div>
+                <div><span>Productos vistos</span><strong id="tenant-metric-products">0</strong></div>
+                <div><span>Contactos</span><strong id="tenant-metric-contacts">0</strong></div>
+                <div><span>Conversi&oacute;n</span><strong id="tenant-metric-conversion">0%</strong></div>
+                <div><span>Atenci&oacute;n media</span><strong id="tenant-metric-attention-time">0.0 s</strong></div>
+                <div><span>Sin acci&oacute;n</span><strong id="tenant-metric-no-action">0</strong></div>
+            </div>
+            <div class="analytics-chart-block">
+                <div class="analytics-block-title">Visitantes &uacute;nicos por d&iacute;a</div>
+                <div id="tenant-analytics-daily" class="analytics-daily-bars" aria-label="Actividad diaria del local"></div>
+            </div>
+            <div class="analytics-detail-grid">
+                <div>
+                    <div class="analytics-block-title">Productos con mayor inter&eacute;s</div>
+                    <div id="tenant-analytics-products"></div>
+                </div>
+                <div>
+                    <div class="analytics-block-title">B&uacute;squedas que llegaron al local</div>
+                    <div id="tenant-analytics-searches"></div>
+                </div>
+            </div>
+            <p id="tenant-analytics-status" class="analytics-status">Esperando datos estad&iacute;sticos.</p>
+        </section>
+
+        <h3 class="tenant-section-title" id="tenant-products-title">Gestión de Inventario</h3>
         <div id="edit-products-list">
             <!-- Generado dinámicamente -->
         </div>
+
+        <section class="tenant-bot-section" aria-labelledby="tenant-bot-title">
+            <div class="tenant-bot-heading">
+                <div>
+                    <h3 class="tenant-section-title" id="tenant-bot-title">Asistente de tienda</h3>
+                    <p>Configura respuestas breves para el avatar que atiende este local.</p>
+                </div>
+                <label class="tenant-bot-toggle">
+                    <input type="checkbox" id="tenant-bot-enabled" class="tenant-bot-input">
+                    <span>Activar asistente</span>
+                </label>
+            </div>
+            <div class="tenant-bot-grid">
+                <label>
+                    Nombre del asistente
+                    <input type="text" id="tenant-bot-name" class="tenant-admin-input tenant-bot-input" maxlength="50" placeholder="Ej: Isabella">
+                </label>
+                <label class="tenant-bot-wide">
+                    Saludo inicial
+                    <textarea id="tenant-bot-greeting" class="tenant-admin-input tenant-bot-input" maxlength="300" rows="2"></textarea>
+                </label>
+                <label class="tenant-bot-wide">
+                    Inducción para el asistente
+                    <textarea id="tenant-bot-store-brief" class="tenant-admin-input tenant-bot-input" maxlength="1200" rows="5" placeholder="Explica claramente de qué trata tu tienda, qué vendes, a qué público apuntas, cómo atiendes, qué cosas debe destacar el asistente y cualquier dato importante sobre tu local o sus dueños."></textarea>
+                    <small>Recomendado: rubro, productos principales, público objetivo, tono de atención, datos clave del local y lo que el asistente no debe confundir.</small>
+                </label>
+                <label class="tenant-bot-wide">
+                    Preguntas frecuentes
+                    <textarea id="tenant-bot-faq" class="tenant-admin-input tenant-bot-input" rows="6" placeholder="Una por línea: pregunta | respuesta"></textarea>
+                    <small>Formato: <b>¿Hacen envíos? | Sí, enviamos a todo Chile.</b></small>
+                </label>
+            </div>
+            <p id="tenant-bot-status" class="tenant-bot-status">Cargando configuración...</p>
+            <div class="tenant-bot-leads">
+                <h4>Contactos solicitados por el asistente <span id="tenant-bot-lead-count">0</span></h4>
+                <div id="tenant-bot-lead-list"><p class="tenant-empty-message">No hay contactos nuevos.</p></div>
+            </div>
+        </section>
 
         <div class="tenant-messages-section">
             <h3 class="tenant-section-title tenant-messages-title">
@@ -839,12 +1215,79 @@
         </div>
     </div>
 
+    <!-- ASISTENTE VIRTUAL DE TIENDA -->
+    <div id="store-assistant-modal" role="dialog" aria-modal="true" aria-labelledby="store-assistant-title">
+        <header class="store-assistant-header">
+            <div>
+                <p id="store-assistant-store">Asistente de tienda</p>
+                <h2 id="store-assistant-title">¿En qué puedo ayudarte?</h2>
+            </div>
+            <button type="button" id="store-assistant-close" aria-label="Cerrar asistente">&times;</button>
+        </header>
+        <div id="store-assistant-messages" class="store-assistant-messages" aria-live="polite"></div>
+        <div id="store-assistant-quick-actions" class="store-assistant-quick-actions">
+            <button type="button" data-assistant-question="¿Qué productos tienen?">Productos</button>
+            <button type="button" data-assistant-question="¿Cuáles son los precios?">Precios</button>
+            <button type="button" data-assistant-question="¿Cómo contacto a la tienda?">Contacto</button>
+        </div>
+        <button type="button" id="mall-feedback-toggle" class="mall-feedback-toggle" hidden>Reclamos y sugerencias</button>
+        <form id="store-assistant-form" class="store-assistant-form">
+            <label for="store-assistant-input">Tu pregunta</label>
+            <div>
+                <input id="store-assistant-input" type="text" maxlength="300" autocomplete="off" placeholder="Escribe una pregunta breve...">
+                <button type="submit">Enviar</button>
+            </div>
+            <small><span id="store-assistant-char-count">0</span>/300</small>
+        </form>
+        <form id="store-assistant-lead-form" class="store-assistant-lead-form" hidden>
+            <h3>Solicitar contacto de la tienda</h3>
+            <div class="store-assistant-lead-grid">
+                <input id="store-assistant-lead-name" type="text" maxlength="120" placeholder="Tu nombre" required>
+                <input id="store-assistant-lead-email" type="email" maxlength="200" placeholder="Tu correo">
+                <input id="store-assistant-lead-phone" type="tel" maxlength="40" placeholder="Tu WhatsApp">
+                <select id="store-assistant-lead-preference" aria-label="Medio de contacto preferido">
+                    <option value="cualquiera">Correo o WhatsApp</option>
+                    <option value="email">Prefiero correo</option>
+                    <option value="whatsapp">Prefiero WhatsApp</option>
+                </select>
+            </div>
+            <label class="store-assistant-consent">
+                <input id="store-assistant-lead-consent" type="checkbox" required>
+                Autorizo enviar estos datos a la persona encargada de la tienda.
+            </label>
+            <button type="submit">Enviar mis datos</button>
+            <p id="store-assistant-lead-status"></p>
+        </form>
+        <form id="mall-feedback-form" class="mall-feedback-form" hidden>
+            <h3>Reclamos y sugerencias</h3>
+            <div class="mall-feedback-grid">
+                <select id="mall-feedback-category" aria-label="Tipo de mensaje">
+                    <option value="suggestion">Sugerencia</option>
+                    <option value="complaint">Reclamo</option>
+                </select>
+                <input id="mall-feedback-name" type="text" maxlength="120" placeholder="Tu nombre" required>
+                <input id="mall-feedback-email" type="email" maxlength="200" placeholder="Tu correo">
+                <input id="mall-feedback-phone" type="tel" maxlength="40" placeholder="Tu WhatsApp">
+                <textarea id="mall-feedback-message" class="mall-feedback-wide" maxlength="2000" rows="4" placeholder="Cuéntanos tu reclamo o sugerencia" required></textarea>
+            </div>
+            <label class="store-assistant-consent">
+                <input id="mall-feedback-consent" type="checkbox" required>
+                Autorizo enviar estos datos a la administración del mall.
+            </label>
+            <button type="submit">Enviar mensaje</button>
+            <p id="mall-feedback-status" aria-live="polite"></p>
+        </form>
+    </div>
+
     <!-- MODAL DE BÚSQUEDA Y MAPA (TÓTEM) -->
     <div id="search-modal">
         <h2 class="search-title">
-            CONCIERGE DEL MALL <span class="close-btn" id="search-close-btn">&times;</span></h2>
-        <input type="text" id="search-input" placeholder="Busca tienda, producto o categoría..."
-            data-mall-input="filterStores">
+            Busca tu producto o tu local aquí
+            <button type="button" class="close-btn" id="search-close-btn" aria-label="Cerrar búsqueda">&times;</button>
+        </h2>
+        <div id="user-location-text" class="user-location-text">Ubicación actual: calculando...</div>
+        <input type="text" id="search-input" placeholder="Producto, local, categoría, oferta o evento..."
+            autocomplete="off" data-mall-input="filterStores">
         <div class="search-results" id="search-results"></div>
 
         <div class="floor-toggle">
@@ -854,28 +1297,107 @@
 
         <div id="mall-map-container">
             <svg id="mall-svg-map" viewBox="0 0 100 100">
-                <!-- Esquema dinámico -->
-                <rect x="42" y="5" width="16" height="90" fill="#222" rx="2" />
-                <rect x="5" y="42" width="90" height="16" fill="#222" rx="2" />
+                <!-- Esquema basado en plano: O izquierda, E derecha, N arriba, S abajo -->
+                <rect x="42" y="10" width="16" height="80" fill="#222" rx="2" />
+                <rect x="10" y="42" width="80" height="16" fill="#222" rx="2" />
+                <rect x="40" y="4" width="20" height="8" fill="#f5f5f5" stroke="#222" stroke-width="0.4" />
+                <rect x="40" y="88" width="20" height="8" fill="#f5f5f5" stroke="#222" stroke-width="0.4" />
+                <rect x="2" y="40" width="10" height="20" fill="#f5f5f5" stroke="#222" stroke-width="0.4" />
+                <rect x="88" y="40" width="10" height="20" fill="#f5f5f5" stroke="#222" stroke-width="0.4" />
+                <text x="50" y="9" text-anchor="middle" font-size="5" font-weight="700" fill="#111">N</text>
+                <text x="50" y="94" text-anchor="middle" font-size="5" font-weight="700" fill="#111">S</text>
+                <text x="7" y="52" text-anchor="middle" font-size="5" font-weight="700" fill="#111">O</text>
+                <text x="93" y="52" text-anchor="middle" font-size="5" font-weight="700" fill="#111">E</text>
                 <circle cx="50" cy="50" r="8" stroke="#c5a059" stroke-width="0.5" fill="none" />
+                <g id="map-route-path"></g>
+                <g id="map-user-pos"></g>
                 <g id="map-target-pos"></g>
             </svg>
         </div>
         <div id="location-text">
-            Busca un local para ver su ubicación</div>
+            Busca y selecciona un local para ver el camino.</div>
+    </div>
+
+    <!-- MODAL INTRODUCTORIO DEL MALL (TÓTEM CENTRAL) -->
+    <div id="mall-intro-modal">
+        <div class="mall-intro-header">
+            <div>
+                <p class="mall-intro-kicker">Guía rápida</p>
+                <h2>Bienvenido al <span data-mall-context-name>Mall Creaciones</span></h2>
+            </div>
+            <button type="button" class="close-btn" id="mall-intro-close-btn" aria-label="Cerrar introducción">&times;</button>
+        </div>
+        <p class="mall-intro-lead">
+            Recorre el mall como si estuvieras caminando por sus pasillos. Puedes visitar tiendas, revisar catálogos,
+            buscar productos y contactar directamente a los locatarios.
+        </p>
+
+        <section class="mall-intro-section">
+            <h3>Cómo moverte</h3>
+            <ul>
+                <li>En celular, usa el joystick para caminar y los botones de cámara para girar o mirar hacia arriba y abajo.</li>
+                <li>En computador, usa el teclado o el mouse para recorrer el mall.</li>
+                <li>Puedes arrastrar la pantalla para orientar la vista.</li>
+            </ul>
+        </section>
+
+        <section class="mall-intro-section">
+            <h3>Botón Controles</h3>
+            <p>En la esquina superior derecha encontrarás el botón <strong>Controles</strong>. Desde ahí puedes:</p>
+            <ul>
+                <li>Cambiar entre <strong>Modo Paseo</strong> y <strong>Modo Aéreo</strong>.</li>
+                <li>Activar o revisar opciones de navegación.</li>
+                <li>Acceder a herramientas disponibles según tu tipo de usuario.</li>
+                <li>Volver a orientar tu recorrido si necesitas cambiar la forma de explorar.</li>
+            </ul>
+        </section>
+
+        <section class="mall-intro-section">
+            <h3>Tiendas y catálogos</h3>
+            <ul>
+                <li>Toca la placa dorada con el código del local para abrir su ficha comercial.</li>
+                <li>En cada ficha podrás ver productos, precios, imágenes, datos de contacto y redes sociales.</li>
+                <li>Si una tienda aún no tiene productos cargados, podrás ver su información básica o contactar al locatario.</li>
+            </ul>
+        </section>
+
+        <section class="mall-intro-section">
+            <h3>Tótems de búsqueda</h3>
+            <ul>
+                <li>Usa los tótems para encontrar productos, tiendas o categorías.</li>
+                <li>Escribe palabras simples como “ropa”, “joyas”, “café” o “regalo”.</li>
+                <li>También puedes usar palabras clave tipo hashtag, por ejemplo <strong>#cumpleaños</strong>, <strong>#decoración</strong> o <strong>#accesorios</strong>.</li>
+                <li>Al seleccionar un local, el mapa mostrará su ubicación y una ruta desde tu posición actual.</li>
+            </ul>
+        </section>
+
+        <p class="mall-intro-footer">
+            Explora con calma. Puedes recorrer el mall, descubrir nuevas tiendas y volver al buscador cuando quieras encontrar algo específico.
+        </p>
     </div>
 
 <!-- Mall Modules -->
-    <script src="js/mall/mall-physics.js" defer></script>
-    <script src="js/mall/mall-constants.js" defer></script>
-    <script src="js/mall/mall-world.js" defer></script>
-    <script src="js/mall/mall-navigation.js" defer></script>
-    <script src="js/mall/mall-multiplayer.js" defer></script>
-    <script src="js/mall/mall-stores.js" defer></script>
-    <script src="js/mall/mall-interaction.js" defer></script>
-    <script src="js/mall/mall-ui.js" defer></script>
-    <script src="js/mall/mall-npc.js" defer></script>
-    <script src="js/mall/mall-main.js" defer></script>
+    <script src="js/mall/mall-physics.js?v=20260905-oriented-collider-v1" defer></script>
+    <script src="js/mall/mall-furniture.js?v=20260805-physical-space-audit" defer></script>
+    <script src="js/mall/mall-constants.js?v=20260830-information-desk-entry-v5" defer></script>
+<script src="js/mall/mall-object-editor.js?v=20260908-storage-cache-control-v1" defer></script>
+<script src="js/mall/mall-world.js?v=20260910-partition-candidates-removed-v2" defer></script>
+    <script src="js/mall/mall-structural-audit.js?v=20260906-admin-only-v1" defer></script>
+    <script src="js/mall/mall-maze-game.js?v=20260905-maze-validation-v1" defer></script>
+    <script src="js/mall/mall-visitor-arrival.js?v=20260821-single-entry-collision-v1" defer></script>
+    <script src="js/mall/mall-mobile-controls.js?v=20260808-mobile-settings-close-local" defer></script>
+    <script src="js/mall/mall-navigation.js?v=20260907-navigation-ready-v1" defer></script>
+    <script src="js/mall/mall-multiplayer.js?v=20260905-maze-validation-v1" defer></script>
+    <script src="js/mall/commerce/product-capacity.js?v=20260809-tdd-product-capacity-local" defer></script>
+    <script src="js/mall/mall-stores.js?v=20260908-storage-cache-control-v1" defer></script>
+    <script src="js/mall/mall-interaction.js?v=20260820-editor-selection-fix" defer></script>
+    <script src="js/mall/security/url-safety.js?v=20260815-store-contact-links" defer></script>
+    <script src="js/mall/mall-catalog-themes.js?v=20260830-catalog-color-themes" defer></script>
+<script src="js/mall/mall-ui.js?v=20260910-multimall-physical-spaces-v4" defer></script>
+    <script src="js/mall/mall-analytics.js?v=20260726-presence-avatar-local" defer></script>
+    <script src="js/mall/mall-store-assistant.js?v=20260830-mall-information-assistant" defer></script>
+    <script src="js/mall/mall-npc.js?v=20260905-maze-timer-hook-v1" defer></script>
+    <script src="js/mall/mall-main.js?v=20260904-catalog-memory" defer></script>
 </body>
 
 </html>
