@@ -7606,12 +7606,16 @@
                 node.material = Array.isArray(node.material) ? materials : materials[0];
                 materials.forEach((material) => {
                     if (!material) return;
+                    // MPFB exports legacy vertex colors intended for Blender's
+                    // material graph. They tint the WebGL materials into patches.
+                    material.vertexColors = false;
                     material.roughness = Math.min(1, (material.roughness ?? 0.7) + 0.08);
                     material.metalness = Math.min(1, material.metalness ?? 0.05);
                     const materialName = String(material.name || '');
                     if (/body|skin/i.test(`${node.name} ${materialName}`)) material.color.setHex(skinTones[appearance.skinTone] || skinTones.medium);
                     if (/hair/i.test(`${node.name} ${materialName}`)) material.color.setHex(hairColors[appearance.hairColor] || hairColors.brown);
                     if (/look|outfit|jacket|sleeve|pants|casualsuit|shoes/i.test(`${node.name} ${materialName}`)) material.color.setHex(outfitColors[appearance.outfit] || outfitColors.formal);
+                    material.needsUpdate = true;
                 });
             });
         }
