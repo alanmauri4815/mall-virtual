@@ -1,0 +1,28 @@
+{
+  "name": "mall-virtual",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Mall virtual 3D con catalogos, paneles de locatarios y administracion.",
+  "scripts": {
+    "test": "node tools/run-tests.js",
+    "test:browser": "node tools/run-browser-test.js",
+    "test:edge": "node tools/run-edge-checks.js",
+    "test:edge:http": "node tests/integration/edge-functions.http.integration.js",
+    "test:all": "npm test && npm run test:edge && npm run test:edge:http && npm run test:browser",
+    "audit:storage": "node tools/audit-storage-images.js",
+    "prepare:storage-legacy": "node tools/prepare-storage-legacy-display.js",
+    "inventory": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/build-project-file-matrix.ps1",
+    "backup": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/create-canonical-backup.ps1 -Label MANUAL",
+    "backup:pre-tdd": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/create-canonical-backup.ps1 -Label PRE_TDD",
+    "backup:post-tdd": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/create-canonical-backup.ps1 -Label POST_TDD"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "devDependencies": {
+    "deno": "2.9.5",
+    "playwright": "1.62.0",
+    "sharp": "0.35.3",
+    "supabase": "^2.116.0"
+  }
+}

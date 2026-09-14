@@ -1,0 +1,3502 @@
+[
+  {
+    "physicalSpaceId": "phys_anchor_e",
+    "kind": "anchor",
+    "floor": "2-niveles",
+    "axis": "anchor",
+    "quadrant": "E",
+    "slotIndex": 1,
+    "displayCode": "E",
+    "y1": 0,
+    "y2": 15,
+    "corners": [
+      {
+        "x": -125,
+        "z": 35
+      },
+      {
+        "x": -125,
+        "z": -35
+      },
+      {
+        "x": -90.95,
+        "z": -35
+      },
+      {
+        "x": -90.95,
+        "z": 35
+      }
+    ],
+    "bounds": {
+      "minX": -125,
+      "maxX": -90.95,
+      "minZ": -35,
+      "maxZ": 35
+    }
+  },
+  {
+    "physicalSpaceId": "phys_anchor_n",
+    "kind": "anchor",
+    "floor": "2-niveles",
+    "axis": "anchor",
+    "quadrant": "N",
+    "slotIndex": 1,
+    "displayCode": "N",
+    "y1": 0,
+    "y2": 15,
+    "corners": [
+      {
+        "x": 35,
+        "z": 125
+      },
+      {
+        "x": -35,
+        "z": 125
+      },
+      {
+        "x": -35,
+        "z": 90.95
+      },
+      {
+        "x": 35,
+        "z": 90.95
+      }
+    ],
+    "bounds": {
+      "minX": -35,
+      "maxX": 35,
+      "minZ": 90.95,
+      "maxZ": 125
+    }
+  },
+  {
+    "physicalSpaceId": "phys_anchor_o",
+    "kind": "anchor",
+    "floor": "2-niveles",
+    "axis": "anchor",
+    "quadrant": "O",
+    "slotIndex": 1,
+    "displayCode": "O",
+    "y1": 0,
+    "y2": 15,
+    "corners": [
+      {
+        "x": 125,
+        "z": -35
+      },
+      {
+        "x": 125,
+        "z": 35
+      },
+      {
+        "x": 90.95,
+        "z": 35
+      },
+      {
+        "x": 90.95,
+        "z": -35
+      }
+    ],
+    "bounds": {
+      "minX": 90.95,
+      "maxX": 125,
+      "minZ": -35,
+      "maxZ": 35
+    }
+  },
+  {
+    "physicalSpaceId": "phys_anchor_s",
+    "kind": "anchor",
+    "floor": "2-niveles",
+    "axis": "anchor",
+    "quadrant": "S",
+    "slotIndex": 1,
+    "displayCode": "S",
+    "y1": 0,
+    "y2": 15,
+    "corners": [
+      {
+        "x": -35,
+        "z": -125
+      },
+      {
+        "x": 35,
+        "z": -125
+      },
+      {
+        "x": 35,
+        "z": -90.95
+      },
+      {
+        "x": -35,
+        "z": -90.95
+      }
+    ],
+    "bounds": {
+      "minX": -35,
+      "maxX": 35,
+      "minZ": -125,
+      "maxZ": -90.95
+    }
+  },
+  {
+    "physicalSpaceId": "phys_b_f1_xn_zn_horizontal_01",
+    "kind": "boutique",
+    "floor": 1,
+    "axis": "horizontal",
+    "quadrant": "xn_zn",
+    "slotIndex": 1,
+    "displayCode": "SE-10",
+    "y1": 0,
+    "y2": 5.2,
+    "corners": [
+      {
+        "x": -29,
+        "z": -35
+      },
+      {
+        "x": -17,
+        "z": -35
+      },
+      {
+        "x": -17,
+        "z": -17
+      },
+      {
+        "x": -29,
+        "z": -17
+      }
+    ],
+    "bounds": {
+      "minX": -29,
+      "maxX": -17,
+      "minZ": -35,
+      "maxZ": -17
+    }
+  },
+  {
+    "physicalSpaceId": "phys_b_f1_xn_zn_horizontal_02",
+    "kind": "boutique",
+    "floor": 1,
+    "axis": "horizontal",
+    "quadrant": "xn_zn",
+    "slotIndex": 2,
+    "displayCode": "E-108",
+    "y1": 0,
+    "y2": 5.2,
+    "corners": [
+      {
+        "x": -41,
+        "z": -35
+      },
+      {
+        "x": -29,
+        "z": -35
+      },
+      {
+        "x": -29,
+        "z": -17
+      },
+      {
+        "x": -41,
+        "z": -17
+      }
+    ],
+    "bounds": {
+      "minX": -41,
+      "maxX": -29,
+      "minZ": -35,
+      "maxZ": -17
+    }
+  },
+  {
+    "physicalSpaceId": "phys_b_f1_xn_zn_horizontal_03",
+    "kind": "boutique",
+    "floor": 1,
+    "axis": "horizontal",
+    "quadrant": "xn_zn",
+    "slotIndex": 3,
+    "displayCode": "E-106",
+    "y1": 0,
+    "y2": 5.2,
+    "corners": [
+      {
+        "x": -53,
+        "z": -35
+      },
+      {
+        "x": -41,
+        "z": -35
+      },
+      {
+        "x": -41,
+        "z": -17
+      },
+      {
+        "x": -53,
+        "z": -17
+      }
+    ],
+    "bounds": {
+      "minX": -53,
+      "maxX": -41,
+      "minZ": -35,
+      "maxZ": -17
+    }
+  },
+  {
+    "physicalSpaceId": "phys_b_f1_xn_zn_horizontal_04",
+    "kind": "boutique",
+    "floor": 1,
+    "axis": "horizontal",
+    "quadrant": "xn_zn",
+    "slotIndex": 4,
+    "displayCode": "E-104",
+    "y1": 0,
+    "y2": 5.2,
+    "corners": [
+      {
+        "x": -71,
+        "z": -35
+      },
+      {
+        "x": -59,
+        "z": -35
+      },
+      {
+        "x": -59,
+        "z": -17
+      },
+      {
+        "x": -71,
+        "z": -17
+      }
+    ],
+    "bounds": {
+      "minX": -71,
+      "maxX": -59,
+      "minZ": -35,
+      "maxZ": -17
+    }
+  },
+  {
+    "physicalSpaceId": "phys_b_f1_xn_zn_horizontal_05",
+    "kind": "boutique",
+    "floor": 1,
+    "axis": "horizontal",
+    "quadrant": "xn_zn",
+    "slotIndex": 5,
+    "displayCode": "E-102",
+    "y1": 0,
+    "y2": 5.2,
+    "corners": [
+      {
+        "x": -83,
+        "z": -35
+      },
+      {
+        "x": -71,
+        "z": -35
+      },
+      {
+        "x": -71,
+        "z": -17
+      },
+      {
+        "x": -83,
+        "z": -17
+      }
+    ],
+    "bounds": {
+      "minX": -83,
+      "maxX": -71,
+      "minZ": -35,
+      "maxZ": -17
+    }
+  },
+  {
+    "physicalSpaceId": "phys_b_f1_xn_zn_vertical_01",
+    "kind": "boutique",
+    "floor": 1,
+    "axis": "vertical",
+    "quadrant": "xn_zn",
+    "slotIndex": 1,
+    "displayCode": "SE-10",
+    "y1": 0,
+    "y2": 5.2,
+    "corners": [
+      {
+        "x": -35,
+        "z": -29
+      },
+      {
+        "x": -17,
+        "z": -29
+      },
+      {
+        "x": -17,
+        "z": -17
+      },
+      {
+        "x": -35,
+        "z": -17
+      }
+    ],
+    "bounds": {
+      "minX": -35,
+      "maxX": -17,
+      "minZ": -29,
+      "maxZ": -17
+    }
+  },
+  {
+    "physicalSpaceId": "phys_b_f1_xn_zn_vertical_02",
+    "kind": "boutique",
+    "floor": 1,
+    "axis": "vertical",
+    "quadrant": "xn_zn",
+    "slotIndex": 2,
+    "displayCode": "S-107",
+    "y1": 0,
+    "y2": 5.2,
+    "corners": [
+      {
+        "x": -35,
+        "z": -41
+      },
+      {
+        "x": -17,
+        "z": -41
+      },
+      {
+        "x": -17,
+        "z": -29
+      },
+      {
+        "x": -35,
+        "z": -29
+      }
+    ],
+    "bounds": {
+      "minX": -35,
+      "maxX": -17,
+      "minZ": -41,
+      "maxZ": -29
+    }
+  },
+  {
+    "physicalSpaceId": "phys_b_f1_xn_zn_vertical_03",
+    "kind": "boutique",
+    "floor": 1,
+    "axis": "vertical",
+    "quadrant": "xn_zn",
+    "slotIndex": 3,
+    "displayCode": "S-105",
+    "y1": 0,
+    "y2": 5.2,
+    "corners": [
+      {
+        "x": -35,
+        "z": -53
+      },
+      {
+        "x": -17,
+        "z": -53
+      },
+      {
+        "x": -17,
+        "z": -41
+      },
+      {
+        "x": -35,
+        "z": -41
+      }
+    ],
+    "bounds": {
+      "minX": -35,
+      "maxX": -17,
+      "minZ": -53,
+      "maxZ": -41
+    }
+  },
+  {
+    "physicalSpaceId": "phys_b_f1_xn_zn_vertical_04",
+    "kind": "boutique",
+    "floor": 1,
+    "axis": "vertical",
+    "quadrant": "xn_zn",
+    "slotIndex": 4,
+    "displayCode": "S-103",
+    "y1": 0,
+    "y2": 5.2,
+    "corners": [
+      {
+        "x": -35,
+        "z": -71
+      },
+      {
+        "x": -17,
+        "z": -71
+      },
+      {
+        "x": -17,
+        "z": -59
+      },
+      {
+        "x": -35,
+        "z": -59
+      }
+    ],
+    "bounds": {
+      "minX": -35,
+      "maxX": -17,
+      "minZ": -71,
+      "maxZ": -59
+    }
+  },
+  {
+    "physicalSpaceId": "phys_b_f1_xn_zn_vertical_05",
+    "kind": "boutique",
+    "floor": 1,
+    "axis": "vertical",
+    "quadrant": "xn_zn",
+    "slotIndex": 5,
+    "displayCode": "S-101",
+    "y1": 0,
+    "y2": 5.2,
+    "corners": [
+      {
+        "x": -35,
+        "z": -83
+      },
+      {
+        "x": -17,
+        "z": -83
+      },
+      {
+        "x": -17,
+        "z": -71
+      },
+      {
+        "x": -35,
+        "z": -71
+      }
+    ],
+    "bounds": {
+      "minX": -35,
+      "maxX": -17,
+      "minZ": -83,
+      "maxZ": -71
+    }
+  },
+  {
+    "physicalSpaceId": "phys_b_f1_xn_zp_horizontal_01",
+    "kind": "boutique",
+    "floor": 1,
+    "axis": "horizontal",
+    "quadrant": "xn_zp",
+    "slotIndex": 1,
+    "displayCode": "EN-10",
+    "y1": 0,
+    "y2": 5.2,
+    "corners": [
+      {
+        "x": -29,
+        "z": 17
+      },
+      {
+        "x": -17,
+        "z": 17
+      },
+      {
+        "x": -17,
+        "z": 35
+      },
+      {
+        "x": -29,
+        "z": 35
+      }
+    ],
+    "bounds": {
+      "minX": -29,
+      "maxX": -17,
+      "minZ": 17,
+      "maxZ": 35
+    }
+  },
+  {
+    "physicalSpaceId": "phys_b_f1_xn_zp_horizontal_02",
+    "kind": "boutique",
+    "floor": 1,
+    "axis": "horizontal",
+    "quadrant": "xn_zp",
+    "slotIndex": 2,
+    "displayCode": "E-107",
+    "y1": 0,
+    "y2": 5.2,
+    "corners": [
+      {
+        "x": -41,
+        "z": 17
+      },
+      {
+        "x": -29,
+        "z": 17
+      },
+      {
+        "x": -29,
+        "z": 35
+      },
+      {
+        "x": -41,
+        "z": 35
+      }
+    ],
+    "bounds": {
+      "minX": -41,
+      "maxX": -29,
+      "minZ": 17,
+      "maxZ": 35
+    }
+  },
+  {
+    "physicalSpaceId": "phys_b_f1_xn_zp_horizontal_03",
+    "kind": "boutique",
+    "floor": 1,
+    "axis": "horizontal",
+    "quadrant": "xn_zp",
+    "slotIndex": 3,
+    "displayCode": "E-105",
+    "y1": 0,
+    "y2": 5.2,
+    "corners": [
+      {
+        "x": -53,
+        "z": 17
+      },
+      {
+        "x": -41,
+        "z": 17
+      },
+      {
+        "x": -41,
+        "z": 35
+      },
+      {
+        "x": -53,
+        "z": 35
+      }
+    ],
+    "bounds": {
+      "minX": -53,
+      "maxX": -41,
+      "minZ": 17,
+      "maxZ": 35
+    }
+  },
+  {
+    "physicalSpaceId": "phys_b_f1_xn_zp_horizontal_04",
+    "kind": "boutique",
+    "floor": 1,
+    "axis": "horizontal",
+    "quadrant": "xn_zp",
+    "slotIndex": 4,
+    "displayCode": "E-103",
+    "y1": 0,
+    "y2": 5.2,
+    "corners": [
+      {
+        "x": -71,
+        "z": 17
+      },
+      {
+        "x": -59,
+        "z": 17
+      },
+      {
+        "x": -59,
+        "z": 35
+      },
+      {
+        "x": -71,
+        "z": 35
+      }
+    ],
+    "bounds": {
+      "minX": -71,
+      "maxX": -59,
+      "minZ": 17,
+      "maxZ": 35
+    }
+  },
+  {
+    "physicalSpaceId": "phys_b_f1_xn_zp_horizontal_05",
+    "kind": "boutique",
+    "floor": 1,
+    "axis": "horizontal",
+    "quadrant": "xn_zp",
+    "slotIndex": 5,
+    "displayCode": "E-101",
+    "y1": 0,
+    "y2": 5.2,
+    "corners": [
+      {
+        "x": -83,
+        "z": 17
+      },
+      {
+        "x": -71,
+        "z": 17
+      },
+      {
+        "x": -71,
+        "z": 35
+      },
+      {
+        "x": -83,
+        "z": 35
+      }
+    ],
+    "bounds": {
+      "minX": -83,
+      "maxX": -71,
+      "minZ": 17,
+      "maxZ": 35
+    }
+  },
+  {
+    "physicalSpaceId": "phys_b_f1_xn_zp_vertical_01",
+    "kind": "boutique",
+    "floor": 1,
+    "axis": "vertical",
+    "quadrant": "xn_zp",
+    "slotIndex": 1,
+    "displayCode": "EN-10",
+    "y1": 0,
+    "y2": 5.2,
+    "corners": [
+      {
+        "x": -35,
+        "z": 17
+      },
+      {
+        "x": -17,
+        "z": 17
+      },
+      {
+        "x": -17,
+        "z": 29
+      },
+      {
+        "x": -35,
+        "z": 29
+      }
+    ],
+    "bounds": {
+      "minX": -35,
+      "maxX": -17,
+      "minZ": 17,
+      "maxZ": 29
+    }
+  },
+  {
+    "physicalSpaceId": "phys_b_f1_xn_zp_vertical_02",
+    "kind": "boutique",
+    "floor": 1,
+    "axis": "vertical",
+    "quadrant": "xn_zp",
+    "slotIndex": 2,
+    "displayCode": "N-108",
+    "y1": 0,
+    "y2": 5.2,
+    "corners": [
+      {
+        "x": -35,
+        "z": 29
+      },
+      {
+        "x": -17,
+        "z": 29
+      },
+      {
+        "x": -17,
+        "z": 41
+      },
+      {
+        "x": -35,
+        "z": 41
+      }
+    ],
+    "bounds": {
+      "minX": -35,
+      "maxX": -17,
+      "minZ": 29,
+      "maxZ": 41
+    }
+  },
+  {
+    "physicalSpaceId": "phys_b_f1_xn_zp_vertical_03",
+    "kind": "boutique",
+    "floor": 1,
+    "axis": "vertical",
+    "quadrant": "xn_zp",
+    "slotIndex": 3,
+    "displayCode": "N-106",
+    "y1": 0,
+    "y2": 5.2,
+    "corners": [
+      {
+        "x": -35,
+        "z": 41
+      },
+      {
+        "x": -17,
+        "z": 41
+      },
+      {
+        "x": -17,
+        "z": 53
+      },
+      {
+        "x": -35,
+        "z": 53
+      }
+    ],
+    "bounds": {
+      "minX": -35,
+      "maxX": -17,
+      "minZ": 41,
+      "maxZ": 53
+    }
+  },
+  {
+    "physicalSpaceId": "phys_b_f1_xn_zp_vertical_04",
+    "kind": "boutique",
+    "floor": 1,
+    "axis": "vertical",
+    "quadrant": "xn_zp",
+    "slotIndex": 4,
+    "displayCode": "N-104",
+    "y1": 0,
+    "y2": 5.2,
+    "corners": [
+      {
+        "x": -35,
+        "z": 59
+      },
+      {
+        "x": -17,
+        "z": 59
+      },
+      {
+        "x": -17,
+        "z": 71
+      },
+      {
+        "x": -35,
+        "z": 71
+      }
+    ],
+    "bounds": {
+      "minX": -35,
+      "maxX": -17,
+      "minZ": 59,
+      "maxZ": 71
+    }
+  },
+  {
+    "physicalSpaceId": "phys_b_f1_xn_zp_vertical_05",
+    "kind": "boutique",
+    "floor": 1,
+    "axis": "vertical",
+    "quadrant": "xn_zp",
+    "slotIndex": 5,
+    "displayCode": "N-102",
+    "y1": 0,
+    "y2": 5.2,
+    "corners": [
+      {
+        "x": -35,
+        "z": 71
+      },
+      {
+        "x": -17,
+        "z": 71
+      },
+      {
+        "x": -17,
+        "z": 83
+      },
+      {
+        "x": -35,
+        "z": 83
+      }
+    ],
+    "bounds": {
+      "minX": -35,
+      "maxX": -17,
+      "minZ": 71,
+      "maxZ": 83
+    }
+  },
+  {
+    "physicalSpaceId": "phys_b_f1_xp_zn_horizontal_01",
+    "kind": "boutique",
+    "floor": 1,
+    "axis": "horizontal",
+    "quadrant": "xp_zn",
+    "slotIndex": 1,
+    "displayCode": "OS-10",
+    "y1": 0,
+    "y2": 5.2,
+    "corners": [
+      {
+        "x": 17,
+        "z": -35
+      },
+      {
+        "x": 29,
+        "z": -35
+      },
+      {
+        "x": 29,
+        "z": -17
+      },
+      {
+        "x": 17,
+        "z": -17
+      }
+    ],
+    "bounds": {
+      "minX": 17,
+      "maxX": 29,
+      "minZ": -35,
+      "maxZ": -17
+    }
+  },
+  {
+    "physicalSpaceId": "phys_b_f1_xp_zn_horizontal_02",
+    "kind": "boutique",
+    "floor": 1,
+    "axis": "horizontal",
+    "quadrant": "xp_zn",
+    "slotIndex": 2,
+    "displayCode": "O-107",
+    "y1": 0,
+    "y2": 5.2,
+    "corners": [
+      {
+        "x": 29,
+        "z": -35
+      },
+      {
+        "x": 41,
+        "z": -35
+      },
+      {
+        "x": 41,
+        "z": -17
+      },
+      {
+        "x": 29,
+        "z": -17
+      }
+    ],
+    "bounds": {
+      "minX": 29,
+      "maxX": 41,
+      "minZ": -35,
+      "maxZ": -17
+    }
+  },
+  {
+    "physicalSpaceId": "phys_b_f1_xp_zn_horizontal_03",
+    "kind": "boutique",
+    "floor": 1,
+    "axis": "horizontal",
+    "quadrant": "xp_zn",
+    "slotIndex": 3,
+    "displayCode": "O-105",
+    "y1": 0,
+    "y2": 5.2,
+    "corners": [
+      {
+        "x": 41,
+        "z": -35
+      },
+      {
+        "x": 53,
+        "z": -35
+      },
+      {
+        "x": 53,
+        "z": -17
+      },
+      {
+        "x": 41,
+        "z": -17
+      }
+    ],
+    "bounds": {
+      "minX": 41,
+      "maxX": 53,
+      "minZ": -35,
+      "maxZ": -17
+    }
+  },
+  {
+    "physicalSpaceId": "phys_b_f1_xp_zn_horizontal_04",
+    "kind": "boutique",
+    "floor": 1,
+    "axis": "horizontal",
+    "quadrant": "xp_zn",
+    "slotIndex": 4,
+    "displayCode": "O-103",
+    "y1": 0,
+    "y2": 5.2,
+    "corners": [
+      {
+        "x": 59,
+        "z": -35
+      },
+      {
+        "x": 71,
+        "z": -35
+      },
+      {
+        "x": 71,
+        "z": -17
+      },
+      {
+        "x": 59,
+        "z": -17
+      }
+    ],
+    "bounds": {
+      "minX": 59,
+      "maxX": 71,
+      "minZ": -35,
+      "maxZ": -17
+    }
+  },
+  {
+    "physicalSpaceId": "phys_b_f1_xp_zn_horizontal_05",
+    "kind": "boutique",
+    "floor": 1,
+    "axis": "horizontal",
+    "quadrant": "xp_zn",
+    "slotIndex": 5,
+    "displayCode": "O-101",
+    "y1": 0,
+    "y2": 5.2,
+    "corners": [
+      {
+        "x": 71,
+        "z": -35
+      },
+      {
+        "x": 83,
+        "z": -35
+      },
+      {
+        "x": 83,
+        "z": -17
+      },
+      {
+        "x": 71,
+        "z": -17
+      }
+    ],
+    "bounds": {
+      "minX": 71,
+      "maxX": 83,
+      "minZ": -35,
+      "maxZ": -17
+    }
+  },
+  {
+    "physicalSpaceId": "phys_b_f1_xp_zn_vertical_01",
+    "kind": "boutique",
+    "floor": 1,
+    "axis": "vertical",
+    "quadrant": "xp_zn",
+    "slotIndex": 1,
+    "displayCode": "OS-10",
+    "y1": 0,
+    "y2": 5.2,
+    "corners": [
+      {
+        "x": 17,
+        "z": -29
+      },
+      {
+        "x": 35,
+        "z": -29
+      },
+      {
+        "x": 35,
+        "z": -17
+      },
+      {
+        "x": 17,
+        "z": -17
+      }
+    ],
+    "bounds": {
+      "minX": 17,
+      "maxX": 35,
+      "minZ": -29,
+      "maxZ": -17
+    }
+  },
+  {
+    "physicalSpaceId": "phys_b_f1_xp_zn_vertical_02",
+    "kind": "boutique",
+    "floor": 1,
+    "axis": "vertical",
+    "quadrant": "xp_zn",
+    "slotIndex": 2,
+    "displayCode": "S-108",
+    "y1": 0,
+    "y2": 5.2,
+    "corners": [
+      {
+        "x": 17,
+        "z": -41
+      },
+      {
+        "x": 35,
+        "z": -41
+      },
+      {
+        "x": 35,
+        "z": -29
+      },
+      {
+        "x": 17,
+        "z": -29
+      }
+    ],
+    "bounds": {
+      "minX": 17,
+      "maxX": 35,
+      "minZ": -41,
+      "maxZ": -29
+    }
+  },
+  {
+    "physicalSpaceId": "phys_b_f1_xp_zn_vertical_03",
+    "kind": "boutique",
+    "floor": 1,
+    "axis": "vertical",
+    "quadrant": "xp_zn",
+    "slotIndex": 3,
+    "displayCode": "S-106",
+    "y1": 0,
+    "y2": 5.2,
+    "corners": [
+      {
+        "x": 17,
+        "z": -53
+      },
+      {
+        "x": 35,
+        "z": -53
+      },
+      {
+        "x": 35,
+        "z": -41
+      },
+      {
+        "x": 17,
+        "z": -41
+      }
+    ],
+    "bounds": {
+      "minX": 17,
+      "maxX": 35,
+      "minZ": -53,
+      "maxZ": -41
+    }
+  },
+  {
+    "physicalSpaceId": "phys_b_f1_xp_zn_vertical_04",
+    "kind": "boutique",
+    "floor": 1,
+    "axis": "vertical",
+    "quadrant": "xp_zn",
+    "slotIndex": 4,
+    "displayCode": "S-104",
+    "y1": 0,
+    "y2": 5.2,
+    "corners": [
+      {
+        "x": 17,
+        "z": -71
+      },
+      {
+        "x": 35,
+        "z": -71
+      },
+      {
+        "x": 35,
+        "z": -59
+      },
+      {
+        "x": 17,
+        "z": -59
+      }
+    ],
+    "bounds": {
+      "minX": 17,
+      "maxX": 35,
+      "minZ": -71,
+      "maxZ": -59
+    }
+  },
+  {
+    "physicalSpaceId": "phys_b_f1_xp_zn_vertical_05",
+    "kind": "boutique",
+    "floor": 1,
+    "axis": "vertical",
+    "quadrant": "xp_zn",
+    "slotIndex": 5,
+    "displayCode": "S-102",
+    "y1": 0,
+    "y2": 5.2,
+    "corners": [
+      {
+        "x": 17,
+        "z": -83
+      },
+      {
+        "x": 35,
+        "z": -83
+      },
+      {
+        "x": 35,
+        "z": -71
+      },
+      {
+        "x": 17,
+        "z": -71
+      }
+    ],
+    "bounds": {
+      "minX": 17,
+      "maxX": 35,
+      "minZ": -83,
+      "maxZ": -71
+    }
+  },
+  {
+    "physicalSpaceId": "phys_b_f1_xp_zp_horizontal_01",
+    "kind": "boutique",
+    "floor": 1,
+    "axis": "horizontal",
+    "quadrant": "xp_zp",
+    "slotIndex": 1,
+    "displayCode": "NO-10",
+    "y1": 0,
+    "y2": 5.2,
+    "corners": [
+      {
+        "x": 17,
+        "z": 17
+      },
+      {
+        "x": 29,
+        "z": 17
+      },
+      {
+        "x": 29,
+        "z": 35
+      },
+      {
+        "x": 17,
+        "z": 35
+      }
+    ],
+    "bounds": {
+      "minX": 17,
+      "maxX": 29,
+      "minZ": 17,
+      "maxZ": 35
+    }
+  },
+  {
+    "physicalSpaceId": "phys_b_f1_xp_zp_horizontal_02",
+    "kind": "boutique",
+    "floor": 1,
+    "axis": "horizontal",
+    "quadrant": "xp_zp",
+    "slotIndex": 2,
+    "displayCode": "O-108",
+    "y1": 0,
+    "y2": 5.2,
+    "corners": [
+      {
+        "x": 29,
+        "z": 17
+      },
+      {
+        "x": 41,
+        "z": 17
+      },
+      {
+        "x": 41,
+        "z": 35
+      },
+      {
+        "x": 29,
+        "z": 35
+      }
+    ],
+    "bounds": {
+      "minX": 29,
+      "maxX": 41,
+      "minZ": 17,
+      "maxZ": 35
+    }
+  },
+  {
+    "physicalSpaceId": "phys_b_f1_xp_zp_horizontal_03",
+    "kind": "boutique",
+    "floor": 1,
+    "axis": "horizontal",
+    "quadrant": "xp_zp",
+    "slotIndex": 3,
+    "displayCode": "O-106",
+    "y1": 0,
+    "y2": 5.2,
+    "corners": [
+      {
+        "x": 41,
+        "z": 17
+      },
+      {
+        "x": 53,
+        "z": 17
+      },
+      {
+        "x": 53,
+        "z": 35
+      },
+      {
+        "x": 41,
+        "z": 35
+      }
+    ],
+    "bounds": {
+      "minX": 41,
+      "maxX": 53,
+      "minZ": 17,
+      "maxZ": 35
+    }
+  },
+  {
+    "physicalSpaceId": "phys_b_f1_xp_zp_horizontal_04",
+    "kind": "boutique",
+    "floor": 1,
+    "axis": "horizontal",
+    "quadrant": "xp_zp",
+    "slotIndex": 4,
+    "displayCode": "O-104",
+    "y1": 0,
+    "y2": 5.2,
+    "corners": [
+      {
+        "x": 59,
+        "z": 17
+      },
+      {
+        "x": 71,
+        "z": 17
+      },
+      {
+        "x": 71,
+        "z": 35
+      },
+      {
+        "x": 59,
+        "z": 35
+      }
+    ],
+    "bounds": {
+      "minX": 59,
+      "maxX": 71,
+      "minZ": 17,
+      "maxZ": 35
+    }
+  },
+  {
+    "physicalSpaceId": "phys_b_f1_xp_zp_horizontal_05",
+    "kind": "boutique",
+    "floor": 1,
+    "axis": "horizontal",
+    "quadrant": "xp_zp",
+    "slotIndex": 5,
+    "displayCode": "O-102",
+    "y1": 0,
+    "y2": 5.2,
+    "corners": [
+      {
+        "x": 71,
+        "z": 17
+      },
+      {
+        "x": 83,
+        "z": 17
+      },
+      {
+        "x": 83,
+        "z": 35
+      },
+      {
+        "x": 71,
+        "z": 35
+      }
+    ],
+    "bounds": {
+      "minX": 71,
+      "maxX": 83,
+      "minZ": 17,
+      "maxZ": 35
+    }
+  },
+  {
+    "physicalSpaceId": "phys_b_f1_xp_zp_vertical_01",
+    "kind": "boutique",
+    "floor": 1,
+    "axis": "vertical",
+    "quadrant": "xp_zp",
+    "slotIndex": 1,
+    "displayCode": "NO-10",
+    "y1": 0,
+    "y2": 5.2,
+    "corners": [
+      {
+        "x": 17,
+        "z": 17
+      },
+      {
+        "x": 35,
+        "z": 17
+      },
+      {
+        "x": 35,
+        "z": 29
+      },
+      {
+        "x": 17,
+        "z": 29
+      }
+    ],
+    "bounds": {
+      "minX": 17,
+      "maxX": 35,
+      "minZ": 17,
+      "maxZ": 29
+    }
+  },
+  {
+    "physicalSpaceId": "phys_b_f1_xp_zp_vertical_02",
+    "kind": "boutique",
+    "floor": 1,
+    "axis": "vertical",
+    "quadrant": "xp_zp",
+    "slotIndex": 2,
+    "displayCode": "N-107",
+    "y1": 0,
+    "y2": 5.2,
+    "corners": [
+      {
+        "x": 17,
+        "z": 29
+      },
+      {
+        "x": 35,
+        "z": 29
+      },
+      {
+        "x": 35,
+        "z": 41
+      },
+      {
+        "x": 17,
+        "z": 41
+      }
+    ],
+    "bounds": {
+      "minX": 17,
+      "maxX": 35,
+      "minZ": 29,
+      "maxZ": 41
+    }
+  },
+  {
+    "physicalSpaceId": "phys_b_f1_xp_zp_vertical_03",
+    "kind": "boutique",
+    "floor": 1,
+    "axis": "vertical",
+    "quadrant": "xp_zp",
+    "slotIndex": 3,
+    "displayCode": "N-105",
+    "y1": 0,
+    "y2": 5.2,
+    "corners": [
+      {
+        "x": 17,
+        "z": 41
+      },
+      {
+        "x": 35,
+        "z": 41
+      },
+      {
+        "x": 35,
+        "z": 53
+      },
+      {
+        "x": 17,
+        "z": 53
+      }
+    ],
+    "bounds": {
+      "minX": 17,
+      "maxX": 35,
+      "minZ": 41,
+      "maxZ": 53
+    }
+  },
+  {
+    "physicalSpaceId": "phys_b_f1_xp_zp_vertical_04",
+    "kind": "boutique",
+    "floor": 1,
+    "axis": "vertical",
+    "quadrant": "xp_zp",
+    "slotIndex": 4,
+    "displayCode": "N-103",
+    "y1": 0,
+    "y2": 5.2,
+    "corners": [
+      {
+        "x": 17,
+        "z": 59
+      },
+      {
+        "x": 35,
+        "z": 59
+      },
+      {
+        "x": 35,
+        "z": 71
+      },
+      {
+        "x": 17,
+        "z": 71
+      }
+    ],
+    "bounds": {
+      "minX": 17,
+      "maxX": 35,
+      "minZ": 59,
+      "maxZ": 71
+    }
+  },
+  {
+    "physicalSpaceId": "phys_b_f1_xp_zp_vertical_05",
+    "kind": "boutique",
+    "floor": 1,
+    "axis": "vertical",
+    "quadrant": "xp_zp",
+    "slotIndex": 5,
+    "displayCode": "N-101",
+    "y1": 0,
+    "y2": 5.2,
+    "corners": [
+      {
+        "x": 17,
+        "z": 71
+      },
+      {
+        "x": 35,
+        "z": 71
+      },
+      {
+        "x": 35,
+        "z": 83
+      },
+      {
+        "x": 17,
+        "z": 83
+      }
+    ],
+    "bounds": {
+      "minX": 17,
+      "maxX": 35,
+      "minZ": 71,
+      "maxZ": 83
+    }
+  },
+  {
+    "physicalSpaceId": "phys_b_f2_xn_zn_horizontal_01",
+    "kind": "boutique",
+    "floor": 2,
+    "axis": "horizontal",
+    "quadrant": "xn_zn",
+    "slotIndex": 1,
+    "displayCode": "SE-20",
+    "y1": 5.5,
+    "y2": 10.7,
+    "corners": [
+      {
+        "x": -29,
+        "z": -35
+      },
+      {
+        "x": -17,
+        "z": -35
+      },
+      {
+        "x": -17,
+        "z": -17
+      },
+      {
+        "x": -29,
+        "z": -17
+      }
+    ],
+    "bounds": {
+      "minX": -29,
+      "maxX": -17,
+      "minZ": -35,
+      "maxZ": -17
+    }
+  },
+  {
+    "physicalSpaceId": "phys_b_f2_xn_zn_horizontal_02",
+    "kind": "boutique",
+    "floor": 2,
+    "axis": "horizontal",
+    "quadrant": "xn_zn",
+    "slotIndex": 2,
+    "displayCode": "E-210",
+    "y1": 5.5,
+    "y2": 10.7,
+    "corners": [
+      {
+        "x": -41,
+        "z": -35
+      },
+      {
+        "x": -29,
+        "z": -35
+      },
+      {
+        "x": -29,
+        "z": -17
+      },
+      {
+        "x": -41,
+        "z": -17
+      }
+    ],
+    "bounds": {
+      "minX": -41,
+      "maxX": -29,
+      "minZ": -35,
+      "maxZ": -17
+    }
+  },
+  {
+    "physicalSpaceId": "phys_b_f2_xn_zn_horizontal_03",
+    "kind": "boutique",
+    "floor": 2,
+    "axis": "horizontal",
+    "quadrant": "xn_zn",
+    "slotIndex": 3,
+    "displayCode": "E-208",
+    "y1": 5.5,
+    "y2": 10.7,
+    "corners": [
+      {
+        "x": -53,
+        "z": -35
+      },
+      {
+        "x": -41,
+        "z": -35
+      },
+      {
+        "x": -41,
+        "z": -17
+      },
+      {
+        "x": -53,
+        "z": -17
+      }
+    ],
+    "bounds": {
+      "minX": -53,
+      "maxX": -41,
+      "minZ": -35,
+      "maxZ": -17
+    }
+  },
+  {
+    "physicalSpaceId": "phys_b_f2_xn_zn_horizontal_04",
+    "kind": "boutique",
+    "floor": 2,
+    "axis": "horizontal",
+    "quadrant": "xn_zn",
+    "slotIndex": 4,
+    "displayCode": "E-206",
+    "y1": 5.5,
+    "y2": 10.7,
+    "corners": [
+      {
+        "x": -65,
+        "z": -35
+      },
+      {
+        "x": -53,
+        "z": -35
+      },
+      {
+        "x": -53,
+        "z": -17
+      },
+      {
+        "x": -65,
+        "z": -17
+      }
+    ],
+    "bounds": {
+      "minX": -65,
+      "maxX": -53,
+      "minZ": -35,
+      "maxZ": -17
+    }
+  },
+  {
+    "physicalSpaceId": "phys_b_f2_xn_zn_horizontal_05",
+    "kind": "boutique",
+    "floor": 2,
+    "axis": "horizontal",
+    "quadrant": "xn_zn",
+    "slotIndex": 5,
+    "displayCode": "E-204",
+    "y1": 5.5,
+    "y2": 10.7,
+    "corners": [
+      {
+        "x": -77,
+        "z": -35
+      },
+      {
+        "x": -65,
+        "z": -35
+      },
+      {
+        "x": -65,
+        "z": -17
+      },
+      {
+        "x": -77,
+        "z": -17
+      }
+    ],
+    "bounds": {
+      "minX": -77,
+      "maxX": -65,
+      "minZ": -35,
+      "maxZ": -17
+    }
+  },
+  {
+    "physicalSpaceId": "phys_b_f2_xn_zn_horizontal_06",
+    "kind": "boutique",
+    "floor": 2,
+    "axis": "horizontal",
+    "quadrant": "xn_zn",
+    "slotIndex": 6,
+    "displayCode": "E-202",
+    "y1": 5.5,
+    "y2": 10.7,
+    "corners": [
+      {
+        "x": -89,
+        "z": -35
+      },
+      {
+        "x": -77,
+        "z": -35
+      },
+      {
+        "x": -77,
+        "z": -17
+      },
+      {
+        "x": -89,
+        "z": -17
+      }
+    ],
+    "bounds": {
+      "minX": -89,
+      "maxX": -77,
+      "minZ": -35,
+      "maxZ": -17
+    }
+  },
+  {
+    "physicalSpaceId": "phys_b_f2_xn_zn_horizontal_07",
+    "kind": "boutique",
+    "floor": 2,
+    "axis": "horizontal",
+    "quadrant": "xn_zn",
+    "slotIndex": 7,
+    "displayCode": "E-202",
+    "y1": 5.5,
+    "y2": 10.7,
+    "corners": [
+      {
+        "x": -95,
+        "z": -35
+      },
+      {
+        "x": -83,
+        "z": -35
+      },
+      {
+        "x": -83,
+        "z": -17
+      },
+      {
+        "x": -95,
+        "z": -17
+      }
+    ],
+    "bounds": {
+      "minX": -95,
+      "maxX": -83,
+      "minZ": -35,
+      "maxZ": -17
+    }
+  },
+  {
+    "physicalSpaceId": "phys_b_f2_xn_zn_vertical_01",
+    "kind": "boutique",
+    "floor": 2,
+    "axis": "vertical",
+    "quadrant": "xn_zn",
+    "slotIndex": 1,
+    "displayCode": "SE-20",
+    "y1": 5.5,
+    "y2": 10.7,
+    "corners": [
+      {
+        "x": -35,
+        "z": -29
+      },
+      {
+        "x": -17,
+        "z": -29
+      },
+      {
+        "x": -17,
+        "z": -17
+      },
+      {
+        "x": -35,
+        "z": -17
+      }
+    ],
+    "bounds": {
+      "minX": -35,
+      "maxX": -17,
+      "minZ": -29,
+      "maxZ": -17
+    }
+  },
+  {
+    "physicalSpaceId": "phys_b_f2_xn_zn_vertical_02",
+    "kind": "boutique",
+    "floor": 2,
+    "axis": "vertical",
+    "quadrant": "xn_zn",
+    "slotIndex": 2,
+    "displayCode": "S-209",
+    "y1": 5.5,
+    "y2": 10.7,
+    "corners": [
+      {
+        "x": -35,
+        "z": -41
+      },
+      {
+        "x": -17,
+        "z": -41
+      },
+      {
+        "x": -17,
+        "z": -29
+      },
+      {
+        "x": -35,
+        "z": -29
+      }
+    ],
+    "bounds": {
+      "minX": -35,
+      "maxX": -17,
+      "minZ": -41,
+      "maxZ": -29
+    }
+  },
+  {
+    "physicalSpaceId": "phys_b_f2_xn_zn_vertical_03",
+    "kind": "boutique",
+    "floor": 2,
+    "axis": "vertical",
+    "quadrant": "xn_zn",
+    "slotIndex": 3,
+    "displayCode": "S-207",
+    "y1": 5.5,
+    "y2": 10.7,
+    "corners": [
+      {
+        "x": -35,
+        "z": -53
+      },
+      {
+        "x": -17,
+        "z": -53
+      },
+      {
+        "x": -17,
+        "z": -41
+      },
+      {
+        "x": -35,
+        "z": -41
+      }
+    ],
+    "bounds": {
+      "minX": -35,
+      "maxX": -17,
+      "minZ": -53,
+      "maxZ": -41
+    }
+  },
+  {
+    "physicalSpaceId": "phys_b_f2_xn_zn_vertical_04",
+    "kind": "boutique",
+    "floor": 2,
+    "axis": "vertical",
+    "quadrant": "xn_zn",
+    "slotIndex": 4,
+    "displayCode": "S-205",
+    "y1": 5.5,
+    "y2": 10.7,
+    "corners": [
+      {
+        "x": -35,
+        "z": -65
+      },
+      {
+        "x": -17,
+        "z": -65
+      },
+      {
+        "x": -17,
+        "z": -53
+      },
+      {
+        "x": -35,
+        "z": -53
+      }
+    ],
+    "bounds": {
+      "minX": -35,
+      "maxX": -17,
+      "minZ": -65,
+      "maxZ": -53
+    }
+  },
+  {
+    "physicalSpaceId": "phys_b_f2_xn_zn_vertical_05",
+    "kind": "boutique",
+    "floor": 2,
+    "axis": "vertical",
+    "quadrant": "xn_zn",
+    "slotIndex": 5,
+    "displayCode": "S-203",
+    "y1": 5.5,
+    "y2": 10.7,
+    "corners": [
+      {
+        "x": -35,
+        "z": -77
+      },
+      {
+        "x": -17,
+        "z": -77
+      },
+      {
+        "x": -17,
+        "z": -65
+      },
+      {
+        "x": -35,
+        "z": -65
+      }
+    ],
+    "bounds": {
+      "minX": -35,
+      "maxX": -17,
+      "minZ": -77,
+      "maxZ": -65
+    }
+  },
+  {
+    "physicalSpaceId": "phys_b_f2_xn_zn_vertical_06",
+    "kind": "boutique",
+    "floor": 2,
+    "axis": "vertical",
+    "quadrant": "xn_zn",
+    "slotIndex": 6,
+    "displayCode": "S-201",
+    "y1": 5.5,
+    "y2": 10.7,
+    "corners": [
+      {
+        "x": -35,
+        "z": -89
+      },
+      {
+        "x": -17,
+        "z": -89
+      },
+      {
+        "x": -17,
+        "z": -77
+      },
+      {
+        "x": -35,
+        "z": -77
+      }
+    ],
+    "bounds": {
+      "minX": -35,
+      "maxX": -17,
+      "minZ": -89,
+      "maxZ": -77
+    }
+  },
+  {
+    "physicalSpaceId": "phys_b_f2_xn_zn_vertical_07",
+    "kind": "boutique",
+    "floor": 2,
+    "axis": "vertical",
+    "quadrant": "xn_zn",
+    "slotIndex": 7,
+    "displayCode": "S-201",
+    "y1": 5.5,
+    "y2": 10.7,
+    "corners": [
+      {
+        "x": -35,
+        "z": -95
+      },
+      {
+        "x": -17,
+        "z": -95
+      },
+      {
+        "x": -17,
+        "z": -83
+      },
+      {
+        "x": -35,
+        "z": -83
+      }
+    ],
+    "bounds": {
+      "minX": -35,
+      "maxX": -17,
+      "minZ": -95,
+      "maxZ": -83
+    }
+  },
+  {
+    "physicalSpaceId": "phys_b_f2_xn_zp_horizontal_01",
+    "kind": "boutique",
+    "floor": 2,
+    "axis": "horizontal",
+    "quadrant": "xn_zp",
+    "slotIndex": 1,
+    "displayCode": "EN-20",
+    "y1": 5.5,
+    "y2": 10.7,
+    "corners": [
+      {
+        "x": -29,
+        "z": 17
+      },
+      {
+        "x": -17,
+        "z": 17
+      },
+      {
+        "x": -17,
+        "z": 35
+      },
+      {
+        "x": -29,
+        "z": 35
+      }
+    ],
+    "bounds": {
+      "minX": -29,
+      "maxX": -17,
+      "minZ": 17,
+      "maxZ": 35
+    }
+  },
+  {
+    "physicalSpaceId": "phys_b_f2_xn_zp_horizontal_02",
+    "kind": "boutique",
+    "floor": 2,
+    "axis": "horizontal",
+    "quadrant": "xn_zp",
+    "slotIndex": 2,
+    "displayCode": "E-209",
+    "y1": 5.5,
+    "y2": 10.7,
+    "corners": [
+      {
+        "x": -41,
+        "z": 17
+      },
+      {
+        "x": -29,
+        "z": 17
+      },
+      {
+        "x": -29,
+        "z": 35
+      },
+      {
+        "x": -41,
+        "z": 35
+      }
+    ],
+    "bounds": {
+      "minX": -41,
+      "maxX": -29,
+      "minZ": 17,
+      "maxZ": 35
+    }
+  },
+  {
+    "physicalSpaceId": "phys_b_f2_xn_zp_horizontal_03",
+    "kind": "boutique",
+    "floor": 2,
+    "axis": "horizontal",
+    "quadrant": "xn_zp",
+    "slotIndex": 3,
+    "displayCode": "E-207",
+    "y1": 5.5,
+    "y2": 10.7,
+    "corners": [
+      {
+        "x": -53,
+        "z": 17
+      },
+      {
+        "x": -41,
+        "z": 17
+      },
+      {
+        "x": -41,
+        "z": 35
+      },
+      {
+        "x": -53,
+        "z": 35
+      }
+    ],
+    "bounds": {
+      "minX": -53,
+      "maxX": -41,
+      "minZ": 17,
+      "maxZ": 35
+    }
+  },
+  {
+    "physicalSpaceId": "phys_b_f2_xn_zp_horizontal_04",
+    "kind": "boutique",
+    "floor": 2,
+    "axis": "horizontal",
+    "quadrant": "xn_zp",
+    "slotIndex": 4,
+    "displayCode": "E-205",
+    "y1": 5.5,
+    "y2": 10.7,
+    "corners": [
+      {
+        "x": -65,
+        "z": 17
+      },
+      {
+        "x": -53,
+        "z": 17
+      },
+      {
+        "x": -53,
+        "z": 35
+      },
+      {
+        "x": -65,
+        "z": 35
+      }
+    ],
+    "bounds": {
+      "minX": -65,
+      "maxX": -53,
+      "minZ": 17,
+      "maxZ": 35
+    }
+  },
+  {
+    "physicalSpaceId": "phys_b_f2_xn_zp_horizontal_05",
+    "kind": "boutique",
+    "floor": 2,
+    "axis": "horizontal",
+    "quadrant": "xn_zp",
+    "slotIndex": 5,
+    "displayCode": "E-203",
+    "y1": 5.5,
+    "y2": 10.7,
+    "corners": [
+      {
+        "x": -77,
+        "z": 17
+      },
+      {
+        "x": -65,
+        "z": 17
+      },
+      {
+        "x": -65,
+        "z": 35
+      },
+      {
+        "x": -77,
+        "z": 35
+      }
+    ],
+    "bounds": {
+      "minX": -77,
+      "maxX": -65,
+      "minZ": 17,
+      "maxZ": 35
+    }
+  },
+  {
+    "physicalSpaceId": "phys_b_f2_xn_zp_horizontal_06",
+    "kind": "boutique",
+    "floor": 2,
+    "axis": "horizontal",
+    "quadrant": "xn_zp",
+    "slotIndex": 6,
+    "displayCode": "E-201",
+    "y1": 5.5,
+    "y2": 10.7,
+    "corners": [
+      {
+        "x": -89,
+        "z": 17
+      },
+      {
+        "x": -77,
+        "z": 17
+      },
+      {
+        "x": -77,
+        "z": 35
+      },
+      {
+        "x": -89,
+        "z": 35
+      }
+    ],
+    "bounds": {
+      "minX": -89,
+      "maxX": -77,
+      "minZ": 17,
+      "maxZ": 35
+    }
+  },
+  {
+    "physicalSpaceId": "phys_b_f2_xn_zp_horizontal_07",
+    "kind": "boutique",
+    "floor": 2,
+    "axis": "horizontal",
+    "quadrant": "xn_zp",
+    "slotIndex": 7,
+    "displayCode": "E-201",
+    "y1": 5.5,
+    "y2": 10.7,
+    "corners": [
+      {
+        "x": -95,
+        "z": 17
+      },
+      {
+        "x": -83,
+        "z": 17
+      },
+      {
+        "x": -83,
+        "z": 35
+      },
+      {
+        "x": -95,
+        "z": 35
+      }
+    ],
+    "bounds": {
+      "minX": -95,
+      "maxX": -83,
+      "minZ": 17,
+      "maxZ": 35
+    }
+  },
+  {
+    "physicalSpaceId": "phys_b_f2_xn_zp_vertical_01",
+    "kind": "boutique",
+    "floor": 2,
+    "axis": "vertical",
+    "quadrant": "xn_zp",
+    "slotIndex": 1,
+    "displayCode": "EN-20",
+    "y1": 5.5,
+    "y2": 10.7,
+    "corners": [
+      {
+        "x": -35,
+        "z": 17
+      },
+      {
+        "x": -17,
+        "z": 17
+      },
+      {
+        "x": -17,
+        "z": 29
+      },
+      {
+        "x": -35,
+        "z": 29
+      }
+    ],
+    "bounds": {
+      "minX": -35,
+      "maxX": -17,
+      "minZ": 17,
+      "maxZ": 29
+    }
+  },
+  {
+    "physicalSpaceId": "phys_b_f2_xn_zp_vertical_02",
+    "kind": "boutique",
+    "floor": 2,
+    "axis": "vertical",
+    "quadrant": "xn_zp",
+    "slotIndex": 2,
+    "displayCode": "N-210",
+    "y1": 5.5,
+    "y2": 10.7,
+    "corners": [
+      {
+        "x": -35,
+        "z": 29
+      },
+      {
+        "x": -17,
+        "z": 29
+      },
+      {
+        "x": -17,
+        "z": 41
+      },
+      {
+        "x": -35,
+        "z": 41
+      }
+    ],
+    "bounds": {
+      "minX": -35,
+      "maxX": -17,
+      "minZ": 29,
+      "maxZ": 41
+    }
+  },
+  {
+    "physicalSpaceId": "phys_b_f2_xn_zp_vertical_03",
+    "kind": "boutique",
+    "floor": 2,
+    "axis": "vertical",
+    "quadrant": "xn_zp",
+    "slotIndex": 3,
+    "displayCode": "N-208",
+    "y1": 5.5,
+    "y2": 10.7,
+    "corners": [
+      {
+        "x": -35,
+        "z": 41
+      },
+      {
+        "x": -17,
+        "z": 41
+      },
+      {
+        "x": -17,
+        "z": 53
+      },
+      {
+        "x": -35,
+        "z": 53
+      }
+    ],
+    "bounds": {
+      "minX": -35,
+      "maxX": -17,
+      "minZ": 41,
+      "maxZ": 53
+    }
+  },
+  {
+    "physicalSpaceId": "phys_b_f2_xn_zp_vertical_04",
+    "kind": "boutique",
+    "floor": 2,
+    "axis": "vertical",
+    "quadrant": "xn_zp",
+    "slotIndex": 4,
+    "displayCode": "N-206",
+    "y1": 5.5,
+    "y2": 10.7,
+    "corners": [
+      {
+        "x": -35,
+        "z": 53
+      },
+      {
+        "x": -17,
+        "z": 53
+      },
+      {
+        "x": -17,
+        "z": 65
+      },
+      {
+        "x": -35,
+        "z": 65
+      }
+    ],
+    "bounds": {
+      "minX": -35,
+      "maxX": -17,
+      "minZ": 53,
+      "maxZ": 65
+    }
+  },
+  {
+    "physicalSpaceId": "phys_b_f2_xn_zp_vertical_05",
+    "kind": "boutique",
+    "floor": 2,
+    "axis": "vertical",
+    "quadrant": "xn_zp",
+    "slotIndex": 5,
+    "displayCode": "N-204",
+    "y1": 5.5,
+    "y2": 10.7,
+    "corners": [
+      {
+        "x": -35,
+        "z": 65
+      },
+      {
+        "x": -17,
+        "z": 65
+      },
+      {
+        "x": -17,
+        "z": 77
+      },
+      {
+        "x": -35,
+        "z": 77
+      }
+    ],
+    "bounds": {
+      "minX": -35,
+      "maxX": -17,
+      "minZ": 65,
+      "maxZ": 77
+    }
+  },
+  {
+    "physicalSpaceId": "phys_b_f2_xn_zp_vertical_06",
+    "kind": "boutique",
+    "floor": 2,
+    "axis": "vertical",
+    "quadrant": "xn_zp",
+    "slotIndex": 6,
+    "displayCode": "N-202",
+    "y1": 5.5,
+    "y2": 10.7,
+    "corners": [
+      {
+        "x": -35,
+        "z": 77
+      },
+      {
+        "x": -17,
+        "z": 77
+      },
+      {
+        "x": -17,
+        "z": 89
+      },
+      {
+        "x": -35,
+        "z": 89
+      }
+    ],
+    "bounds": {
+      "minX": -35,
+      "maxX": -17,
+      "minZ": 77,
+      "maxZ": 89
+    }
+  },
+  {
+    "physicalSpaceId": "phys_b_f2_xn_zp_vertical_07",
+    "kind": "boutique",
+    "floor": 2,
+    "axis": "vertical",
+    "quadrant": "xn_zp",
+    "slotIndex": 7,
+    "displayCode": "N-202",
+    "y1": 5.5,
+    "y2": 10.7,
+    "corners": [
+      {
+        "x": -35,
+        "z": 83
+      },
+      {
+        "x": -17,
+        "z": 83
+      },
+      {
+        "x": -17,
+        "z": 95
+      },
+      {
+        "x": -35,
+        "z": 95
+      }
+    ],
+    "bounds": {
+      "minX": -35,
+      "maxX": -17,
+      "minZ": 83,
+      "maxZ": 95
+    }
+  },
+  {
+    "physicalSpaceId": "phys_b_f2_xp_zn_horizontal_01",
+    "kind": "boutique",
+    "floor": 2,
+    "axis": "horizontal",
+    "quadrant": "xp_zn",
+    "slotIndex": 1,
+    "displayCode": "OS-20",
+    "y1": 5.5,
+    "y2": 10.7,
+    "corners": [
+      {
+        "x": 17,
+        "z": -35
+      },
+      {
+        "x": 29,
+        "z": -35
+      },
+      {
+        "x": 29,
+        "z": -17
+      },
+      {
+        "x": 17,
+        "z": -17
+      }
+    ],
+    "bounds": {
+      "minX": 17,
+      "maxX": 29,
+      "minZ": -35,
+      "maxZ": -17
+    }
+  },
+  {
+    "physicalSpaceId": "phys_b_f2_xp_zn_horizontal_02",
+    "kind": "boutique",
+    "floor": 2,
+    "axis": "horizontal",
+    "quadrant": "xp_zn",
+    "slotIndex": 2,
+    "displayCode": "O-209",
+    "y1": 5.5,
+    "y2": 10.7,
+    "corners": [
+      {
+        "x": 29,
+        "z": -35
+      },
+      {
+        "x": 41,
+        "z": -35
+      },
+      {
+        "x": 41,
+        "z": -17
+      },
+      {
+        "x": 29,
+        "z": -17
+      }
+    ],
+    "bounds": {
+      "minX": 29,
+      "maxX": 41,
+      "minZ": -35,
+      "maxZ": -17
+    }
+  },
+  {
+    "physicalSpaceId": "phys_b_f2_xp_zn_horizontal_03",
+    "kind": "boutique",
+    "floor": 2,
+    "axis": "horizontal",
+    "quadrant": "xp_zn",
+    "slotIndex": 3,
+    "displayCode": "O-207",
+    "y1": 5.5,
+    "y2": 10.7,
+    "corners": [
+      {
+        "x": 41,
+        "z": -35
+      },
+      {
+        "x": 53,
+        "z": -35
+      },
+      {
+        "x": 53,
+        "z": -17
+      },
+      {
+        "x": 41,
+        "z": -17
+      }
+    ],
+    "bounds": {
+      "minX": 41,
+      "maxX": 53,
+      "minZ": -35,
+      "maxZ": -17
+    }
+  },
+  {
+    "physicalSpaceId": "phys_b_f2_xp_zn_horizontal_04",
+    "kind": "boutique",
+    "floor": 2,
+    "axis": "horizontal",
+    "quadrant": "xp_zn",
+    "slotIndex": 4,
+    "displayCode": "O-205",
+    "y1": 5.5,
+    "y2": 10.7,
+    "corners": [
+      {
+        "x": 53,
+        "z": -35
+      },
+      {
+        "x": 65,
+        "z": -35
+      },
+      {
+        "x": 65,
+        "z": -17
+      },
+      {
+        "x": 53,
+        "z": -17
+      }
+    ],
+    "bounds": {
+      "minX": 53,
+      "maxX": 65,
+      "minZ": -35,
+      "maxZ": -17
+    }
+  },
+  {
+    "physicalSpaceId": "phys_b_f2_xp_zn_horizontal_05",
+    "kind": "boutique",
+    "floor": 2,
+    "axis": "horizontal",
+    "quadrant": "xp_zn",
+    "slotIndex": 5,
+    "displayCode": "O-203",
+    "y1": 5.5,
+    "y2": 10.7,
+    "corners": [
+      {
+        "x": 65,
+        "z": -35
+      },
+      {
+        "x": 77,
+        "z": -35
+      },
+      {
+        "x": 77,
+        "z": -17
+      },
+      {
+        "x": 65,
+        "z": -17
+      }
+    ],
+    "bounds": {
+      "minX": 65,
+      "maxX": 77,
+      "minZ": -35,
+      "maxZ": -17
+    }
+  },
+  {
+    "physicalSpaceId": "phys_b_f2_xp_zn_horizontal_06",
+    "kind": "boutique",
+    "floor": 2,
+    "axis": "horizontal",
+    "quadrant": "xp_zn",
+    "slotIndex": 6,
+    "displayCode": "O-201",
+    "y1": 5.5,
+    "y2": 10.7,
+    "corners": [
+      {
+        "x": 77,
+        "z": -35
+      },
+      {
+        "x": 89,
+        "z": -35
+      },
+      {
+        "x": 89,
+        "z": -17
+      },
+      {
+        "x": 77,
+        "z": -17
+      }
+    ],
+    "bounds": {
+      "minX": 77,
+      "maxX": 89,
+      "minZ": -35,
+      "maxZ": -17
+    }
+  },
+  {
+    "physicalSpaceId": "phys_b_f2_xp_zn_horizontal_07",
+    "kind": "boutique",
+    "floor": 2,
+    "axis": "horizontal",
+    "quadrant": "xp_zn",
+    "slotIndex": 7,
+    "displayCode": "O-201",
+    "y1": 5.5,
+    "y2": 10.7,
+    "corners": [
+      {
+        "x": 83,
+        "z": -35
+      },
+      {
+        "x": 95,
+        "z": -35
+      },
+      {
+        "x": 95,
+        "z": -17
+      },
+      {
+        "x": 83,
+        "z": -17
+      }
+    ],
+    "bounds": {
+      "minX": 83,
+      "maxX": 95,
+      "minZ": -35,
+      "maxZ": -17
+    }
+  },
+  {
+    "physicalSpaceId": "phys_b_f2_xp_zn_vertical_01",
+    "kind": "boutique",
+    "floor": 2,
+    "axis": "vertical",
+    "quadrant": "xp_zn",
+    "slotIndex": 1,
+    "displayCode": "OS-20",
+    "y1": 5.5,
+    "y2": 10.7,
+    "corners": [
+      {
+        "x": 17,
+        "z": -29
+      },
+      {
+        "x": 35,
+        "z": -29
+      },
+      {
+        "x": 35,
+        "z": -17
+      },
+      {
+        "x": 17,
+        "z": -17
+      }
+    ],
+    "bounds": {
+      "minX": 17,
+      "maxX": 35,
+      "minZ": -29,
+      "maxZ": -17
+    }
+  },
+  {
+    "physicalSpaceId": "phys_b_f2_xp_zn_vertical_02",
+    "kind": "boutique",
+    "floor": 2,
+    "axis": "vertical",
+    "quadrant": "xp_zn",
+    "slotIndex": 2,
+    "displayCode": "S-210",
+    "y1": 5.5,
+    "y2": 10.7,
+    "corners": [
+      {
+        "x": 17,
+        "z": -41
+      },
+      {
+        "x": 35,
+        "z": -41
+      },
+      {
+        "x": 35,
+        "z": -29
+      },
+      {
+        "x": 17,
+        "z": -29
+      }
+    ],
+    "bounds": {
+      "minX": 17,
+      "maxX": 35,
+      "minZ": -41,
+      "maxZ": -29
+    }
+  },
+  {
+    "physicalSpaceId": "phys_b_f2_xp_zn_vertical_03",
+    "kind": "boutique",
+    "floor": 2,
+    "axis": "vertical",
+    "quadrant": "xp_zn",
+    "slotIndex": 3,
+    "displayCode": "S-208",
+    "y1": 5.5,
+    "y2": 10.7,
+    "corners": [
+      {
+        "x": 17,
+        "z": -53
+      },
+      {
+        "x": 35,
+        "z": -53
+      },
+      {
+        "x": 35,
+        "z": -41
+      },
+      {
+        "x": 17,
+        "z": -41
+      }
+    ],
+    "bounds": {
+      "minX": 17,
+      "maxX": 35,
+      "minZ": -53,
+      "maxZ": -41
+    }
+  },
+  {
+    "physicalSpaceId": "phys_b_f2_xp_zn_vertical_04",
+    "kind": "boutique",
+    "floor": 2,
+    "axis": "vertical",
+    "quadrant": "xp_zn",
+    "slotIndex": 4,
+    "displayCode": "S-206",
+    "y1": 5.5,
+    "y2": 10.7,
+    "corners": [
+      {
+        "x": 17,
+        "z": -65
+      },
+      {
+        "x": 35,
+        "z": -65
+      },
+      {
+        "x": 35,
+        "z": -53
+      },
+      {
+        "x": 17,
+        "z": -53
+      }
+    ],
+    "bounds": {
+      "minX": 17,
+      "maxX": 35,
+      "minZ": -65,
+      "maxZ": -53
+    }
+  },
+  {
+    "physicalSpaceId": "phys_b_f2_xp_zn_vertical_05",
+    "kind": "boutique",
+    "floor": 2,
+    "axis": "vertical",
+    "quadrant": "xp_zn",
+    "slotIndex": 5,
+    "displayCode": "S-204",
+    "y1": 5.5,
+    "y2": 10.7,
+    "corners": [
+      {
+        "x": 17,
+        "z": -77
+      },
+      {
+        "x": 35,
+        "z": -77
+      },
+      {
+        "x": 35,
+        "z": -65
+      },
+      {
+        "x": 17,
+        "z": -65
+      }
+    ],
+    "bounds": {
+      "minX": 17,
+      "maxX": 35,
+      "minZ": -77,
+      "maxZ": -65
+    }
+  },
+  {
+    "physicalSpaceId": "phys_b_f2_xp_zn_vertical_06",
+    "kind": "boutique",
+    "floor": 2,
+    "axis": "vertical",
+    "quadrant": "xp_zn",
+    "slotIndex": 6,
+    "displayCode": "S-202",
+    "y1": 5.5,
+    "y2": 10.7,
+    "corners": [
+      {
+        "x": 17,
+        "z": -89
+      },
+      {
+        "x": 35,
+        "z": -89
+      },
+      {
+        "x": 35,
+        "z": -77
+      },
+      {
+        "x": 17,
+        "z": -77
+      }
+    ],
+    "bounds": {
+      "minX": 17,
+      "maxX": 35,
+      "minZ": -89,
+      "maxZ": -77
+    }
+  },
+  {
+    "physicalSpaceId": "phys_b_f2_xp_zn_vertical_07",
+    "kind": "boutique",
+    "floor": 2,
+    "axis": "vertical",
+    "quadrant": "xp_zn",
+    "slotIndex": 7,
+    "displayCode": "S-202",
+    "y1": 5.5,
+    "y2": 10.7,
+    "corners": [
+      {
+        "x": 17,
+        "z": -95
+      },
+      {
+        "x": 35,
+        "z": -95
+      },
+      {
+        "x": 35,
+        "z": -83
+      },
+      {
+        "x": 17,
+        "z": -83
+      }
+    ],
+    "bounds": {
+      "minX": 17,
+      "maxX": 35,
+      "minZ": -95,
+      "maxZ": -83
+    }
+  },
+  {
+    "physicalSpaceId": "phys_b_f2_xp_zp_horizontal_01",
+    "kind": "boutique",
+    "floor": 2,
+    "axis": "horizontal",
+    "quadrant": "xp_zp",
+    "slotIndex": 1,
+    "displayCode": "NO-20",
+    "y1": 5.5,
+    "y2": 10.7,
+    "corners": [
+      {
+        "x": 17,
+        "z": 17
+      },
+      {
+        "x": 29,
+        "z": 17
+      },
+      {
+        "x": 29,
+        "z": 35
+      },
+      {
+        "x": 17,
+        "z": 35
+      }
+    ],
+    "bounds": {
+      "minX": 17,
+      "maxX": 29,
+      "minZ": 17,
+      "maxZ": 35
+    }
+  },
+  {
+    "physicalSpaceId": "phys_b_f2_xp_zp_horizontal_02",
+    "kind": "boutique",
+    "floor": 2,
+    "axis": "horizontal",
+    "quadrant": "xp_zp",
+    "slotIndex": 2,
+    "displayCode": "O-210",
+    "y1": 5.5,
+    "y2": 10.7,
+    "corners": [
+      {
+        "x": 29,
+        "z": 17
+      },
+      {
+        "x": 41,
+        "z": 17
+      },
+      {
+        "x": 41,
+        "z": 35
+      },
+      {
+        "x": 29,
+        "z": 35
+      }
+    ],
+    "bounds": {
+      "minX": 29,
+      "maxX": 41,
+      "minZ": 17,
+      "maxZ": 35
+    }
+  },
+  {
+    "physicalSpaceId": "phys_b_f2_xp_zp_horizontal_03",
+    "kind": "boutique",
+    "floor": 2,
+    "axis": "horizontal",
+    "quadrant": "xp_zp",
+    "slotIndex": 3,
+    "displayCode": "O-208",
+    "y1": 5.5,
+    "y2": 10.7,
+    "corners": [
+      {
+        "x": 41,
+        "z": 17
+      },
+      {
+        "x": 53,
+        "z": 17
+      },
+      {
+        "x": 53,
+        "z": 35
+      },
+      {
+        "x": 41,
+        "z": 35
+      }
+    ],
+    "bounds": {
+      "minX": 41,
+      "maxX": 53,
+      "minZ": 17,
+      "maxZ": 35
+    }
+  },
+  {
+    "physicalSpaceId": "phys_b_f2_xp_zp_horizontal_04",
+    "kind": "boutique",
+    "floor": 2,
+    "axis": "horizontal",
+    "quadrant": "xp_zp",
+    "slotIndex": 4,
+    "displayCode": "O-206",
+    "y1": 5.5,
+    "y2": 10.7,
+    "corners": [
+      {
+        "x": 53,
+        "z": 17
+      },
+      {
+        "x": 65,
+        "z": 17
+      },
+      {
+        "x": 65,
+        "z": 35
+      },
+      {
+        "x": 53,
+        "z": 35
+      }
+    ],
+    "bounds": {
+      "minX": 53,
+      "maxX": 65,
+      "minZ": 17,
+      "maxZ": 35
+    }
+  },
+  {
+    "physicalSpaceId": "phys_b_f2_xp_zp_horizontal_05",
+    "kind": "boutique",
+    "floor": 2,
+    "axis": "horizontal",
+    "quadrant": "xp_zp",
+    "slotIndex": 5,
+    "displayCode": "O-204",
+    "y1": 5.5,
+    "y2": 10.7,
+    "corners": [
+      {
+        "x": 65,
+        "z": 17
+      },
+      {
+        "x": 77,
+        "z": 17
+      },
+      {
+        "x": 77,
+        "z": 35
+      },
+      {
+        "x": 65,
+        "z": 35
+      }
+    ],
+    "bounds": {
+      "minX": 65,
+      "maxX": 77,
+      "minZ": 17,
+      "maxZ": 35
+    }
+  },
+  {
+    "physicalSpaceId": "phys_b_f2_xp_zp_horizontal_06",
+    "kind": "boutique",
+    "floor": 2,
+    "axis": "horizontal",
+    "quadrant": "xp_zp",
+    "slotIndex": 6,
+    "displayCode": "O-202",
+    "y1": 5.5,
+    "y2": 10.7,
+    "corners": [
+      {
+        "x": 77,
+        "z": 17
+      },
+      {
+        "x": 89,
+        "z": 17
+      },
+      {
+        "x": 89,
+        "z": 35
+      },
+      {
+        "x": 77,
+        "z": 35
+      }
+    ],
+    "bounds": {
+      "minX": 77,
+      "maxX": 89,
+      "minZ": 17,
+      "maxZ": 35
+    }
+  },
+  {
+    "physicalSpaceId": "phys_b_f2_xp_zp_horizontal_07",
+    "kind": "boutique",
+    "floor": 2,
+    "axis": "horizontal",
+    "quadrant": "xp_zp",
+    "slotIndex": 7,
+    "displayCode": "O-202",
+    "y1": 5.5,
+    "y2": 10.7,
+    "corners": [
+      {
+        "x": 83,
+        "z": 17
+      },
+      {
+        "x": 95,
+        "z": 17
+      },
+      {
+        "x": 95,
+        "z": 35
+      },
+      {
+        "x": 83,
+        "z": 35
+      }
+    ],
+    "bounds": {
+      "minX": 83,
+      "maxX": 95,
+      "minZ": 17,
+      "maxZ": 35
+    }
+  },
+  {
+    "physicalSpaceId": "phys_b_f2_xp_zp_vertical_01",
+    "kind": "boutique",
+    "floor": 2,
+    "axis": "vertical",
+    "quadrant": "xp_zp",
+    "slotIndex": 1,
+    "displayCode": "NO-20",
+    "y1": 5.5,
+    "y2": 10.7,
+    "corners": [
+      {
+        "x": 17,
+        "z": 17
+      },
+      {
+        "x": 35,
+        "z": 17
+      },
+      {
+        "x": 35,
+        "z": 29
+      },
+      {
+        "x": 17,
+        "z": 29
+      }
+    ],
+    "bounds": {
+      "minX": 17,
+      "maxX": 35,
+      "minZ": 17,
+      "maxZ": 29
+    }
+  },
+  {
+    "physicalSpaceId": "phys_b_f2_xp_zp_vertical_02",
+    "kind": "boutique",
+    "floor": 2,
+    "axis": "vertical",
+    "quadrant": "xp_zp",
+    "slotIndex": 2,
+    "displayCode": "N-209",
+    "y1": 5.5,
+    "y2": 10.7,
+    "corners": [
+      {
+        "x": 17,
+        "z": 29
+      },
+      {
+        "x": 35,
+        "z": 29
+      },
+      {
+        "x": 35,
+        "z": 41
+      },
+      {
+        "x": 17,
+        "z": 41
+      }
+    ],
+    "bounds": {
+      "minX": 17,
+      "maxX": 35,
+      "minZ": 29,
+      "maxZ": 41
+    }
+  },
+  {
+    "physicalSpaceId": "phys_b_f2_xp_zp_vertical_03",
+    "kind": "boutique",
+    "floor": 2,
+    "axis": "vertical",
+    "quadrant": "xp_zp",
+    "slotIndex": 3,
+    "displayCode": "N-207",
+    "y1": 5.5,
+    "y2": 10.7,
+    "corners": [
+      {
+        "x": 17,
+        "z": 41
+      },
+      {
+        "x": 35,
+        "z": 41
+      },
+      {
+        "x": 35,
+        "z": 53
+      },
+      {
+        "x": 17,
+        "z": 53
+      }
+    ],
+    "bounds": {
+      "minX": 17,
+      "maxX": 35,
+      "minZ": 41,
+      "maxZ": 53
+    }
+  },
+  {
+    "physicalSpaceId": "phys_b_f2_xp_zp_vertical_04",
+    "kind": "boutique",
+    "floor": 2,
+    "axis": "vertical",
+    "quadrant": "xp_zp",
+    "slotIndex": 4,
+    "displayCode": "N-205",
+    "y1": 5.5,
+    "y2": 10.7,
+    "corners": [
+      {
+        "x": 17,
+        "z": 53
+      },
+      {
+        "x": 35,
+        "z": 53
+      },
+      {
+        "x": 35,
+        "z": 65
+      },
+      {
+        "x": 17,
+        "z": 65
+      }
+    ],
+    "bounds": {
+      "minX": 17,
+      "maxX": 35,
+      "minZ": 53,
+      "maxZ": 65
+    }
+  },
+  {
+    "physicalSpaceId": "phys_b_f2_xp_zp_vertical_05",
+    "kind": "boutique",
+    "floor": 2,
+    "axis": "vertical",
+    "quadrant": "xp_zp",
+    "slotIndex": 5,
+    "displayCode": "N-203",
+    "y1": 5.5,
+    "y2": 10.7,
+    "corners": [
+      {
+        "x": 17,
+        "z": 65
+      },
+      {
+        "x": 35,
+        "z": 65
+      },
+      {
+        "x": 35,
+        "z": 77
+      },
+      {
+        "x": 17,
+        "z": 77
+      }
+    ],
+    "bounds": {
+      "minX": 17,
+      "maxX": 35,
+      "minZ": 65,
+      "maxZ": 77
+    }
+  },
+  {
+    "physicalSpaceId": "phys_b_f2_xp_zp_vertical_06",
+    "kind": "boutique",
+    "floor": 2,
+    "axis": "vertical",
+    "quadrant": "xp_zp",
+    "slotIndex": 6,
+    "displayCode": "N-201",
+    "y1": 5.5,
+    "y2": 10.7,
+    "corners": [
+      {
+        "x": 17,
+        "z": 77
+      },
+      {
+        "x": 35,
+        "z": 77
+      },
+      {
+        "x": 35,
+        "z": 89
+      },
+      {
+        "x": 17,
+        "z": 89
+      }
+    ],
+    "bounds": {
+      "minX": 17,
+      "maxX": 35,
+      "minZ": 77,
+      "maxZ": 89
+    }
+  },
+  {
+    "physicalSpaceId": "phys_b_f2_xp_zp_vertical_07",
+    "kind": "boutique",
+    "floor": 2,
+    "axis": "vertical",
+    "quadrant": "xp_zp",
+    "slotIndex": 7,
+    "displayCode": "N-201",
+    "y1": 5.5,
+    "y2": 10.7,
+    "corners": [
+      {
+        "x": 17,
+        "z": 83
+      },
+      {
+        "x": 35,
+        "z": 83
+      },
+      {
+        "x": 35,
+        "z": 95
+      },
+      {
+        "x": 17,
+        "z": 95
+      }
+    ],
+    "bounds": {
+      "minX": 17,
+      "maxX": 35,
+      "minZ": 83,
+      "maxZ": 95
+    }
+  }
+]

@@ -227,6 +227,9 @@ create table if not exists public.stores (
     contact_email text,
     contact_phone text,
     whatsapp text,
+    social_url text,
+    address text,
+    maps_url text,
     logo_url text,
     shelf_style text default 'madera',
     primary_color text default '#c9a66b',
@@ -239,6 +242,8 @@ create table if not exists public.stores (
     service_status text not null default 'active',
     service_status_note text,
     service_suspended_at timestamptz,
+    product_tier text,
+    product_limit int,
     created_at timestamptz not null default now(),
     updated_at timestamptz not null default now()
 );
@@ -250,6 +255,9 @@ alter table public.stores add column if not exists category text;
 alter table public.stores add column if not exists contact_email text;
 alter table public.stores add column if not exists contact_phone text;
 alter table public.stores add column if not exists whatsapp text;
+alter table public.stores add column if not exists social_url text;
+alter table public.stores add column if not exists address text;
+alter table public.stores add column if not exists maps_url text;
 alter table public.stores add column if not exists logo_url text;
 alter table public.stores add column if not exists shelf_style text default 'madera';
 alter table public.stores add column if not exists primary_color text default '#c9a66b';
@@ -262,7 +270,21 @@ alter table public.stores add column if not exists telegram_verified_at timestam
 alter table public.stores add column if not exists service_status text not null default 'active';
 alter table public.stores add column if not exists service_status_note text;
 alter table public.stores add column if not exists service_suspended_at timestamptz;
+alter table public.stores add column if not exists product_tier text;
+alter table public.stores add column if not exists product_limit int;
 alter table public.stores add column if not exists updated_at timestamptz not null default now();
+
+alter table public.stores
+    drop constraint if exists stores_product_tier_chk;
+alter table public.stores
+    add constraint stores_product_tier_chk
+    check (product_tier is null or product_tier in ('T0', 'T1', 'T2', 'T3', 'T4', 'T5'));
+
+alter table public.stores
+    drop constraint if exists stores_product_limit_chk;
+alter table public.stores
+    add constraint stores_product_limit_chk
+    check (product_limit is null or product_limit between 1 and 50);
 
 update public.stores
 set local_code = id::text
@@ -351,13 +373,23 @@ create table if not exists public.store_products (
     name text not null,
     price text,
     image_url text,
+    description text,
+    slot_index int,
     sort_order int default 0,
     created_at timestamptz not null default now()
 );
 
 alter table public.store_products add column if not exists local_code text;
 alter table public.store_products add column if not exists image_url text;
+alter table public.store_products add column if not exists description text;
+alter table public.store_products add column if not exists slot_index int;
 alter table public.store_products add column if not exists sort_order int default 0;
+
+alter table public.store_products
+    drop constraint if exists store_products_description_length_chk;
+alter table public.store_products
+    add constraint store_products_description_length_chk
+    check (description is null or char_length(description) <= 500);
 
 do $$
 begin

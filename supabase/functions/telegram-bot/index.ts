@@ -1,4 +1,4 @@
-import { createClient } from "jsr:@supabase/supabase-js@2";
+import { createClient } from "@supabase/supabase-js";
 
 const allowedOrigin =
   Deno.env.get("MALL_ALLOWED_ORIGIN") ??

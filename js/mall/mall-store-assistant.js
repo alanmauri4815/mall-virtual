@@ -461,6 +461,12 @@
             return;
         }
         const conversation = getConversation(activeStoreCode);
+        const isMallAssistant = activeStoreCode === MALL_ASSISTANT_CODE;
+        window.mallAnalytics?.track('assistant_question_sent', {
+            storeCode: isMallAssistant ? null : activeStoreCode,
+            source: isMallAssistant ? 'mall_assistant' : 'store_assistant',
+            itemLabel: isMallAssistant ? 'Informaciones del mall' : (activeStoreData?.name || activeStoreCode)
+        });
         if (conversation.turns >= settings.max_turns) {
             showHandoff();
             return;
@@ -471,7 +477,6 @@
         conversation.turns += 1;
         assistantBusy = true;
         document.getElementById('store-assistant-modal').classList.add('is-busy');
-        const isMallAssistant = activeStoreCode === MALL_ASSISTANT_CODE;
         let answer = isMallAssistant
             ? localMallAnswer(question, settings)
             : localDirectAnswer(question, activeStoreData, settings);
@@ -559,6 +564,17 @@
         renderConversation(MALL_ASSISTANT_CODE);
     };
 
+    window.openMallFeedback = async function () {
+        await window.openMallAssistant();
+        if (activeStoreCode !== MALL_ASSISTANT_CODE) return;
+        const conversation = getConversation(MALL_ASSISTANT_CODE);
+        const form = document.getElementById('mall-feedback-form');
+        if (!form) return;
+        conversation.feedbackOpen = true;
+        form.hidden = false;
+        document.getElementById('mall-feedback-name')?.focus();
+    };
+
     function closeAssistant() {
         document.getElementById('store-assistant-modal').style.display = 'none';
         document.getElementById('modal-overlay').style.display = 'none';
@@ -641,6 +657,10 @@
         try {
             const { error } = await supabaseClient.rpc('submit_mall_feedback', payload);
             if (error) throw error;
+            window.mallAnalytics?.track('feedback_submitted', {
+                source: 'mall_assistant',
+                itemLabel: payload.p_category
+            });
             status.textContent = 'Gracias. Tu reclamo o sugerencia fue enviado a la administración.';
             form.querySelector('button[type="submit"]').disabled = true;
         } catch (error) {

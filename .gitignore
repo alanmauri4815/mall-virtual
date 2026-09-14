@@ -3,6 +3,12 @@
 .vscode
 node_modules
 dist
+tests/artifacts/
+edge-test/
+edge_test.png
+pc-optimization-backup-*/
+.codex-*.png
+preview_*.png
 backups/
 backups_sensitive/
 SENSITIVE_DO_NOT_SHARE*/
@@ -31,3 +37,4 @@ yarn-error.log*
 .server.*
 
 .vercel
+.env*

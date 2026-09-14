@@ -1,0 +1,21 @@
+﻿GeneratedAt=2026-08-09T10:45:24.6342095-04:00
+TotalFiles=161
+TrackedFiles=61
+UntrackedFiles=100
+
+
+Category                   Files
+--------                   -----
+database-operation            54
+documentation                 29
+test                          19
+production-module             17
+backend-edge-function         12
+developer-tool                10
+database-support               6
+vendored-dependency            5
+generated-or-data-artifact     3
+unclassified                   3
+production-style               1
+production-entrypoint          1
+production-asset               1

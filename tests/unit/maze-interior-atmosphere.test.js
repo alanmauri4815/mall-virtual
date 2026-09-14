@@ -1,0 +1,40 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+
+const root = path.resolve(__dirname, '..', '..');
+const world = fs.readFileSync(path.join(root, 'js', 'mall', 'mall-world.js'), 'utf8');
+
+assert.match(world, /Piso interior del laberinto/);
+assert.match(world, /createMazeSurfaceTexture/);
+assert.match(world, /map: wallTexture/);
+assert.match(world, /map: floorTexture/);
+assert.match(world, /map: roofTexture/);
+assert.match(world, /Luminaria de orientación del laberinto/);
+assert.match(world, /new THREE\.PointLight\(color, 0\.52, 13, 1\.8\)/);
+assert.match(world, /Acento de orientación del laberinto/);
+assert.match(world, /Baliza de orientación del laberinto/);
+assert.match(world, /\$\{maze\.name\}:roof/);
+assert.match(world, /visualStage: 2/);
+assert.match(world, /Hito visual del sector/);
+assert.match(world, /decorationIsNonCollidable: true/);
+assert.match(world, /routeSignageStage: 3/);
+assert.match(world, /wayfindingIsNonCollidable: true/);
+assert.match(world, /Señal de recorrido/);
+assert.match(world, /label: 'ENTRADA'/);
+assert.match(world, /label: 'META'/);
+assert.match(world, /label: 'SALIDA'/);
+assert.match(world, /Luz de confirmación/);
+assert.match(world, /isMazePanicStation = true/);
+assert.match(world, /panicStations:/);
+assert.match(world, /entryGate:/);
+const mazeGame = fs.readFileSync(path.join(root, 'js', 'mall', 'mall-maze-game.js'), 'utf8');
+assert.match(mazeGame, /const TIME_LIMIT_MS = 15 \* 60 \* 1000/);
+assert.match(mazeGame, /hasCrossedEntry/);
+assert.match(mazeGame, /maze-panic-button/);
+assert.match(mazeGame, /exitMaze/);
+assert.match(mazeGame, /maze-time-limit-continue/);
+assert.match(mazeGame, /maze-complete-time/);
+assert.match(mazeGame, /mall-maze-records-v1/);
+
+console.log('Maze atmosphere details are visual-only and preserve the physical maze colliders.');

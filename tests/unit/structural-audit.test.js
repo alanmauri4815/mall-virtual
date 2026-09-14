@@ -1,0 +1,48 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+
+const root = path.resolve(__dirname, '..', '..');
+const world = fs.readFileSync(path.join(root, 'js', 'mall', 'mall-world.js'), 'utf8');
+const audit = fs.readFileSync(path.join(root, 'js', 'mall', 'mall-structural-audit.js'), 'utf8');
+const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+
+assert.match(world, /const overheadStructureAuditRegistry = \[\]/);
+assert.match(world, /return \(wingLabel === 'N' \|\| wingLabel === 'O'\) \? 2 : -2/);
+assert.match(world, /const geometryWing = wingLabel/);
+assert.match(world, /addArchitecturalShell\(vaultG, VAULT_RADIUS, length, geometryWing\)/);
+assert.match(world, /function addQuarterSphereEndClosure/);
+assert.match(world, /const ribLevels = LONGITUDINAL_BEAM_LEVELS/);
+assert.match(world, /const ringRatios = \[0\.25, 0\.5, 0\.75, 1\]/);
+assert.match(world, /Cierre cuarto de esfera/);
+assert.match(world, /addQuarterSphereEndClosure\(vaultG, VAULT_RADIUS, length, geometryWing\)/);
+assert.match(world, /const addLateralClosure = \(side\) =>/);
+assert.match(world, /Vidrio lateral cierre/);
+assert.match(world, /Montante lateral cierre/);
+assert.match(world, /\[1, -1\]\.forEach\(addLateralClosure\)/);
+assert.match(world, /connectionProfileLocal/);
+assert.match(world, /capProfileLocal/);
+assert.match(world, /const anchorRoofY = UPPER_MALL_ROOF_Y - DOME_CENTER_Y/);
+assert.match(world, /Las costillas prolongan uno a uno los fierros de la bóveda/);
+assert.doesNotMatch(world, /function addEndCap/);
+assert.match(world, /sourceJointLocal:/);
+assert.match(world, /intendedJointLocal:/);
+assert.match(world, /window\.mallOverheadStructureAuditSource/);
+assert.match(world, /Estructura superior - Cúpula central/);
+assert.match(world, /radialRibCount: 8/);
+assert.match(audit, /reflectBoxAcrossAxis/);
+assert.match(audit, /reflectBoxAcrossDiagonal/);
+assert.match(audit, /analyzeDiagonalPair/);
+assert.match(audit, /connectionCenterIndex/);
+assert.match(audit, /N↔O/);
+assert.match(audit, /N↔E/);
+assert.match(audit, /jointDeviation/);
+assert.match(audit, /orientación espejo ausente/);
+assert.match(audit, /new THREE\.Box3Helper/);
+assert.match(audit, /Inspeccionar estructura/);
+assert.match(audit, /enterAuditViewport/);
+assert.match(audit, /leaveAuditViewport/);
+assert.match(audit, /La auditoría no modifica geometría, materiales ni colisiones/);
+assert.match(html, /mall-structural-audit\.js\?v=20260906-admin-only-v1/);
+
+console.log('Structural audit is wired to the overhead steel frame and local visual overlay.');

@@ -196,7 +196,16 @@
         }
         window.resetMallNavigationInputs?.(900);
         window.mallMovementLockedUntil = Date.now() + 900;
+        const elapsedMs = state.elapsedMs;
+        const wasRunning = state.status === 'running' || state.status === 'limit-prompt';
         resetJourneyState();
+        if (wasRunning) {
+            window.mallAnalytics?.track('maze_exited', {
+                source: 'maze',
+                itemLabel: String(reason || 'manual').slice(0, 120),
+                durationMs: elapsedMs
+            });
+        }
         previousPosition = { x: exitPosition.x, z: exitPosition.z };
         renderTimeLimitPrompt(false);
         renderCompletionPrompt(false);
@@ -457,6 +466,10 @@
                 state.remoteRunId = null;
                 state.routeValidationState = 'offline';
                 void startRemoteMazeRun(maze);
+                window.mallAnalytics?.track('maze_started', {
+                    source: 'maze',
+                    itemLabel: String(maze.version || 'mall-maze').slice(0, 120)
+                });
                 renderHud(true, getRouteStatus(maze), false);
                 previousPosition = { x: position.x, z: position.z };
                 return;
@@ -477,6 +490,11 @@
                     && !state.pendingRouteCheckpoint);
             if (isNearFinish && routeReady) {
                 state.status = 'complete';
+                window.mallAnalytics?.track('maze_completed', {
+                    source: 'maze',
+                    itemLabel: String(maze.version || 'mall-maze').slice(0, 120),
+                    durationMs: state.elapsedMs
+                });
                 const completedRecord = saveCompletedRecord();
                 renderCompletionPrompt(true);
                 void syncCompletedRecord(completedRecord);

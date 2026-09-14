@@ -226,11 +226,11 @@
         let currentModalStoreId = "";
         let currentModalStoreData = null;
         let lockWalkModePreference = true;
-        const WALK_SPAWN = new THREE.Vector3(11.93, 1.80, -0.12);
-        const WALK_LOOK_TARGET = new THREE.Vector3(11.913, 1.80, -0.144);
+        const WALK_SPAWN = new THREE.Vector3(11.93, 1.95, -0.12);
+        const WALK_LOOK_TARGET = new THREE.Vector3(11.913, 1.95, -0.144);
         // Calibrated from the administrator locator: a similar viewpoint keeps
         // the complete information module visible without entering the fountain.
-        const INFORMATION_DESK_VISITOR_SPAWN = new THREE.Vector3(-9.90, 1.80, -0.22);
+        const INFORMATION_DESK_VISITOR_SPAWN = new THREE.Vector3(-9.90, 1.95, -0.22);
         // The target remains on the information module, so the lateral safety
         // offset does not leave the visitor looking away from Mauricio.
         const INFORMATION_DESK_VISITOR_TARGET = new THREE.Vector3(-16.75, 1.82, 0.00);

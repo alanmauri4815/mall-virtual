@@ -6,7 +6,7 @@ with official_codes (physical_space_id, display_code) as (
         ('phys_anchor_n', 'N'),
         ('phys_anchor_o', 'O'),
         ('phys_anchor_s', 'S'),
-        ('phys_b_f1_xn_zn_horizontal_01', 'OS-10'),
+        ('phys_b_f1_xn_zn_horizontal_01', 'SE-10'),
         ('phys_b_f1_xn_zn_horizontal_02', 'E-108'),
         ('phys_b_f1_xn_zn_horizontal_03', 'E-106'),
         ('phys_b_f1_xn_zn_horizontal_04', 'E-104'),
@@ -113,5 +113,5 @@ where ps.physical_space_id = oc.physical_space_id
 commit;
 
 -- Verificaciones sugeridas:
--- 1. select physical_space_id, source_code, display_code from public.physical_spaces order by physical_space_id;
+-- 1. select physical_space_id, display_code from public.physical_spaces order by physical_space_id;
 -- 2. select display_code, count(*) from public.physical_spaces group by display_code having count(*) > 1 order by display_code;

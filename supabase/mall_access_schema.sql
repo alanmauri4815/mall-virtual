@@ -194,6 +194,9 @@ create table if not exists public.stores (
     contact_email text,
     contact_phone text,
     whatsapp text,
+    social_url text,
+    address text,
+    maps_url text,
     logo_url text,
     shelf_style text default 'madera',
     primary_color text default '#c9a66b',
@@ -201,6 +204,10 @@ create table if not exists public.stores (
     created_at timestamptz not null default now(),
     updated_at timestamptz not null default now()
 );
+
+alter table public.stores add column if not exists social_url text;
+alter table public.stores add column if not exists address text;
+alter table public.stores add column if not exists maps_url text;
 
 alter table public.stores enable row level security;
 
@@ -227,9 +234,12 @@ create table if not exists public.store_products (
     name text not null,
     price text,
     image_url text,
+    slot_index int,
     sort_order int default 0,
     created_at timestamptz not null default now()
 );
+
+alter table public.store_products add column if not exists slot_index int;
 
 alter table public.store_products enable row level security;
 

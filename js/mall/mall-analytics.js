@@ -23,7 +23,13 @@
                 'product_viewed',
                 'contact_clicked',
                 'message_sent',
-                'login_succeeded'
+                'login_succeeded',
+                'zone_entered',
+                'maze_started',
+                'maze_completed',
+                'maze_exited',
+                'assistant_question_sent',
+                'feedback_submitted'
             ]);
 
             const queue = [];
@@ -39,6 +45,8 @@
             let searchTimer = 0;
             let pendingSearch = null;
             let attentionState = null;
+            let lastZoneSampleAt = 0;
+            let currentZone = '';
 
             function createUuid() {
                 if (window.crypto?.randomUUID) return window.crypto.randomUUID();
@@ -361,7 +369,28 @@
                 attentionState = null;
             }
 
+            function getCurrentZone() {
+                if (typeof camera === 'undefined' || !camera?.position) return '';
+                const { x, y, z } = camera.position;
+                const floor = y >= 5 ? 'Planta 2' : 'Planta 1';
+                const horizontal = Math.abs(x) >= Math.abs(z)
+                    ? (x >= 8 ? 'Oriente' : x <= -8 ? 'Poniente' : 'Centro')
+                    : (z >= 8 ? 'Norte' : z <= -8 ? 'Sur' : 'Centro');
+                return `${floor} · ${horizontal}`;
+            }
+
+            function updateZoneActivity(nowMs) {
+                if (nowMs - lastZoneSampleAt < 5000) return;
+                lastZoneSampleAt = nowMs;
+                if (!isAttentionEnvironmentActive()) return;
+                const nextZone = getCurrentZone();
+                if (!nextZone || nextZone === currentZone) return;
+                currentZone = nextZone;
+                track('zone_entered', { source: 'navigation', itemLabel: nextZone });
+            }
+
             function updateAttention(nowMs = performance.now()) {
+                updateZoneActivity(nowMs);
                 if (nowMs - lastAttentionSampleAt < ATTENTION_SAMPLE_MS) return;
                 lastAttentionSampleAt = nowMs;
                 const candidate = findAttentionCandidate();
@@ -500,11 +529,14 @@
                 if (!client) return;
                 const days = Number(document.getElementById('admin-analytics-period')?.value || 30);
                 if (status) status.textContent = 'Actualizando estadísticas...';
-                const { data, error } = await client.rpc('get_mall_analytics', { p_days: days });
+                const { data, error } = await client.rpc('get_mall_analytics_scoped', {
+                    p_mall_id: window.mallContext?.id || null,
+                    p_days: days
+                });
                 if (error) {
                     if (status) {
                         status.textContent = isMissingAnalyticsBackend(error)
-                            ? 'Activa el módulo ejecutando supabase/analytics_foundation_20260726.sql.'
+                            ? 'Activa el módulo ejecutando supabase/mall_operations_observability_20260913.sql.'
                             : `No se pudieron cargar las estadísticas: ${error.message}`;
                     }
                     return;
@@ -533,7 +565,69 @@
                     'search_count',
                     'No hay búsquedas sin resultados en este período.'
                 );
-                if (status) status.textContent = `Datos agregados de los últimos ${data?.days || days} días.`;
+                if (status) {
+                    status.textContent = Number(summary.unique_visitors || 0)
+                        ? `Datos agregados de los últimos ${data?.days || days} días.`
+                        : `Aún no hay actividad registrada en los últimos ${data?.days || days} días.`;
+                }
+            }
+
+            function renderOperationalActivity(containerId, rows = [], emptyCopy) {
+                const container = document.getElementById(containerId);
+                if (!container) return;
+                container.textContent = '';
+                if (!Array.isArray(rows) || !rows.length) {
+                    const empty = document.createElement('p');
+                    empty.className = 'analytics-empty';
+                    empty.textContent = emptyCopy;
+                    container.appendChild(empty);
+                    return;
+                }
+                rows.forEach((row) => {
+                    const item = document.createElement('div');
+                    item.className = 'operations-activity-row';
+                    const label = document.createElement('span');
+                    const detail = document.createElement('span');
+                    label.textContent = row?.label || row?.event_label || 'Actividad';
+                    detail.textContent = row?.detail || row?.occurred_label || '';
+                    item.append(label, detail);
+                    container.appendChild(item);
+                });
+            }
+
+            async function loadAdminOperationsDashboard() {
+                const status = document.getElementById('admin-operations-status');
+                const client = getSupabaseClient();
+                const mallId = window.mallContext?.id || null;
+                if (!client || !mallId) return;
+                const days = Number(document.getElementById('admin-operations-period')?.value || 30);
+                if (status) status.textContent = 'Actualizando actividad operacional...';
+                const { data, error } = await client.rpc('get_mall_operations_dashboard', {
+                    p_mall_id: mallId,
+                    p_days: days
+                });
+                if (error) {
+                    if (status) {
+                        const missing = String(error.message || '').toLowerCase().includes('get_mall_operations_dashboard')
+                            || String(error.message || '').toLowerCase().includes('schema cache');
+                        status.textContent = missing
+                            ? 'Activa este panel ejecutando supabase/mall_operations_observability_20260913.sql.'
+                            : `No se pudo cargar la operación: ${error.message}`;
+                    }
+                    return;
+                }
+                const summary = data?.summary || {};
+                setText('admin-ops-active', formatNumber(summary.active_last_15_minutes));
+                setText('admin-ops-maze-started', formatNumber(summary.maze_started));
+                setText('admin-ops-maze-completed', formatNumber(summary.maze_completed));
+                setText('admin-ops-assistant', formatNumber(summary.assistant_questions));
+                setText('admin-ops-feedback', formatNumber(summary.feedback_submitted));
+                renderRankedList('admin-ops-zones', data?.zones || [], 'zone_name', 'visitor_count', 'Aún no hay recorridos registrados.');
+                renderRankedList('admin-ops-conversations', data?.conversations || [], 'label', 'question_count', 'Aún no hay consultas registradas.');
+                renderRankedList('admin-ops-roles', data?.roles || [], 'role_name', 'entry_count', 'Aún no hay ingresos registrados.');
+                renderRankedList('admin-ops-feedback-list', data?.feedback || [], 'label', 'count', 'No hay sugerencias ni reclamos en este período.');
+                renderOperationalActivity('admin-ops-recent', data?.recent_activity || [], 'Aún no hay actividad reciente.');
+                if (status) status.textContent = `Datos operacionales de los últimos ${data?.days || days} días.`;
             }
 
             document.addEventListener('click', (event) => {
@@ -558,6 +652,8 @@
             document.getElementById('tenant-analytics-period')?.addEventListener('change', refreshTenantDashboard);
             document.getElementById('admin-analytics-refresh')?.addEventListener('click', () => void loadAdminDashboard());
             document.getElementById('admin-analytics-period')?.addEventListener('change', () => void loadAdminDashboard());
+            document.getElementById('admin-operations-refresh')?.addEventListener('click', () => void loadAdminOperationsDashboard());
+            document.getElementById('admin-operations-period')?.addEventListener('change', () => void loadAdminOperationsDashboard());
 
             window.addEventListener('online', () => {
                 backendRetryAt = 0;
@@ -576,6 +672,7 @@
                 updateAttention,
                 loadTenantDashboard,
                 loadAdminDashboard,
+                loadAdminOperationsDashboard,
                 getBackendStatus: () => backendInstalled
             };
 

@@ -343,7 +343,8 @@
         const ESCALATOR_FLAT_LEN = 4;
         const ESCALATOR_RIDE_Y_BOTTOM = 0.1;
         const ESCALATOR_RIDE_Y_TOP = 5.4;
-        const PLAYER_EYE_HEIGHT = 1.7;
+        // Calibrated to the eye line of the Blender avatar, not its chest.
+        const PLAYER_EYE_HEIGHT = 1.85;
         const AVATAR_FLOOR_OFFSET = 0.115;
         const getAvatarGroundY = (floorY) => floorY + AVATAR_FLOOR_OFFSET;
 
@@ -5901,6 +5902,125 @@
             return texture;
         }
 
+        const MALL_INFORMATION_ASSISTANT_AVATAR_URL = 'assets/avatars/mall-avatar-v1.glb';
+
+        function loadMallInformationAssistantAvatar(container, fallback) {
+            if (!container || !fallback || !THREE.GLTFLoader) return;
+
+            const loader = new THREE.GLTFLoader();
+            loader.load(
+                MALL_INFORMATION_ASSISTANT_AVATAR_URL,
+                (gltf) => {
+                    const avatar = gltf.scene;
+                    avatar.name = 'Avatar Blender de informaciones';
+                    avatar.position.set(0, 0.02, 0);
+                    // El módulo ya rota hacia el flujo de entrada; el modelo debe
+                    // conservar su frente local para mirar a los visitantes.
+                    avatar.rotation.y = Math.PI / 8;
+                    avatar.scale.setScalar(1.04);
+                    avatar.traverse((child) => {
+                        child.userData = {
+                            ...child.userData,
+                            isMallInformationAssistant: true,
+                            assistantScope: 'mall'
+                        };
+                        if (child.isMesh) {
+                            child.castShadow = true;
+                            child.receiveShadow = true;
+                            window.setMallShadowMode?.(child, true, true);
+                        }
+                    });
+                    fallback.visible = false;
+                    container.userData.avatarReady = true;
+                    container.add(avatar);
+
+                    const idleClip = gltf.animations?.[0];
+                    if (idleClip) {
+                        const mixer = new THREE.AnimationMixer(avatar);
+                        mixer.clipAction(idleClip).play();
+                        container.userData.avatarMixer = mixer;
+                        let previousFrameAt = performance.now();
+                        const animateIdle = (now) => {
+                            if (!avatar.parent) return;
+                            mixer.update(Math.min((now - previousFrameAt) / 1000, 0.05));
+                            previousFrameAt = now;
+                            requestAnimationFrame(animateIdle);
+                        };
+                        requestAnimationFrame(animateIdle);
+                    }
+                },
+                undefined,
+                (error) => {
+                    container.userData.avatarLoadError = true;
+                    console.warn('No se pudo cargar el avatar Blender de Informaciones.', error);
+                }
+            );
+        }
+
+        const PUBLIC_COMMONS_ASSET_URL = 'assets/models/mall-public-commons-v1.glb';
+        const PUBLIC_COMMONS_LOUNGE_LOCATIONS = [
+            { x: 11.8, z: 11.8 },
+            { x: -11.8, z: 11.8 },
+            { x: -11.8, z: -11.8 },
+            { x: 11.8, z: -11.8 }
+        ];
+
+        function loadPublicCommonsModel() {
+            if (!THREE.GLTFLoader || window.mallPublicCommons?.status === 'loading' || window.mallPublicCommons?.status === 'ready') return;
+
+            window.mallPublicCommons = { status: 'loading', assetUrl: PUBLIC_COMMONS_ASSET_URL };
+            const loader = new THREE.GLTFLoader();
+            loader.load(
+                PUBLIC_COMMONS_ASSET_URL,
+                (gltf) => {
+                    const commons = gltf.scene;
+                    commons.name = 'Mobiliario Blender - Atrio publico';
+                    commons.userData = { isPublicCommons: true, optimized: true };
+                    commons.traverse((child) => {
+                        if (!child.isMesh) return;
+                        child.castShadow = true;
+                        child.receiveShadow = true;
+                        child.frustumCulled = true;
+                        window.setMallShadowMode?.(child, { cast: true, receive: true });
+                    });
+                    scene.add(commons);
+                    PUBLIC_COMMONS_LOUNGE_LOCATIONS.forEach(({ x, z }) => {
+                        registerCircularCollider(x, z, 2.7, 0, 2.4);
+                    });
+                    window.mallPublicCommons = {
+                        status: 'ready',
+                        assetUrl: PUBLIC_COMMONS_ASSET_URL,
+                        group: commons,
+                        loungeCount: PUBLIC_COMMONS_LOUNGE_LOCATIONS.length
+                    };
+                },
+                undefined,
+                (error) => {
+                    window.mallPublicCommons = { status: 'failed', assetUrl: PUBLIC_COMMONS_ASSET_URL };
+                    console.warn('No se pudo cargar el mobiliario Blender del atrio.', error);
+                }
+            );
+        }
+
+        function schedulePublicCommonsModel() {
+            if (window.mallPerformanceProfile?.isLowEndMobile) {
+                window.mallPublicCommons = { status: 'deferred-low-end', assetUrl: PUBLIC_COMMONS_ASSET_URL };
+                return;
+            }
+            let loaded = false;
+            const loadWhenIdle = () => {
+                if (loaded) return;
+                loaded = true;
+                loadPublicCommonsModel();
+            };
+            // The live render loop can keep some browsers from offering an idle slice.
+            // Keep the idle path first, but guarantee a small delayed load on desktop.
+            window.setTimeout(loadWhenIdle, 1200);
+            if (typeof window.requestIdleCallback === 'function') {
+                window.requestIdleCallback(loadWhenIdle, { timeout: 1800 });
+            }
+        }
+
         function createInformationModule() {
             // Keep the module on the west side of the atrium, out of the main cross-aisle.
             const x = -17;
@@ -5971,53 +6091,57 @@ assistant.userData = {
     registrationId: 'main-information-assistant',
     physicalLocation: 'Mesón principal de informaciones'
 };
+const assistantFallback = new THREE.Group();
+assistantFallback.name = 'Asistente geométrico de respaldo';
 const faceMat = new THREE.MeshStandardMaterial({ color: 0x1a1613, roughness: 0.5 });
 const trouserMat = new THREE.MeshStandardMaterial({ color: 0x173d52, roughness: 0.68 });
 const shoeMat = new THREE.MeshStandardMaterial({ color: 0x161514, roughness: 0.5 });
 const torso = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.62, 0.26), uniformMat);
 torso.position.y = 1.38;
-assistant.add(torso);
+assistantFallback.add(torso);
 const belt = new THREE.Mesh(new THREE.BoxGeometry(0.51, 0.07, 0.275), trouserMat);
 belt.position.y = 1.04;
-assistant.add(belt);
+assistantFallback.add(belt);
 const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.075, 0.15, 12), skinMat);
 neck.position.y = 1.76;
-assistant.add(neck);
+assistantFallback.add(neck);
 const head = new THREE.Mesh(new THREE.SphereGeometry(0.24, 18, 14), skinMat);
 head.position.y = 1.98;
-assistant.add(head);
+assistantFallback.add(head);
 const hair = new THREE.Mesh(new THREE.SphereGeometry(0.247, 18, 12, 0, Math.PI * 2, 0, Math.PI * 0.52), hairMat);
 hair.position.y = 2.07;
-assistant.add(hair);
+assistantFallback.add(hair);
 [-0.31, 0.31].forEach((armX) => {
     const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.075, 0.46, 10), uniformMat);
     arm.position.set(armX, 1.39, 0.02);
     arm.rotation.z = armX < 0 ? 0.15 : -0.15;
-    assistant.add(arm);
+    assistantFallback.add(arm);
     const hand = new THREE.Mesh(new THREE.SphereGeometry(0.075, 12, 10), skinMat);
     hand.position.set(armX * 1.12, 1.15, 0.03);
-    assistant.add(hand);
+    assistantFallback.add(hand);
 });
 [-0.13, 0.13].forEach((legX) => {
     const leg = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.54, 0.18), trouserMat);
     leg.position.set(legX, 0.75, 0);
-    assistant.add(leg);
+    assistantFallback.add(leg);
     const shoe = new THREE.Mesh(new THREE.BoxGeometry(0.17, 0.1, 0.28), shoeMat);
     shoe.position.set(legX, 0.43, 0.05);
-    assistant.add(shoe);
+    assistantFallback.add(shoe);
 });
 [-0.075, 0.075].forEach((eyeX) => {
     const eye = new THREE.Mesh(new THREE.SphereGeometry(0.027, 10, 8), faceMat);
     eye.position.set(eyeX, 2.02, 0.224);
-    assistant.add(eye);
+    assistantFallback.add(eye);
     const eyebrow = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.012, 0.012), hairMat);
     eyebrow.position.set(eyeX, 2.095, 0.223);
     eyebrow.rotation.z = eyeX < 0 ? -0.12 : 0.12;
-    assistant.add(eyebrow);
+    assistantFallback.add(eyebrow);
 });
 const nose = new THREE.Mesh(new THREE.SphereGeometry(0.022, 10, 8), skinMat);
 nose.position.set(0, 1.96, 0.235);
-assistant.add(nose);
+assistantFallback.add(nose);
+assistant.add(assistantFallback);
+loadMallInformationAssistantAvatar(assistant, assistantFallback);
 module.add(assistant);
 
             assistant.traverse((child) => {
@@ -6191,11 +6315,17 @@ module.add(assistant);
         // El relleno del chaflan y las pasarelas usan las mismas instancias, para que
         // luz, rugosidad y reticula se perciban como una sola losa continua.
         const centralCorridorFloorMat = new THREE.MeshStandardMaterial({
-            color: 0xb0b0b0,
-            roughness: 0.1,
-            metalness: 0.1
+            color: 0xa89bab,
+            roughness: 0.16,
+            metalness: 0.18
         });
-        const centralCorridorFloorGridMat = new THREE.MeshStandardMaterial({ color: 0x332211, roughness: 0.2 });
+        const centralCorridorFloorGridMat = new THREE.MeshStandardMaterial({
+            color: 0x89516f,
+            emissive: 0x260712,
+            emissiveIntensity: 0.38,
+            roughness: 0.28,
+            metalness: 0.34
+        });
         const CENTRAL_CORRIDOR_GRID_STEP = 8;
         const CENTRAL_CORRIDOR_GRID_GAP = 0.8;
         // Los locales del segundo nivel parten en Y=5.5, pero la losa transitable
@@ -6586,6 +6716,7 @@ module.add(assistant);
         [-70, -45, -20, 28, 48].forEach((k) => { createPlanter(k, 0); createBench(k, 8, 0); createBench(k, -8, 0); });
         createCentralFountain(); // La fuente crece visualmente por el espacio
         createInformationModule();
+        schedulePublicCommonsModel();
         createDigitalScreen(0, 22.0, 17, 0);
         createDigitalScreen(0, 22.0, -17, Math.PI);
         createDigitalScreen(17, 22.0, 0, -Math.PI / 2);

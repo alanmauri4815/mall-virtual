@@ -1444,11 +1444,11 @@
                 canvasContainer &&
                 event.target.closest &&
                 event.target.closest('#canvas-container, canvas') &&
-                !event.target.closest('#login-overlay, #store-modal, #search-modal, #mall-intro-modal, #store-assistant-modal, #tenant-login-modal, #tenant-apply-modal, #super-admin-modal, #tenant-admin-modal, #password-recovery-modal, #tenant-password-setup-modal, #controls-menu, #mall-quick-tools, #mall-quick-start, #guest-account-actions, input, textarea, button, select, a, label')
+                !event.target.closest('#login-overlay, #store-modal, #search-modal, #mall-intro-modal, #store-assistant-modal, #tenant-login-modal, #tenant-apply-modal, #super-admin-modal, #tenant-admin-modal, #password-recovery-modal, #tenant-password-setup-modal, #avatar-customizer-modal, #controls-menu, #mall-quick-tools, #mall-quick-start, #guest-account-actions, input, textarea, button, select, a, label')
             ) {
                 focusMallCanvas();
             }
-            if (event.target.closest && event.target.closest('#controls-menu, #mall-quick-tools, #mall-quick-start, #guest-account-actions')) return;
+            if (event.target.closest && event.target.closest('#avatar-customizer-modal, #controls-menu, #mall-quick-tools, #mall-quick-start, #guest-account-actions')) return;
             closeControlsMenu();
             // No interactuar con el mall si el login o el modal de búsqueda están abiertos
             if (isElementActuallyVisible(document.getElementById('login-overlay')) ||
@@ -1667,7 +1667,10 @@
             : `mall-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
         let myAvatarBody = "male";
         let myAvatarOutfit = "formal";
-        let myAvatarStyle = "male-formal";
+        let myAvatarSkinTone = "medium";
+        let myAvatarHairColor = "brown";
+        let myAvatarHeight = 175;
+        let myAvatarStyle = "av2.male.formal.medium.brown.175";
         let currentAccessRole = "guest";
         let currentMemberProfile = null;
         let currentUserProfile = null;
@@ -2058,7 +2061,7 @@
         });
 
         function getSelectedAvatarStyleCode() {
-            return `${myAvatarBody}-${myAvatarOutfit}`;
+            return `av2.${myAvatarBody}.${myAvatarOutfit}.${myAvatarSkinTone}.${myAvatarHairColor}.${myAvatarHeight}`;
         }
 
         function parseAvatarStyleCode(styleCode = "1") {
@@ -2067,24 +2070,54 @@
             if (raw === "2") return { body: "male", outfit: "sport" };
             if (raw === "3") return { body: "female", outfit: "urban" };
 
+            if (raw.startsWith("av2.")) {
+                const [, body, outfit, skinTone, hairColor, height] = raw.split(".");
+                return {
+                    body: ["male", "female"].includes(body) ? body : "male",
+                    outfit: ["formal", "casual", "sport"].includes(outfit) ? outfit : "formal",
+                    skinTone: ["fair", "light", "medium", "deep"].includes(skinTone) ? skinTone : "medium",
+                    hairColor: ["black", "brown", "blonde", "auburn"].includes(hairColor) ? hairColor : "brown",
+                    height: [155, 160, 165, 170, 175, 180, 185, 190].includes(Number(height)) ? Number(height) : 175
+                };
+            }
+
             const parts = raw.split("-");
             const body = ["male", "female", "neutral"].includes(parts[0]) ? parts[0] : "neutral";
             const outfit = ["formal", "sport", "urban"].includes(parts[1]) ? parts[1] : "formal";
-            return { body, outfit };
+            return { body, outfit, skinTone: "medium", hairColor: "brown", height: 175 };
+        }
+
+        function updateAvatarSelection(kind, value) {
+            if (kind === 'body') myAvatarBody = value === 'female' ? 'female' : 'male';
+            if (kind === 'outfit') myAvatarOutfit = ["formal", "casual", "sport"].includes(value) ? value : 'formal';
+            if (kind === 'skinTone') myAvatarSkinTone = ["fair", "light", "medium", "deep"].includes(value) ? value : 'medium';
+            if (kind === 'hairColor') myAvatarHairColor = ["black", "brown", "blonde", "auburn"].includes(value) ? value : 'brown';
+            if (kind === 'height') myAvatarHeight = [155, 160, 165, 170, 175, 180, 185, 190].includes(Number(value)) ? Number(value) : 175;
+            myAvatarStyle = getSelectedAvatarStyleCode();
+            localStorage.setItem('mall-avatar-profile-v2', myAvatarStyle);
+            syncAvatarSelectionUi();
+            if (hasEnteredMall) {
+                trackMySelf();
+                broadcastMyPosition();
+            }
+        }
+
+        const savedAvatarStyle = localStorage.getItem('mall-avatar-profile-v2');
+        if (savedAvatarStyle) {
+            const savedAvatar = parseAvatarStyleCode(savedAvatarStyle);
+            myAvatarBody = savedAvatar.body;
+            myAvatarOutfit = savedAvatar.outfit;
+            myAvatarSkinTone = savedAvatar.skinTone;
+            myAvatarHairColor = savedAvatar.hairColor;
+            myAvatarHeight = savedAvatar.height;
+            myAvatarStyle = getSelectedAvatarStyleCode();
         }
 
         function syncAvatarSelectionUi() {
-            document.querySelectorAll('#avatar-selection .avatar-opt').forEach((btn) => {
+            document.querySelectorAll('.avatar-selection .avatar-opt').forEach((btn) => {
                 const kind = btn.dataset.avatarKind;
-                const isSelected = (kind === 'body' && btn.textContent.trim() === ({
-                    male: 'Hombre',
-                    female: 'Mujer',
-                    neutral: 'Otro'
-                })[myAvatarBody]) || (kind === 'outfit' && btn.textContent.trim() === ({
-                    formal: 'Formal',
-                    sport: 'Deportivo',
-                    urban: 'Urbano'
-                })[myAvatarOutfit]);
+                const selected = { body: myAvatarBody, outfit: myAvatarOutfit, skinTone: myAvatarSkinTone, hairColor: myAvatarHairColor, height: String(myAvatarHeight) };
+                const isSelected = btn.dataset.avatarValue === String(selected[kind]);
                 btn.classList.toggle('selected', !!isSelected);
             });
         }
@@ -2100,17 +2133,15 @@
         }
 
         window.selectAvatarBody = function (body, el) {
-            myAvatarBody = ["male", "female", "neutral"].includes(body) ? body : "neutral";
-            myAvatarStyle = getSelectedAvatarStyleCode();
-            document.querySelectorAll('#avatar-selection .avatar-opt[data-avatar-kind=\"body\"]').forEach(btn => btn.classList.remove('selected'));
-            if (el) el.classList.add('selected');
+            updateAvatarSelection('body', body);
         };
 
         window.selectAvatarOutfit = function (outfit, el) {
-            myAvatarOutfit = ["formal", "sport", "urban"].includes(outfit) ? outfit : "formal";
-            myAvatarStyle = getSelectedAvatarStyleCode();
-            document.querySelectorAll('#avatar-selection .avatar-opt[data-avatar-kind=\"outfit\"]').forEach(btn => btn.classList.remove('selected'));
-            if (el) el.classList.add('selected');
+            updateAvatarSelection('outfit', outfit);
+        };
+
+        window.selectAvatarTrait = function (kind, value) {
+            updateAvatarSelection(kind, value);
         };
 
         window.selectAvatar = function (legacyStyleCode, el) {
@@ -2162,6 +2193,20 @@
         window.openLoginChooser = function() {
             window.openMallAccountAccess?.();
             window.setEntryMode('login-choice');
+        };
+
+        window.openAvatarCustomizer = function() {
+            const modal = document.getElementById('avatar-customizer-modal');
+            if (!modal) return;
+            modal.hidden = false;
+            syncAvatarSelectionUi();
+            closeControlsMenu();
+        };
+
+        window.closeAvatarCustomizer = function() {
+            const modal = document.getElementById('avatar-customizer-modal');
+            if (modal) modal.hidden = true;
+            focusMallCanvas();
         };
 
         window.openMemberRegistration = function() {
@@ -5924,6 +5969,7 @@
         window.loadAdminData = async function() {
             if (!await requireAuthoritativeAdminAccess()) return;
             void window.mallAnalytics?.loadAdminDashboard();
+            void window.mallAnalytics?.loadAdminOperationsDashboard();
             const { data: apps, error: appsErr } = await mallUiScopeQuery(
                 supabaseClient
                     .from('tenant_applications')
@@ -7230,9 +7276,9 @@
                     const id = String(pData.playerId || pData.user || "");
                     if (!id || id === myPresenceId || (!pData.playerId && pData.user === myNickname)) return;
                     const displayName = String(pData.nickname || pData.user || "Visitante");
-                    if (!otherPlayers[id]) {
-                        otherPlayers[id] = createAvatar(id, displayName, pData.style || "1");
-                    }
+                    const remoteStyle = pData.style || "1";
+                    if (!otherPlayers[id]) otherPlayers[id] = createAvatar(id, displayName, remoteStyle);
+                    else updateRemoteAvatarStyle(otherPlayers[id], remoteStyle);
                     const p = otherPlayers[id];
                     updateRemotePlayerIdentity(p, displayName);
                     p.remoteMoving = Boolean(pData.moving);
@@ -7417,40 +7463,55 @@
         chatInput.addEventListener('keydown', e => e.stopPropagation());
         chatInput.addEventListener('keyup', e => e.stopPropagation());
 
-        const GAME_READY_AVATAR_URL = "assets/avatars/model.glb";
+        // Versión optimizada del archivo fuente de Blender: se descarga una vez y
+        // se clona con SkeletonUtils para cada jugador remoto.
+        // Mall Persona is the lightweight, branded visitor avatar. It replaces the
+        // photorealistic source for multiplayer visitors while keeping Idle/Walk.
+        const GAME_READY_AVATAR_URLS = {
+            male: "assets/avatars/mall-persona-masculino-v1.glb?v=20260912-mpfb-walk-v1",
+            female: "assets/avatars/mall-persona-femenino-v1.glb?v=20260912-mpfb-walk-v1"
+        };
+        // MPFB exports in decimeter-sized scene units while the mall uses meters.
+        const GAME_READY_AVATAR_BASE_SCALE = 0.108;
+        const GAME_READY_AVATAR_YAW_OFFSET = Math.PI / 6;
         const gameReadyAvatarState = {
             loader: null,
-            promise: null,
-            gltf: null,
-            error: null
+            promises: {},
+            gltfs: {},
+            errors: {}
         };
 
-        function ensureGameReadyAvatarModel() {
-            if (gameReadyAvatarState.gltf) return Promise.resolve(gameReadyAvatarState.gltf);
-            if (gameReadyAvatarState.error) return Promise.reject(gameReadyAvatarState.error);
-            if (gameReadyAvatarState.promise) return gameReadyAvatarState.promise;
+        function getGameReadyAvatarModelKey(styleCode = "1") {
+            return parseAvatarStyleCode(styleCode).body === "female" ? "female" : "male";
+        }
+
+        function ensureGameReadyAvatarModel(modelKey = "male") {
+            const key = GAME_READY_AVATAR_URLS[modelKey] ? modelKey : "male";
+            if (gameReadyAvatarState.gltfs[key]) return Promise.resolve(gameReadyAvatarState.gltfs[key]);
+            if (gameReadyAvatarState.errors[key]) return Promise.reject(gameReadyAvatarState.errors[key]);
+            if (gameReadyAvatarState.promises[key]) return gameReadyAvatarState.promises[key];
             if (!THREE.GLTFLoader || !THREE.SkeletonUtils) {
-                gameReadyAvatarState.error = new Error("GLTFLoader o SkeletonUtils no disponibles.");
-                return Promise.reject(gameReadyAvatarState.error);
+                gameReadyAvatarState.errors[key] = new Error("GLTFLoader o SkeletonUtils no disponibles.");
+                return Promise.reject(gameReadyAvatarState.errors[key]);
             }
 
             gameReadyAvatarState.loader = gameReadyAvatarState.loader || new THREE.GLTFLoader();
-            gameReadyAvatarState.promise = new Promise((resolve, reject) => {
+            gameReadyAvatarState.promises[key] = new Promise((resolve, reject) => {
                 gameReadyAvatarState.loader.load(
-                    GAME_READY_AVATAR_URL,
+                    GAME_READY_AVATAR_URLS[key],
                     (gltf) => {
-                        gameReadyAvatarState.gltf = gltf;
+                        gameReadyAvatarState.gltfs[key] = gltf;
                         resolve(gltf);
                     },
                     undefined,
                     (error) => {
                         console.warn("No se pudo cargar avatar game-ready:", error);
-                        gameReadyAvatarState.error = error;
+                        gameReadyAvatarState.errors[key] = error;
                         reject(error);
                     }
                 );
             });
-            return gameReadyAvatarState.promise;
+            return gameReadyAvatarState.promises[key];
         }
 
         function findBoneByTokens(root, tokens) {
@@ -7481,9 +7542,9 @@
         function extractGameReadyRig(root) {
             const rig = {
                 hips: findBoneByTokens(root, ['hips', 'pelvis']),
-                spine: findBoneByTokens(root, ['spine', 'spine1']),
-                chest: findBoneByTokens(root, ['spine2', 'chest', 'spine3']),
-                neck: findBoneByTokens(root, ['neck']),
+                spine: findBoneByTokens(root, ['spine01', 'spine1', 'spine']),
+                chest: findBoneByTokens(root, ['spine03', 'spine3', 'spine02', 'spine2', 'chest']),
+                neck: findBoneByTokens(root, ['neck01', 'neck']),
                 head: findBoneByTokens(root, ['head']),
                 upperArmL: findBoneByTokens(root, ['leftarm', 'leftupperarm', 'upperarml']),
                 lowerArmL: findBoneByTokens(root, ['leftforearm', 'leftlowerarm', 'lowerarml']),
@@ -7491,11 +7552,11 @@
                 upperArmR: findBoneByTokens(root, ['rightarm', 'rightupperarm', 'upperarmr']),
                 lowerArmR: findBoneByTokens(root, ['rightforearm', 'rightlowerarm', 'lowerarmr']),
                 handR: findBoneByTokens(root, ['righthand', 'handr']),
-                upperLegL: findBoneByTokens(root, ['leftupleg', 'leftthigh', 'uplegl']),
-                lowerLegL: findBoneByTokens(root, ['leftleg', 'leftcalf', 'lowerlegl']),
+                upperLegL: findBoneByTokens(root, ['leftupleg', 'leftthigh', 'uplegl', 'thighl']),
+                lowerLegL: findBoneByTokens(root, ['leftleg', 'leftcalf', 'lowerlegl', 'calfl']),
                 footL: findBoneByTokens(root, ['leftfoot', 'footl']),
-                upperLegR: findBoneByTokens(root, ['rightupleg', 'rightthigh', 'uplegr']),
-                lowerLegR: findBoneByTokens(root, ['rightleg', 'rightcalf', 'lowerlegr']),
+                upperLegR: findBoneByTokens(root, ['rightupleg', 'rightthigh', 'uplegr', 'thighr']),
+                lowerLegR: findBoneByTokens(root, ['rightleg', 'rightcalf', 'lowerlegr', 'calfr']),
                 footR: findBoneByTokens(root, ['rightfoot', 'footr'])
             };
             rig.base = captureBoneEulerMap(rig);
@@ -7533,17 +7594,82 @@
         }
 
         function applyGameReadyAvatarStyle(root, styleCode = "1") {
+            const appearance = parseAvatarStyleCode(styleCode);
+            const skinTones = { fair: 0xf2cfb5, light: 0xe2b08b, medium: 0xbd7a58, deep: 0x70442f };
+            const hairColors = { black: 0x181414, brown: 0x4a2b20, blonde: 0xb88a48, auburn: 0x783522 };
+            const outfitColors = { formal: 0x353333, casual: 0x526b7f, sport: 0x2e6f9e };
             root.traverse((node) => {
                 if (!node.isMesh || !node.material) return;
                 node.castShadow = true;
                 node.receiveShadow = true;
-                const materials = Array.isArray(node.material) ? node.material : [node.material];
+                const materials = (Array.isArray(node.material) ? node.material : [node.material]).map((material) => material?.clone?.() || material);
+                node.material = Array.isArray(node.material) ? materials : materials[0];
                 materials.forEach((material) => {
                     if (!material) return;
                     material.roughness = Math.min(1, (material.roughness ?? 0.7) + 0.08);
                     material.metalness = Math.min(1, material.metalness ?? 0.05);
+                    if (/body/i.test(node.name)) material.color.setHex(skinTones[appearance.skinTone] || skinTones.medium);
+                    if (/hair/i.test(node.name)) material.color.setHex(hairColors[appearance.hairColor] || hairColors.brown);
+                    if (/look/i.test(node.name)) material.color.setHex(outfitColors[appearance.outfit] || outfitColors.formal);
                 });
             });
+        }
+
+        function attachGameReadyAvatarModel(actor, nickname, gltf) {
+            if (actor.gltfRoot) actor.mesh.remove(actor.gltfRoot);
+            const clonedScene = THREE.SkeletonUtils.clone(gltf.scene);
+            const appearance = parseAvatarStyleCode(actor.styleCode);
+            clonedScene.scale.setScalar(GAME_READY_AVATAR_BASE_SCALE * (appearance.height || 175) / 175);
+            clonedScene.position.set(0, actor.gltfBaseY, 0);
+            // Keep this visual correction separate from the synchronized actor yaw.
+            clonedScene.rotation.y = GAME_READY_AVATAR_YAW_OFFSET;
+            applyGameReadyAvatarStyle(clonedScene, actor.styleCode);
+            clonedScene.traverse((node) => {
+                node.userData.playerId = nickname;
+            });
+            actor.mesh.add(clonedScene);
+            actor.gltfRoot = clonedScene;
+            actor.gameReadyRig = extractGameReadyRig(clonedScene);
+            applyGameReadyRestPose(actor.gameReadyRig);
+            actor.actions = {};
+            actor.proceduralLocomotion = false;
+
+            const mixer = new THREE.AnimationMixer(clonedScene);
+            const idleClip = THREE.AnimationClip.findByName(gltf.animations, 'Idle')
+                || findAnimationByTokens(gltf.animations, ['idle'])
+                || gltf.animations?.[0]
+                || null;
+            const walkClip = THREE.AnimationClip.findByName(gltf.animations, 'Walk')
+                || findAnimationByTokens(gltf.animations, ['walk', 'locomotion', 'jog']);
+            const runClip = THREE.AnimationClip.findByName(gltf.animations, 'Run')
+                || findAnimationByTokens(gltf.animations, ['run', 'sprint']);
+            actor.proceduralLocomotion = !walkClip && !runClip && !!actor.gameReadyRig;
+
+            if (idleClip) {
+                const idleAction = mixer.clipAction(idleClip, clonedScene);
+                idleAction.enabled = true;
+                idleAction.play();
+                idleAction.setEffectiveWeight(1);
+                actor.actions.idle = idleAction;
+            }
+            if (walkClip) {
+                const walkAction = mixer.clipAction(walkClip, clonedScene);
+                walkAction.enabled = true;
+                walkAction.play();
+                walkAction.setEffectiveWeight(0);
+                actor.actions.walk = walkAction;
+            }
+            if (runClip) {
+                const runAction = mixer.clipAction(runClip, clonedScene);
+                runAction.enabled = true;
+                runAction.play();
+                runAction.setEffectiveWeight(0);
+                actor.actions.run = runAction;
+            }
+
+            actor.mixer = actor.proceduralLocomotion ? null : (Object.keys(actor.actions).length ? mixer : null);
+            actor.ready = true;
+            actor.mesh.userData.avatarLoading = false;
         }
 
         function createGameReadyAvatar(nickname, styleCode = "1") {
@@ -7563,6 +7689,7 @@
             const actor = {
                 mesh: group,
                 label,
+                styleCode,
                 targetPos: new THREE.Vector3(),
                 targetRot: 0,
                 motionPhase: Math.random() * Math.PI * 2,
@@ -7575,60 +7702,16 @@
                 walkBlend: 0,
                 proceduralLocomotion: false,
                 gltfBaseY: -0.02,
+                modelKey: getGameReadyAvatarModelKey(styleCode),
                 ready: false,
                 rig: null
             };
 
-            ensureGameReadyAvatarModel()
+            const initialModelKey = actor.modelKey;
+            ensureGameReadyAvatarModel(initialModelKey)
                 .then((gltf) => {
-                    const clonedScene = THREE.SkeletonUtils.clone(gltf.scene);
-                    clonedScene.scale.setScalar(1.08);
-                    clonedScene.position.set(0, actor.gltfBaseY, 0);
-                    clonedScene.rotation.y = Math.PI;
-                    applyGameReadyAvatarStyle(clonedScene, styleCode);
-                    clonedScene.traverse((node) => {
-                        node.userData.playerId = nickname;
-                    });
-                    group.add(clonedScene);
-                    actor.gltfRoot = clonedScene;
-                    actor.gameReadyRig = extractGameReadyRig(clonedScene);
-                    applyGameReadyRestPose(actor.gameReadyRig);
-                    const mixer = new THREE.AnimationMixer(clonedScene);
-                    const idleClip = THREE.AnimationClip.findByName(gltf.animations, 'Idle')
-                        || findAnimationByTokens(gltf.animations, ['idle'])
-                        || gltf.animations?.[0]
-                        || null;
-                    const walkClip = THREE.AnimationClip.findByName(gltf.animations, 'Walk')
-                        || findAnimationByTokens(gltf.animations, ['walk', 'locomotion', 'jog']);
-                    const runClip = THREE.AnimationClip.findByName(gltf.animations, 'Run')
-                        || findAnimationByTokens(gltf.animations, ['run', 'sprint']);
-                    actor.proceduralLocomotion = !walkClip && !runClip && !!actor.gameReadyRig;
-
-                    if (idleClip) {
-                        const idleAction = mixer.clipAction(idleClip, clonedScene);
-                        idleAction.enabled = true;
-                        idleAction.play();
-                        idleAction.setEffectiveWeight(1);
-                        actor.actions.idle = idleAction;
-                    }
-                    if (walkClip) {
-                        const walkAction = mixer.clipAction(walkClip, clonedScene);
-                        walkAction.enabled = true;
-                        walkAction.play();
-                        walkAction.setEffectiveWeight(0);
-                        actor.actions.walk = walkAction;
-                    }
-                    if (runClip) {
-                        const runAction = mixer.clipAction(runClip, clonedScene);
-                        runAction.enabled = true;
-                        runAction.play();
-                        runAction.setEffectiveWeight(0);
-                        actor.actions.run = runAction;
-                    }
-
-                    actor.mixer = actor.proceduralLocomotion ? null : (Object.keys(actor.actions).length ? mixer : null);
-                    actor.ready = true;
-                    group.userData.avatarLoading = false;
+                    if (actor.modelKey !== initialModelKey) return;
+                    attachGameReadyAvatarModel(actor, nickname, gltf);
                 })
                 .catch(() => {
                     label.remove();
@@ -7981,9 +8064,10 @@
         }
 
         function createAvatar(playerId, nickname = playerId, styleCode = "1") {
-            const actor = createProceduralAvatar(nickname, styleCode);
+            const actor = createGameReadyAvatar(nickname, styleCode);
             actor.playerId = playerId;
             actor.nickname = nickname;
+            actor.styleCode = styleCode;
             actor.isRemotePlayer = true;
             actor.hasReceivedPose = false;
             actor.remoteMoving = false;
@@ -7995,6 +8079,24 @@
                 obj.userData.playerId = playerId;
             });
             return actor;
+        }
+
+        function updateRemoteAvatarStyle(actor, styleCode) {
+            if (!actor || actor.styleCode === styleCode) return;
+            actor.styleCode = styleCode;
+            const appearance = parseAvatarStyleCode(styleCode);
+            const nextModelKey = getGameReadyAvatarModelKey(styleCode);
+            if (actor.modelKey !== nextModelKey) {
+                actor.modelKey = nextModelKey;
+                // Leave the current model visible until its replacement is ready.
+                ensureGameReadyAvatarModel(nextModelKey)
+                    .then((gltf) => attachGameReadyAvatarModel(actor, actor.nickname, gltf))
+                    .catch((error) => console.warn("No se pudo cambiar el modelo de avatar:", error));
+                return;
+            }
+            if (!actor.gltfRoot) return;
+            actor.gltfRoot.scale.setScalar(GAME_READY_AVATAR_BASE_SCALE * (appearance.height || 175) / 175);
+            applyGameReadyAvatarStyle(actor.gltfRoot, styleCode);
         }
 
         function updateRemotePlayerIdentity(actor, nickname) {
@@ -8202,6 +8304,7 @@
                 if (presence.style) remoteStyle = presence.style;
                 const displayName = String(presence.nickname || id);
                 if (!otherPlayers[id]) otherPlayers[id] = createAvatar(id, displayName, remoteStyle);
+                else updateRemoteAvatarStyle(otherPlayers[id], remoteStyle);
                 updateRemotePlayerIdentity(otherPlayers[id], displayName);
             });
             Object.keys(otherPlayers).forEach((id) => {

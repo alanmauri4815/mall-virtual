@@ -2927,6 +2927,93 @@
             border-top: 1px solid rgba(197, 160, 89, 0.2);
         }
 
+        .avatar-selection h3 {
+            margin: 0 0 10px;
+            font-size: 0.86rem;
+            color: #f0d48b;
+        }
+
+        .avatar-choice-row {
+            display: grid;
+            grid-template-columns: 88px 1fr;
+            gap: 8px;
+            align-items: center;
+            margin: 7px 0;
+        }
+
+        .avatar-choice-row > span {
+            color: #c6c2b8;
+            font-size: 0.75rem;
+        }
+
+        .avatar-choice-row > div {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 3px;
+        }
+
+        .avatar-swatch {
+            width: 26px;
+            min-height: 26px;
+            padding: 0;
+            border-radius: 50%;
+        }
+
+        .avatar-swatch--fair { background: #f2cfb5; }
+        .avatar-swatch--light { background: #e2b08b; }
+        .avatar-swatch--medium { background: #bd7a58; }
+        .avatar-swatch--deep { background: #70442f; }
+
+        .avatar-customizer-modal {
+            position: fixed;
+            top: 88px;
+            right: 28px;
+            z-index: 2700;
+            pointer-events: auto;
+            width: min(390px, calc(100vw - 28px));
+            padding: 15px 16px;
+            border: 1px solid rgba(197, 160, 89, 0.56);
+            border-radius: 8px;
+            background: rgba(16, 16, 14, 0.97);
+            box-shadow: 0 18px 42px rgba(0, 0, 0, 0.42);
+        }
+
+        .avatar-customizer-modal[hidden] { display: none; }
+
+        .avatar-customizer-modal > header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 10px;
+        }
+
+        .avatar-customizer-modal h2 {
+            margin: 0;
+            color: #f0d48b;
+            font-size: 0.95rem;
+            letter-spacing: 0;
+        }
+
+        .avatar-customizer-modal > header button {
+            width: 28px;
+            height: 28px;
+            padding: 0;
+            border: 1px solid rgba(197, 160, 89, 0.48);
+            border-radius: 4px;
+            background: transparent;
+            color: #f0d48b;
+            font-size: 20px;
+            line-height: 1;
+            cursor: pointer;
+        }
+
+        .avatar-customizer-modal .avatar-selection {
+            margin: 0;
+            padding: 0;
+            border: 0;
+        }
+
         .entry-preferences-toggle {
             width: min(100%, 280px);
             min-height: 42px;
@@ -5749,6 +5836,39 @@
             margin-top: 14px;
         }
 
+        .operations-metric-grid {
+            grid-template-columns: repeat(5, minmax(0, 1fr));
+        }
+
+        .operations-metric-grid > div:nth-child(4n) {
+            border-right: 1px solid rgba(197, 160, 89, 0.16);
+        }
+
+        .operations-metric-grid > div:nth-child(5n) {
+            border-right: 0;
+        }
+
+        .operations-detail-grid {
+            margin-top: 16px;
+        }
+
+        .operations-activity-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            padding: 6px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+            color: #bdbdbd;
+            font-size: 11px;
+        }
+
+        .operations-activity-row span:last-child {
+            flex: 0 0 auto;
+            color: #e7c779;
+            font-size: 10px;
+            text-align: right;
+        }
+
         @media (max-width: 900px) {
             .tenant-analytics-section {
                 margin: 8px 20px 22px;
@@ -5756,6 +5876,14 @@
 
             .analytics-metric-grid {
                 grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+
+            .operations-metric-grid > div:nth-child(4n) {
+                border-right: 1px solid rgba(197, 160, 89, 0.16);
+            }
+
+            .operations-metric-grid > div:nth-child(2n) {
+                border-right: 0;
             }
 
             .analytics-metric-grid > div:nth-child(2n) {
