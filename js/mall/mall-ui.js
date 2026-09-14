@@ -7471,8 +7471,8 @@
             male: "assets/avatars/mall-persona-masculino-v2.glb?v=20260914-mpfb-master-v1",
             female: "assets/avatars/mall-persona-femenino-v1.glb?v=20260912-mpfb-walk-v1"
         };
-        // MPFB exports in decimeter-sized scene units while the mall uses meters.
-        const GAME_READY_AVATAR_BASE_SCALE = 0.108;
+        // The final MPFB GLB is exported in meter-sized scene units, matching the mall.
+        const GAME_READY_AVATAR_BASE_SCALE = 1;
         const GAME_READY_AVATAR_YAW_OFFSET = Math.PI / 6;
         const gameReadyAvatarState = {
             loader: null,
