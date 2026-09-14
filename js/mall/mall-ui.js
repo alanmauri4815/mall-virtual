@@ -7468,7 +7468,7 @@
         // Mall Persona is the lightweight, branded visitor avatar. It replaces the
         // photorealistic source for multiplayer visitors while keeping Idle/Walk.
         const GAME_READY_AVATAR_URLS = {
-            male: "assets/avatars/mall-persona-masculino-v1.glb?v=20260912-mpfb-walk-v1",
+            male: "assets/avatars/mall-persona-masculino-v2.glb?v=20260914-mpfb-master-v1",
             female: "assets/avatars/mall-persona-femenino-v1.glb?v=20260912-mpfb-walk-v1"
         };
         // MPFB exports in decimeter-sized scene units while the mall uses meters.
@@ -7546,17 +7546,17 @@
                 chest: findBoneByTokens(root, ['spine03', 'spine3', 'spine02', 'spine2', 'chest']),
                 neck: findBoneByTokens(root, ['neck01', 'neck']),
                 head: findBoneByTokens(root, ['head']),
-                upperArmL: findBoneByTokens(root, ['leftarm', 'leftupperarm', 'upperarml']),
-                lowerArmL: findBoneByTokens(root, ['leftforearm', 'leftlowerarm', 'lowerarml']),
+                upperArmL: findBoneByTokens(root, ['leftarm', 'leftupperarm', 'upperarm01l', 'upperarml']),
+                lowerArmL: findBoneByTokens(root, ['leftforearm', 'leftlowerarm', 'lowerarm01l', 'lowerarml']),
                 handL: findBoneByTokens(root, ['lefthand', 'handl']),
-                upperArmR: findBoneByTokens(root, ['rightarm', 'rightupperarm', 'upperarmr']),
-                lowerArmR: findBoneByTokens(root, ['rightforearm', 'rightlowerarm', 'lowerarmr']),
+                upperArmR: findBoneByTokens(root, ['rightarm', 'rightupperarm', 'upperarm01r', 'upperarmr']),
+                lowerArmR: findBoneByTokens(root, ['rightforearm', 'rightlowerarm', 'lowerarm01r', 'lowerarmr']),
                 handR: findBoneByTokens(root, ['righthand', 'handr']),
-                upperLegL: findBoneByTokens(root, ['leftupleg', 'leftthigh', 'uplegl', 'thighl']),
-                lowerLegL: findBoneByTokens(root, ['leftleg', 'leftcalf', 'lowerlegl', 'calfl']),
+                upperLegL: findBoneByTokens(root, ['leftupleg', 'leftthigh', 'upperleg01l', 'uplegl', 'thighl']),
+                lowerLegL: findBoneByTokens(root, ['leftleg', 'leftcalf', 'lowerleg01l', 'lowerlegl', 'calfl']),
                 footL: findBoneByTokens(root, ['leftfoot', 'footl']),
-                upperLegR: findBoneByTokens(root, ['rightupleg', 'rightthigh', 'uplegr', 'thighr']),
-                lowerLegR: findBoneByTokens(root, ['rightleg', 'rightcalf', 'lowerlegr', 'calfr']),
+                upperLegR: findBoneByTokens(root, ['rightupleg', 'rightthigh', 'upperleg01r', 'uplegr', 'thighr']),
+                lowerLegR: findBoneByTokens(root, ['rightleg', 'rightcalf', 'lowerleg01r', 'lowerlegr', 'calfr']),
                 footR: findBoneByTokens(root, ['rightfoot', 'footr'])
             };
             rig.base = captureBoneEulerMap(rig);
@@ -7608,9 +7608,10 @@
                     if (!material) return;
                     material.roughness = Math.min(1, (material.roughness ?? 0.7) + 0.08);
                     material.metalness = Math.min(1, material.metalness ?? 0.05);
-                    if (/body/i.test(node.name)) material.color.setHex(skinTones[appearance.skinTone] || skinTones.medium);
-                    if (/hair/i.test(node.name)) material.color.setHex(hairColors[appearance.hairColor] || hairColors.brown);
-                    if (/look/i.test(node.name)) material.color.setHex(outfitColors[appearance.outfit] || outfitColors.formal);
+                    const materialName = String(material.name || '');
+                    if (/body|skin/i.test(`${node.name} ${materialName}`)) material.color.setHex(skinTones[appearance.skinTone] || skinTones.medium);
+                    if (/hair/i.test(`${node.name} ${materialName}`)) material.color.setHex(hairColors[appearance.hairColor] || hairColors.brown);
+                    if (/look|outfit|jacket|sleeve|pants|casualsuit|shoes/i.test(`${node.name} ${materialName}`)) material.color.setHex(outfitColors[appearance.outfit] || outfitColors.formal);
                 });
             });
         }
@@ -7636,11 +7637,10 @@
 
             const mixer = new THREE.AnimationMixer(clonedScene);
             const idleClip = THREE.AnimationClip.findByName(gltf.animations, 'Idle')
-                || findAnimationByTokens(gltf.animations, ['idle'])
-                || gltf.animations?.[0]
-                || null;
+                || findAnimationByTokens(gltf.animations, ['idle']);
             const walkClip = THREE.AnimationClip.findByName(gltf.animations, 'Walk')
-                || findAnimationByTokens(gltf.animations, ['walk', 'locomotion', 'jog']);
+                || findAnimationByTokens(gltf.animations, ['walk', 'locomotion', 'jog'])
+                || ((gltf.animations?.length === 1) ? gltf.animations[0] : null);
             const runClip = THREE.AnimationClip.findByName(gltf.animations, 'Run')
                 || findAnimationByTokens(gltf.animations, ['run', 'sprint']);
             actor.proceduralLocomotion = !walkClip && !runClip && !!actor.gameReadyRig;
