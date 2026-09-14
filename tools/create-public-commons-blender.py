@@ -151,63 +151,6 @@ def create_lighting(materials):
         add_cylinder(f"Atrium satellite cable {index}", x, y, 14.5, 0.025, 9.3, bronze, 8)
 
 
-def create_gallery_lighting(pink, aqua):
-    # Four slim spines align with the cross-shaped public corridors. They use
-    # emissive material instead of dynamic lamps, preserving the frame budget.
-    ribbon_height = 9.65
-    ribbon_length = 154
-    ribbon_offset = 11.2
-    for sign in (-1, 1):
-        add_box(
-            f"Gallery pink ribbon north-south {sign}",
-            sign * ribbon_offset,
-            0,
-            ribbon_height,
-            0.14,
-            ribbon_length,
-            0.14,
-            pink,
-            bevel=0.035,
-        )
-        add_box(
-            f"Gallery aqua ribbon east-west {sign}",
-            0,
-            sign * ribbon_offset,
-            ribbon_height - 0.08,
-            ribbon_length,
-            0.14,
-            0.14,
-            aqua,
-            bevel=0.035,
-        )
-
-    downlight_positions = range(-72, 73, 12)
-    for axis in (-1, 1):
-        for position in downlight_positions:
-            if abs(position) < 12:
-                continue
-            add_cylinder(
-                f"Gallery recessed downlight x {axis} {position}",
-                axis * 5.2,
-                position,
-                ribbon_height - 0.05,
-                0.22,
-                0.08,
-                pink,
-                12,
-            )
-            add_cylinder(
-                f"Gallery recessed downlight z {axis} {position}",
-                position,
-                axis * 5.2,
-                ribbon_height - 0.05,
-                0.22,
-                0.08,
-                aqua,
-                12,
-            )
-
-
 def join_material_batches(root):
     grouped = {}
     for obj in list(bpy.context.scene.objects):
@@ -257,7 +200,6 @@ def main():
     for index, (x, y, rotation) in enumerate(lounges, start=1):
         create_lounge(x, y, rotation, (terrazzo, oak, brass, soil, leaf_light, leaf_dark), index)
     create_lighting((brass, pink, aqua))
-    create_gallery_lighting(pink, aqua)
     join_material_batches(root)
 
     bpy.context.scene["asset"] = "Mall public commons v2"
