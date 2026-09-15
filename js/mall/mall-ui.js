@@ -7283,6 +7283,9 @@
                     updateRemotePlayerIdentity(p, displayName);
                     p.remoteMoving = Boolean(pData.moving);
                     p.remoteSpeed = Number.isFinite(pData.speed) ? Math.max(0, pData.speed) : 0;
+                    p.motionMode = ['idle', 'walk', 'backward', 'turnLeft', 'turnRight'].includes(pData.motion)
+                        ? pData.motion
+                        : (p.remoteMoving ? 'walk' : 'idle');
                     p.lastPoseReceivedAt = performance.now();
                     if (typeof pData.escId === 'number' && typeof pData.escT === 'number' && escalatorList[pData.escId]) {
                         const escalator = escalatorList[pData.escId];
@@ -7291,6 +7294,7 @@
                         p.targetRot = escalator.travelDir > 0 ? 0 : Math.PI;
                         p.escalatorState = { id: escalator.id, t: pData.escT };
                         p.remoteMoving = true;
+                        p.motionMode = 'walk';
                     } else {
                         const remoteGroundY = pData.y - PLAYER_EYE_HEIGHT + AVATAR_FLOOR_OFFSET;
                         p.targetPos.set(pData.x, remoteGroundY, pData.z);
@@ -7379,6 +7383,7 @@
             const dir = new THREE.Vector3();
             camera.getWorldDirection(dir);
             const realRot = Math.atan2(dir.x, dir.z);
+            const motion = window.getMallMotionIntent?.() || (myIsMoving ? 'walk' : 'idle');
 
             presenceChannel.send({
                 type: 'broadcast',
@@ -7395,6 +7400,7 @@
                     r: realRot,
                     moving: myIsMoving,
                     speed: Number(myMoveSpeed.toFixed(3)),
+                    motion,
                     escId: currentEscalatorState ? currentEscalatorState.id : null,
                     escT: currentEscalatorState ? currentEscalatorState.t : null
                 }
@@ -7470,6 +7476,11 @@
             male: "assets/avatars/hombre-caminando-2.glb?v=20260914-mixamo-movement-test",
             female: "assets/avatars/mall-persona-femenino-v1.glb?v=20260912-mpfb-walk-v1"
         };
+        const GAME_READY_AVATAR_ACTION_URLS = {
+            idle: "assets/avatars/animations/idle.glb?v=20260915-motion-v1",
+            backward: "assets/avatars/animations/backward.glb?v=20260915-motion-v1",
+            turnLeft: "assets/avatars/animations/turn-left.glb?v=20260915-motion-v1"
+        };
         // The final MPFB GLB is exported in meter-sized scene units, matching the mall.
         const GAME_READY_AVATAR_BASE_SCALE = 1;
         const GAME_READY_AVATAR_YAW_OFFSET = 0;
@@ -7477,7 +7488,9 @@
             loader: null,
             promises: {},
             gltfs: {},
-            errors: {}
+            errors: {},
+            actionPromise: null,
+            actionClips: null
         };
 
         function getGameReadyAvatarModelKey(styleCode = "1") {
@@ -7511,6 +7524,30 @@
                 );
             });
             return gameReadyAvatarState.promises[key];
+        }
+
+        function ensureGameReadyAvatarActionClips() {
+            if (gameReadyAvatarState.actionClips) return Promise.resolve(gameReadyAvatarState.actionClips);
+            if (gameReadyAvatarState.actionPromise) return gameReadyAvatarState.actionPromise;
+            if (!THREE.GLTFLoader) return Promise.resolve({});
+
+            gameReadyAvatarState.loader = gameReadyAvatarState.loader || new THREE.GLTFLoader();
+            const entries = Object.entries(GAME_READY_AVATAR_ACTION_URLS);
+            gameReadyAvatarState.actionPromise = Promise.all(entries.map(([name, url]) => new Promise((resolve) => {
+                gameReadyAvatarState.loader.load(
+                    url,
+                    (gltf) => resolve([name, gltf.animations?.[0] || null]),
+                    undefined,
+                    (error) => {
+                        console.warn(`No se pudo cargar la accion ${name}:`, error);
+                        resolve([name, null]);
+                    }
+                );
+            }))).then((loaded) => {
+                gameReadyAvatarState.actionClips = Object.fromEntries(loaded.filter(([, clip]) => !!clip));
+                return gameReadyAvatarState.actionClips;
+            });
+            return gameReadyAvatarState.actionPromise;
         }
 
         function findBoneByTokens(root, tokens) {
@@ -7619,7 +7656,7 @@
             });
         }
 
-        function attachGameReadyAvatarModel(actor, nickname, gltf) {
+        function attachGameReadyAvatarModel(actor, nickname, gltf, actionClips = {}) {
             if (actor.gltfRoot) actor.mesh.remove(actor.gltfRoot);
             const clonedScene = THREE.SkeletonUtils.clone(gltf.scene);
             const appearance = parseAvatarStyleCode(actor.styleCode);
@@ -7638,13 +7675,16 @@
             actor.proceduralLocomotion = false;
 
             const mixer = new THREE.AnimationMixer(clonedScene);
-            const idleClip = THREE.AnimationClip.findByName(gltf.animations, 'Idle')
+            const idleClip = actionClips.idle
+                || THREE.AnimationClip.findByName(gltf.animations, 'Idle')
                 || findAnimationByTokens(gltf.animations, ['idle']);
             const walkClip = THREE.AnimationClip.findByName(gltf.animations, 'Walk')
                 || findAnimationByTokens(gltf.animations, ['walk', 'locomotion', 'jog'])
                 || ((gltf.animations?.length === 1) ? gltf.animations[0] : null);
             const runClip = THREE.AnimationClip.findByName(gltf.animations, 'Run')
                 || findAnimationByTokens(gltf.animations, ['run', 'sprint']);
+            const backwardClip = actionClips.backward || null;
+            const turnLeftClip = actionClips.turnLeft || null;
             actor.proceduralLocomotion = !walkClip && !runClip && !!actor.gameReadyRig;
             if (actor.proceduralLocomotion) applyGameReadyRestPose(actor.gameReadyRig);
 
@@ -7669,8 +7709,23 @@
                 runAction.setEffectiveWeight(0);
                 actor.actions.run = runAction;
             }
+            if (backwardClip) {
+                const backwardAction = mixer.clipAction(backwardClip, clonedScene);
+                backwardAction.enabled = true;
+                backwardAction.play();
+                backwardAction.setEffectiveWeight(0);
+                actor.actions.backward = backwardAction;
+            }
+            if (turnLeftClip) {
+                const turnLeftAction = mixer.clipAction(turnLeftClip, clonedScene);
+                turnLeftAction.enabled = true;
+                turnLeftAction.play();
+                turnLeftAction.setEffectiveWeight(0);
+                actor.actions.turnLeft = turnLeftAction;
+            }
 
             actor.mixer = actor.proceduralLocomotion ? null : (Object.keys(actor.actions).length ? mixer : null);
+            actor.activeMotion = actor.actions.idle ? 'idle' : (actor.actions.walk ? 'walk' : '');
             actor.ready = true;
             actor.mesh.userData.avatarLoading = false;
         }
@@ -7711,10 +7766,10 @@
             };
 
             const initialModelKey = actor.modelKey;
-            ensureGameReadyAvatarModel(initialModelKey)
-                .then((gltf) => {
+            Promise.all([ensureGameReadyAvatarModel(initialModelKey), ensureGameReadyAvatarActionClips()])
+                .then(([gltf, actionClips]) => {
                     if (actor.modelKey !== initialModelKey) return;
-                    attachGameReadyAvatarModel(actor, nickname, gltf);
+                    attachGameReadyAvatarModel(actor, nickname, gltf, actionClips);
                 })
                 .catch(() => {
                     label.remove();
@@ -8037,6 +8092,7 @@
                 label: label,
                 targetPos: new THREE.Vector3(),
                 targetRot: 0,
+                motionMode: 'idle',
                 motionPhase: Math.random() * Math.PI * 2,
                 idlePhase: Math.random() * Math.PI * 2,
                 rig: {
@@ -8132,14 +8188,23 @@
                 if (actor.mixer && !actor.proceduralLocomotion) {
                     actor.mixer.update(deltaSec);
 
-                    const targetBlend = moving ? 1 : 0;
-                    actor.walkBlend = THREE.MathUtils.lerp(actor.walkBlend || 0, targetBlend, moving ? 0.22 : 0.14);
+                    const requestedMotion = actor.motionMode === 'backward' ? 'backward'
+                        : actor.motionMode === 'turnLeft' ? 'turnLeft'
+                        : moving ? 'walk' : 'idle';
+                    const nextMotion = actor.actions[requestedMotion]
+                        ? requestedMotion
+                        : (moving && actor.actions.walk ? 'walk' : (actor.actions.idle ? 'idle' : requestedMotion));
+                    if (nextMotion !== actor.activeMotion && actor.actions[nextMotion]) {
+                        const previousAction = actor.actions[actor.activeMotion];
+                        const nextAction = actor.actions[nextMotion];
+                        if (previousAction) previousAction.crossFadeTo(nextAction, 0.16, false);
+                        else nextAction.setEffectiveWeight(1);
+                        nextAction.reset().play();
+                        actor.activeMotion = nextMotion;
+                    }
 
-                    if (actor.actions.idle) actor.actions.idle.setEffectiveWeight(1 - actor.walkBlend);
-
-                    const locomotionAction = actor.actions.walk || actor.actions.run || null;
-                    if (locomotionAction) {
-                        locomotionAction.setEffectiveWeight(actor.walkBlend);
+                    const locomotionAction = actor.actions[nextMotion];
+                    if (locomotionAction && (nextMotion === 'walk' || nextMotion === 'backward')) {
                         locomotionAction.timeScale = THREE.MathUtils.clamp(0.78 + movementAmount * 34, 0.78, 1.22);
                     }
 

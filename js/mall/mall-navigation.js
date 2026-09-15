@@ -1,5 +1,12 @@
 ﻿        // --- SISTEMA DE NAVEGACIÓN REFORZADO (TECLADO + JOYSTICK) ---
         const keys = { ArrowUp: false, ArrowDown: false, ArrowLeft: false, ArrowRight: false, KeyW: false, KeyS: false, KeyA: false, KeyD: false, ControlLeft: false, ControlRight: false };
+        window.getMallMotionIntent = function() {
+            if (keys.KeyS || keys.ArrowDown) return 'backward';
+            if (keys.ArrowLeft) return 'turnLeft';
+            if (keys.ArrowRight) return 'turnRight';
+            if (keys.KeyW || keys.ArrowUp || keys.KeyA || keys.KeyD) return 'walk';
+            return 'idle';
+        };
         const canvasContainer = document.getElementById('canvas-container');
         const shouldPreserveTextFocus = () => {
             const active = document.activeElement;
