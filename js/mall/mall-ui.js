@@ -7465,10 +7465,9 @@
 
         // Versión optimizada del archivo fuente de Blender: se descarga una vez y
         // se clona con SkeletonUtils para cada jugador remoto.
-        // Mall Persona is the lightweight, branded visitor avatar. It replaces the
-        // photorealistic source for multiplayer visitors while keeping Idle/Walk.
+        // Use the supplied Mixamo-rigged body while validating its walk in the mall.
         const GAME_READY_AVATAR_URLS = {
-            male: "assets/avatars/mall-persona-masculino-v2.glb?v=20260914-mixamo-walk-v2",
+            male: "assets/avatars/hombre-caminando-2.glb?v=20260914-mixamo-movement-test",
             female: "assets/avatars/mall-persona-femenino-v1.glb?v=20260912-mpfb-walk-v1"
         };
         // The final MPFB GLB is exported in meter-sized scene units, matching the mall.
@@ -7635,7 +7634,6 @@
             actor.mesh.add(clonedScene);
             actor.gltfRoot = clonedScene;
             actor.gameReadyRig = extractGameReadyRig(clonedScene);
-            applyGameReadyRestPose(actor.gameReadyRig);
             actor.actions = {};
             actor.proceduralLocomotion = false;
 
@@ -7648,6 +7646,7 @@
             const runClip = THREE.AnimationClip.findByName(gltf.animations, 'Run')
                 || findAnimationByTokens(gltf.animations, ['run', 'sprint']);
             actor.proceduralLocomotion = !walkClip && !runClip && !!actor.gameReadyRig;
+            if (actor.proceduralLocomotion) applyGameReadyRestPose(actor.gameReadyRig);
 
             if (idleClip) {
                 const idleAction = mixer.clipAction(idleClip, clonedScene);
