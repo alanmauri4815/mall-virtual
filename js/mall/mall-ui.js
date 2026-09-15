@@ -7468,12 +7468,12 @@
         // Mall Persona is the lightweight, branded visitor avatar. It replaces the
         // photorealistic source for multiplayer visitors while keeping Idle/Walk.
         const GAME_READY_AVATAR_URLS = {
-            male: "assets/avatars/mall-persona-masculino-v2.glb?v=20260914-mpfb-master-v1",
+            male: "assets/avatars/mall-persona-masculino-v2.glb?v=20260914-mixamo-walk-v2",
             female: "assets/avatars/mall-persona-femenino-v1.glb?v=20260912-mpfb-walk-v1"
         };
         // The final MPFB GLB is exported in meter-sized scene units, matching the mall.
         const GAME_READY_AVATAR_BASE_SCALE = 1;
-        const GAME_READY_AVATAR_YAW_OFFSET = Math.PI / 6;
+        const GAME_READY_AVATAR_YAW_OFFSET = 0;
         const gameReadyAvatarState = {
             loader: null,
             promises: {},
