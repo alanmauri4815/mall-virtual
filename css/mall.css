@@ -6780,7 +6780,10 @@
 
         #store-modal .store-whatsapp-link {
             border-color: var(--catalog-whatsapp);
-            color: var(--catalog-whatsapp);
+        }
+
+        #store-modal .store-contact-actions .store-contact-action {
+            color: #000;
         }
 
         #store-modal #btn-manage-store {
