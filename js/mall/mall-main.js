@@ -123,17 +123,18 @@
                             searchCodes.includes(String(s.id).toLowerCase()) ||
                             searchCodes.includes(String(s.local_code || "").toLowerCase())
                         ) || null;
-                    } else {
+                    }
+                    if (!dbStore) {
                         for (const candidate of codeCandidates) {
                             const byId = await mallMainScopeQuery(supabaseClient.from('stores').select('*').eq('id', candidate)).maybeSingle();
-                            if (byId.data) {
+                            if (!byId.error && byId.data) {
                                 dbStore = byId.data;
                                 break;
                             }
                         }
                     }
                 }
-                if (!dbStore && codeCandidates.length && !window.supabaseStoresCache) {
+                if (!dbStore && codeCandidates.length) {
                     for (const candidate of codeCandidates) {
                         const byLocalCode = await mallMainScopeQuery(supabaseClient.from('stores').select('*').ilike('local_code', candidate)).maybeSingle();
                         if (!byLocalCode.error && byLocalCode.data) {
@@ -220,82 +221,106 @@
 
         async function openPublicStoreCatalog(storeRef) {
             try {
-                const shopCode = typeof storeRef === 'string' ? storeRef : storeRef?.userData?.shopCode;
+                const shopCode = typeof storeRef === 'string'
+                    ? storeRef
+                    : storeRef?.userData?.shopCode || storeRef?.userData?.sourceShopCode;
                 if (!shopCode) return;
-                
-                // Intentar obtener datos base de la caché de forma síncrona
-                let data = getCachedStoreData(shopCode);
-                if (!data) {
-                    // Fallback si no está en la caché aún
-                    data = await getStoreData(shopCode);
+
+                let data = getCachedStoreData(shopCode) || {
+                    shopCode,
+                    name: storeRef?.userData?.name || `Local ${shopCode}`,
+                    category: storeRef?.userData?.category || "Comercio",
+                    storeId: shopCode,
+                    products: [],
+                    isLoadingProducts: true
+                };
+                if (storeRef?.userData?.isAnchor) data.name = storeRef.userData.name;
+
+                const cachedProducts = window.storeProductsCache?.get(data.shopCode)
+                    || window.storeProductsCache?.get(data.storeId);
+                if (cachedProducts?.length) {
+                    data.products = mapCatalogProducts(cachedProducts, data);
+                    data.isLoadingProducts = false;
+                } else {
+                    data.products = [];
+                    data.isLoadingProducts = true;
                 }
-                
-                if (storeRef?.userData?.isAnchor && data) {
-                    data.name = storeRef.userData.name;
-                }
-                if (data) {
-                    await enrichStoreTenantApplication(data);
-                }
-                
-                if (data) {
-                    // Si los productos ya están en la caché global de productos
-                    const cachedProducts = window.storeProductsCache?.get(data.shopCode) || window.storeProductsCache?.get(data.storeId);
-                    if (cachedProducts) {
-                        const productLimit = getFallbackProductLimitForStore(data);
-                        const mapped = cachedProducts.slice(0, productLimit).map(p => ({
-                            id: p.id || null,
-                            n: p.name || p.n || "Producto", 
-                            p: p.price || p.p || "-", 
-                            image_url: p.image_url || p.img || "",
-                            description: p.description || ""
-                        }));
-                        data.products = mapped.length > 0 ? mapped : [{ n: "Consultar catálogo", p: "-" }];
-                        data.isLoadingProducts = false;
-                        openModal(data);
-                    } else {
-                        // Si no están en la caché de productos, abrimos el modal mostrando cargando
-                        data.products = [];
-                        data.isLoadingProducts = true;
-                        openModal(data);
-                        
-                        // Cargamos los productos asíncronamente en segundo plano
-                        const storeCode = data.shopCode;
-                        loadStoreProducts(storeCode).then(async (productsResult) => {
-                            if ((!productsResult.products || !productsResult.products.length) && data.storeId && data.storeId !== storeCode) {
+
+                openModal(data);
+
+                const isCurrentCatalog = () => document.getElementById('store-modal')?.style.display === 'block'
+                    && currentModalStoreCode === data.shopCode;
+
+                void enrichStoreTenantApplication(data).then(() => {
+                    if (isCurrentCatalog()) {
+                        renderStorePublicInfo(document.getElementById('modal-store-links'), data);
+                    }
+                }).catch(error => console.warn("Error cargando datos comerciales opcionales:", error));
+
+                void (async () => {
+                    try {
+                        let loadedProducts = null;
+                        if (!data.storeRecord) {
+                            const loadedData = await getStoreData(shopCode);
+                            if (loadedData?.storeRecord || storeRef?.userData?.isAnchor) {
+                                data = { ...data, ...loadedData };
+                                loadedProducts = loadedData.products;
+                                if (storeRef?.userData?.isAnchor) data.name = storeRef.userData.name;
+                                if (isCurrentCatalog()) openModal(data, { trackOpen: false });
+                            } else {
+                                data.isLoadingProducts = false;
+                                data.products = [];
+                                if (isCurrentCatalog()) {
+                                    updateModalProductsOnly(data);
+                                    document.getElementById('modal-store-summary').innerText =
+                                        'No encontramos la ficha comercial de este local. Intenta abrirla nuevamente en unos momentos.';
+                                }
+                                return;
+                            }
+                        }
+
+                        if (!loadedProducts?.length) {
+                            let productsResult = await loadStoreProducts(data.shopCode);
+                            if ((!productsResult.products || !productsResult.products.length) && data.storeId && data.storeId !== data.shopCode) {
                                 productsResult = await loadStoreProducts(data.storeId);
                             }
-                            const productLimit = getFallbackProductLimitForStore(data);
-                            const dbProducts = (productsResult.products || []).slice(0, productLimit);
-                            const mappedProducts = dbProducts.map(p => ({ 
-                                id: p.id || null,
-                                n: p.name || p.n || "Producto", 
-                                p: p.price || p.p || "-", 
-                                image_url: p.image_url || p.img || "",
-                                description: p.description || ""
-                            }));
-                            data.products = mappedProducts.length > 0 ? mappedProducts : [{ n: "Consultar catálogo", p: "-" }];
-                            data.isLoadingProducts = false;
-                            
-                            // Si el modal sigue abierto para este mismo local, refrescarlo
-                            if (document.getElementById('store-modal').style.display === 'block' && currentModalStoreCode === storeCode) {
-                                updateModalProductsOnly(data);
-                            }
-                        }).catch(err => {
-                            console.warn("Error cargando productos en segundo plano:", err);
-                        });
+                            loadedProducts = productsResult.products || [];
+                        }
+
+                        data.products = loadedProducts?.length
+                            ? mapCatalogProducts(loadedProducts, data)
+                            : [{ n: "Consultar catálogo", p: "-" }];
+                        data.isLoadingProducts = false;
+                        if (isCurrentCatalog()) openModal(data, { trackOpen: false });
+                        hydrateStoreVisualsFromCatalogData(data).catch(error => console.warn("Error hidratando visuales:", error));
+                    } catch (error) {
+                        console.warn("Error cargando el catálogo del local:", error);
+                        data.isLoadingProducts = false;
+                        data.products = [];
+                        if (isCurrentCatalog()) {
+                            updateModalProductsOnly(data);
+                            document.getElementById('modal-store-summary').innerText =
+                                'No pudimos cargar los productos en este momento. Cierra esta ficha e inténtalo nuevamente.';
+                        }
                     }
-                }
-                
-                // Cargar visuales en segundo plano para no bloquear la apertura
-                if (data) {
-                    hydrateStoreVisualsFromCatalogData(data).catch(e => console.warn("Error hidratando visuales:", e));
-                }
+                })();
             } catch (err) {
                 console.error("Error abriendo catálogo:", err);
                 showInteractionFeedback("Error al abrir catálogo");
             }
         }
         window.openPublicStoreCatalog = openPublicStoreCatalog;
+
+        function mapCatalogProducts(products, data) {
+            const productLimit = getFallbackProductLimitForStore(data);
+            return (products || []).slice(0, productLimit).map(product => ({
+                id: product.id || null,
+                n: product.name || product.n || "Producto",
+                p: product.price || product.p || "-",
+                image_url: product.image_url || product.img || "",
+                description: product.description || ""
+            }));
+        }
 
         function appendProductRow(tbody, product) {
             const tr = document.createElement('tr');
@@ -453,6 +478,10 @@
                 : "";
         }
 
+        function buildSafeTelHref(phone = "") {
+            return window.mallSecurity?.buildSafeTelHref?.(phone) || "";
+        }
+
         function buildStorePublicInfoRows(data = {}) {
             const record = data.storeRecord || {};
             const phone = firstAvailableField(record, ["contact_phone", "phone", "telefono", "celular"]) || data.contactPhone || "";
@@ -541,7 +570,7 @@
             });
         }
 
-        function openModal(data) {
+        function openModal(data, { trackOpen = true } = {}) {
             currentModalStoreCode = data.shopCode;
             currentModalStoreId = data.storeId || data.shopCode;
             const storeModal = document.getElementById('store-modal');
@@ -549,7 +578,7 @@
             const previewReturnBtn = document.getElementById('btn-return-tenant-preview');
             const manageBtn = document.getElementById('btn-manage-store');
             const isTenantPreview = !!data.previewMode;
-            if (!isTenantPreview) {
+            if (!isTenantPreview && trackOpen) {
                 window.mallAnalytics?.track('store_opened', {
                     storeCode: data.shopCode,
                     source: 'catalog'
