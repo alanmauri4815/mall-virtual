@@ -1,4 +1,4 @@
-﻿        // --- SISTEMA DE BÚSQUEDA Y MAPAS ---
+        // --- SISTEMA DE BÚSQUEDA Y MAPAS ---
         const mallUiScopeQuery = (query) => window.mallContext?.scopeQuery
             ? window.mallContext.scopeQuery(query)
             : query;
@@ -1665,12 +1665,38 @@
         const myPresenceId = window.crypto?.randomUUID
             ? window.crypto.randomUUID()
             : `mall-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-        let myAvatarBody = "male";
-        let myAvatarOutfit = "formal";
-        let myAvatarSkinTone = "medium";
-        let myAvatarHairColor = "brown";
-        let myAvatarHeight = 175;
-        let myAvatarStyle = "av2.male.formal.medium.brown.175";
+        const AVATAR_SKIN_TONES = Object.freeze(["fair", "light", "olive", "latino", "asian", "medium", "deep", "rich"]);
+        const AVATAR_AGES = Object.freeze(["young", "adult", "senior"]);
+        const AVATAR_OUTFITS = Object.freeze({
+            male: ["casual", "elegant", "work"],
+            female: ["casual", "elegant", "sport"]
+        });
+        const AVATAR_HAIR_STYLES = Object.freeze({
+            male: ["short01", "short02", "short03", "short04", "afro01"],
+            female: ["bob01", "long01", "ponytail01", "braid01", "afro01"]
+        });
+        const AVATAR_HAIR_COLORS = Object.freeze(["black", "brown", "blonde", "auburn"]);
+        const getDefaultAvatarHairStyle = (body) => body === "female" ? "ponytail01" : "short01";
+        const DEFAULT_AVATAR_PROFILE = Object.freeze({
+            body: "male",
+            outfit: "casual",
+            skinTone: "medium",
+            hairColor: "brown",
+            hairStyle: "short01",
+            eyeColor: "brown",
+            age: "adult",
+            height: 175
+        });
+        let myAvatarBody = DEFAULT_AVATAR_PROFILE.body;
+        let myAvatarOutfit = DEFAULT_AVATAR_PROFILE.outfit;
+        let myAvatarSkinTone = DEFAULT_AVATAR_PROFILE.skinTone;
+        let myAvatarHairColor = DEFAULT_AVATAR_PROFILE.hairColor;
+        let myAvatarHairStyle = DEFAULT_AVATAR_PROFILE.hairStyle;
+        let myAvatarEyeColor = DEFAULT_AVATAR_PROFILE.eyeColor;
+        let myAvatarAge = DEFAULT_AVATAR_PROFILE.age;
+        let myAvatarHeight = DEFAULT_AVATAR_PROFILE.height;
+        let myAvatarStyle = "av2.male.casual.medium.brown.175.brown.adult.short01";
+        let avatarCustomizerDraft = null;
         let currentAccessRole = "guest";
         let currentMemberProfile = null;
         let currentUserProfile = null;
@@ -2061,7 +2087,28 @@
         });
 
         function getSelectedAvatarStyleCode() {
-            return `av2.${myAvatarBody}.${myAvatarOutfit}.${myAvatarSkinTone}.${myAvatarHairColor}.${myAvatarHeight}`;
+            return `av2.${myAvatarBody}.${myAvatarOutfit}.${myAvatarSkinTone}.${myAvatarHairColor}.${myAvatarHeight}.${myAvatarEyeColor}.${myAvatarAge}.${myAvatarHairStyle}`;
+        }
+
+        function getCommittedAvatarProfile() {
+            return {
+                body: myAvatarBody,
+                outfit: myAvatarOutfit,
+                skinTone: myAvatarSkinTone,
+                hairColor: myAvatarHairColor,
+                hairStyle: myAvatarHairStyle,
+                eyeColor: myAvatarEyeColor,
+                age: myAvatarAge,
+                height: myAvatarHeight
+            };
+        }
+
+        function getAvatarProfileStyleCode(profile) {
+            return `av2.${profile.body}.${profile.outfit}.${profile.skinTone}.${profile.hairColor}.${profile.height}.${profile.eyeColor}.${profile.age}.${profile.hairStyle}`;
+        }
+
+        function syncPlayerEyeHeightToAvatarProfile() {
+            window.setPlayerAvatarEyeHeight?.(myAvatarHeight, { force: true });
         }
 
         function parseAvatarStyleCode(styleCode = "1") {
@@ -2071,12 +2118,16 @@
             if (raw === "3") return { body: "female", outfit: "urban" };
 
             if (raw.startsWith("av2.")) {
-                const [, body, outfit, skinTone, hairColor, height] = raw.split(".");
+                const [, body, outfit, skinTone, hairColor, height, eyeColor, age, hairStyle] = raw.split(".");
+                const normalizedBody = body === "female" ? "female" : "male";
                 return {
-                    body: ["male", "female"].includes(body) ? body : "male",
-                    outfit: ["formal", "casual", "sport"].includes(outfit) ? outfit : "formal",
-                    skinTone: ["fair", "light", "medium", "deep"].includes(skinTone) ? skinTone : "medium",
-                    hairColor: ["black", "brown", "blonde", "auburn"].includes(hairColor) ? hairColor : "brown",
+                    body: normalizedBody,
+                    outfit: AVATAR_OUTFITS[normalizedBody].includes(outfit) ? outfit : "casual",
+                    skinTone: AVATAR_SKIN_TONES.includes(skinTone) ? skinTone : "medium",
+                    hairColor: AVATAR_HAIR_COLORS.includes(hairColor) ? hairColor : "brown",
+                    hairStyle: AVATAR_HAIR_STYLES[normalizedBody].includes(hairStyle) ? hairStyle : getDefaultAvatarHairStyle(normalizedBody),
+                    eyeColor: ["brown", "hazel", "green", "blue"].includes(eyeColor) ? eyeColor : "brown",
+                    age: AVATAR_AGES.includes(age) ? age : "adult",
                     height: [155, 160, 165, 170, 175, 180, 185, 190].includes(Number(height)) ? Number(height) : 175
                 };
             }
@@ -2084,23 +2135,62 @@
             const parts = raw.split("-");
             const body = ["male", "female", "neutral"].includes(parts[0]) ? parts[0] : "neutral";
             const outfit = ["formal", "sport", "urban"].includes(parts[1]) ? parts[1] : "formal";
-            return { body, outfit, skinTone: "medium", hairColor: "brown", height: 175 };
+            return { body, outfit: "casual", skinTone: "medium", hairColor: "brown", hairStyle: getDefaultAvatarHairStyle(body), eyeColor: "brown", age: "adult", height: 175 };
         }
 
         function updateAvatarSelection(kind, value) {
-            if (kind === 'body') myAvatarBody = value === 'female' ? 'female' : 'male';
-            if (kind === 'outfit') myAvatarOutfit = ["formal", "casual", "sport"].includes(value) ? value : 'formal';
-            if (kind === 'skinTone') myAvatarSkinTone = ["fair", "light", "medium", "deep"].includes(value) ? value : 'medium';
-            if (kind === 'hairColor') myAvatarHairColor = ["black", "brown", "blonde", "auburn"].includes(value) ? value : 'brown';
-            if (kind === 'height') myAvatarHeight = [155, 160, 165, 170, 175, 180, 185, 190].includes(Number(value)) ? Number(value) : 175;
+            const customizerOpen = !document.getElementById('avatar-customizer-modal')?.hidden;
+            const profile = customizerOpen
+                ? (avatarCustomizerDraft ||= getCommittedAvatarProfile())
+                : getCommittedAvatarProfile();
+            if (kind === 'body') {
+                profile.body = value === 'female' ? 'female' : 'male';
+                if (!AVATAR_OUTFITS[profile.body].includes(profile.outfit)) profile.outfit = 'casual';
+                if (!AVATAR_HAIR_STYLES[profile.body].includes(profile.hairStyle)) profile.hairStyle = getDefaultAvatarHairStyle(profile.body);
+            }
+            if (kind === 'outfit') profile.outfit = AVATAR_OUTFITS[profile.body].includes(value) ? value : 'casual';
+            if (kind === 'skinTone') profile.skinTone = AVATAR_SKIN_TONES.includes(value) ? value : 'medium';
+            if (kind === 'hairColor') profile.hairColor = AVATAR_HAIR_COLORS.includes(value) ? value : 'brown';
+            if (kind === 'hairStyle') profile.hairStyle = AVATAR_HAIR_STYLES[profile.body].includes(value) ? value : getDefaultAvatarHairStyle(profile.body);
+            if (kind === 'eyeColor') profile.eyeColor = ["brown", "hazel", "green", "blue"].includes(value) ? value : 'brown';
+            if (kind === 'age') profile.age = AVATAR_AGES.includes(value) ? value : 'adult';
+            if (kind === 'height') profile.height = [155, 160, 165, 170, 175, 180, 185, 190].includes(Number(value)) ? Number(value) : 175;
+            if (customizerOpen) {
+                syncAvatarSelectionUi();
+                refreshAvatarMirror(getAvatarProfileStyleCode(profile));
+                return;
+            }
+            ({ body: myAvatarBody, outfit: myAvatarOutfit, skinTone: myAvatarSkinTone, hairColor: myAvatarHairColor, hairStyle: myAvatarHairStyle, eyeColor: myAvatarEyeColor, age: myAvatarAge, height: myAvatarHeight } = profile);
             myAvatarStyle = getSelectedAvatarStyleCode();
             localStorage.setItem('mall-avatar-profile-v2', myAvatarStyle);
+            syncPlayerEyeHeightToAvatarProfile();
             syncAvatarSelectionUi();
+            refreshAvatarMirror();
             if (hasEnteredMall) {
                 trackMySelf();
                 broadcastMyPosition();
             }
         }
+
+        window.useStandardAvatar = function () {
+            const customizerOpen = !document.getElementById('avatar-customizer-modal')?.hidden;
+            if (customizerOpen) {
+                avatarCustomizerDraft = { ...DEFAULT_AVATAR_PROFILE };
+                syncAvatarSelectionUi();
+                refreshAvatarMirror(getAvatarProfileStyleCode(avatarCustomizerDraft));
+                return;
+            }
+            ({ body: myAvatarBody, outfit: myAvatarOutfit, skinTone: myAvatarSkinTone, hairColor: myAvatarHairColor, hairStyle: myAvatarHairStyle, eyeColor: myAvatarEyeColor, age: myAvatarAge, height: myAvatarHeight } = DEFAULT_AVATAR_PROFILE);
+            myAvatarStyle = getSelectedAvatarStyleCode();
+            localStorage.setItem('mall-avatar-profile-v2', myAvatarStyle);
+            syncPlayerEyeHeightToAvatarProfile();
+            syncAvatarSelectionUi();
+            refreshAvatarMirror();
+            if (hasEnteredMall) {
+                trackMySelf();
+                broadcastMyPosition();
+            }
+        };
 
         const savedAvatarStyle = localStorage.getItem('mall-avatar-profile-v2');
         if (savedAvatarStyle) {
@@ -2109,15 +2199,35 @@
             myAvatarOutfit = savedAvatar.outfit;
             myAvatarSkinTone = savedAvatar.skinTone;
             myAvatarHairColor = savedAvatar.hairColor;
+            myAvatarHairStyle = savedAvatar.hairStyle;
+            myAvatarEyeColor = savedAvatar.eyeColor;
+            myAvatarAge = savedAvatar.age;
             myAvatarHeight = savedAvatar.height;
             myAvatarStyle = getSelectedAvatarStyleCode();
         }
+        syncPlayerEyeHeightToAvatarProfile();
 
         function syncAvatarSelectionUi() {
             document.querySelectorAll('.avatar-selection .avatar-opt').forEach((btn) => {
                 const kind = btn.dataset.avatarKind;
-                const selected = { body: myAvatarBody, outfit: myAvatarOutfit, skinTone: myAvatarSkinTone, hairColor: myAvatarHairColor, height: String(myAvatarHeight) };
-                const isSelected = btn.dataset.avatarValue === String(selected[kind]);
+                const profile = avatarCustomizerDraft || getCommittedAvatarProfile();
+                if (kind === 'outfit') {
+                    btn.hidden = !AVATAR_OUTFITS[profile.body].includes(btn.dataset.avatarValue);
+                }
+                if (kind === 'hairStyle') {
+                    btn.hidden = btn.dataset.avatarHairFor !== 'all' && btn.dataset.avatarHairFor !== profile.body;
+                }
+                const selected = { ...profile, height: String(profile.height) };
+                const isStandard = btn.dataset.avatarStandard === 'true'
+                    && profile.body === DEFAULT_AVATAR_PROFILE.body
+                    && profile.outfit === DEFAULT_AVATAR_PROFILE.outfit
+                    && profile.skinTone === DEFAULT_AVATAR_PROFILE.skinTone
+                    && profile.hairColor === DEFAULT_AVATAR_PROFILE.hairColor
+                    && profile.hairStyle === DEFAULT_AVATAR_PROFILE.hairStyle
+                    && profile.eyeColor === DEFAULT_AVATAR_PROFILE.eyeColor
+                    && profile.age === DEFAULT_AVATAR_PROFILE.age
+                    && profile.height === DEFAULT_AVATAR_PROFILE.height;
+                const isSelected = isStandard || btn.dataset.avatarValue === String(selected[kind]);
                 btn.classList.toggle('selected', !!isSelected);
             });
         }
@@ -2199,14 +2309,37 @@
             const modal = document.getElementById('avatar-customizer-modal');
             if (!modal) return;
             modal.hidden = false;
+            avatarCustomizerDraft = getCommittedAvatarProfile();
+            document.getElementById('member-pedometer')?.classList.add('member-pedometer--suspended');
             syncAvatarSelectionUi();
+            refreshAvatarMirror(getAvatarProfileStyleCode(avatarCustomizerDraft));
             closeControlsMenu();
         };
 
         window.closeAvatarCustomizer = function() {
             const modal = document.getElementById('avatar-customizer-modal');
             if (modal) modal.hidden = true;
+            avatarCustomizerDraft = null;
+            document.getElementById('member-pedometer')?.classList.remove('member-pedometer--suspended');
+            stopAvatarMirror();
             focusMallCanvas();
+        };
+
+        window.applyAvatarCustomizer = async function() {
+            if (!avatarCustomizerDraft) {
+                window.closeAvatarCustomizer();
+                return;
+            }
+            ({ body: myAvatarBody, outfit: myAvatarOutfit, skinTone: myAvatarSkinTone, hairColor: myAvatarHairColor, hairStyle: myAvatarHairStyle, eyeColor: myAvatarEyeColor, age: myAvatarAge, height: myAvatarHeight } = avatarCustomizerDraft);
+            myAvatarStyle = getSelectedAvatarStyleCode();
+            localStorage.setItem('mall-avatar-profile-v2', myAvatarStyle);
+            syncPlayerEyeHeightToAvatarProfile();
+            avatarCustomizerDraft = null;
+            if (hasEnteredMall) {
+                await trackMySelf();
+                broadcastMyPosition();
+            }
+            window.closeAvatarCustomizer();
         };
 
         window.openMemberRegistration = function() {
@@ -2424,6 +2557,8 @@
                 ? "guest"
                 : (profile?.role === "admin" ? "registered_visitor" : (profile?.role || "guest"));
             currentUserRole = isMallAdmin ? "admin" : profileRole;
+            window.mallCanRecoverLocalCollision = () =>
+                ['guest', 'member', 'registered_visitor', 'tenant'].includes(currentUserRole);
             const btn = document.getElementById('super-admin-btn');
             const btnP = document.getElementById('super-admin-btn-persistent');
             const adminMenuItem = document.getElementById('admin-manage-menu-item');
@@ -2457,6 +2592,7 @@
             const inspectorToggle = document.getElementById('admin-toggle-inspector');
             const infrastructureEditorToggle = document.getElementById('admin-toggle-infrastructure-editor');
             const gpsToggle = document.getElementById('admin-toggle-gps');
+            const seatMotionMonitorToggle = document.getElementById('admin-toggle-seat-motion-monitor');
 
             // Por defecto ocultas, el admin las activa desde su panel
             if (axisRef) axisRef.style.display = 'none';
@@ -2467,6 +2603,10 @@
             if (infrastructureEditorToggle) infrastructureEditorToggle.checked = false;
             window.mallInfrastructureEditorEnabled = false;
             if (gpsToggle) gpsToggle.checked = false;
+            if (seatMotionMonitorToggle && !canShowAdmin) seatMotionMonitorToggle.checked = false;
+            if (!canShowAdmin) window.setTimeout(() => void setRemoteSeatTraceEnabled(false), 0);
+            const seatMonitorStatus = document.getElementById('admin-seat-motion-monitor-status');
+            if (seatMonitorStatus && !canShowAdmin) seatMonitorStatus.textContent = 'Desactivado. Sólo la cuenta administradora puede abrir este monitor.';
             if (!canShowAdmin && adminModal) adminModal.style.display = 'none';
             syncMemberBenefitAccess();
             syncGuestAccountActions();
@@ -2506,6 +2646,18 @@
             } else if (tool === 'gps') {
                 const gpsDisplay = document.getElementById('gps-display');
                 if (gpsDisplay) gpsDisplay.style.display = isVisible ? 'block' : 'none';
+            } else if (tool === 'seat-motion-monitor') {
+                const toggle = document.getElementById('admin-toggle-seat-motion-monitor');
+                const status = document.getElementById('admin-seat-motion-monitor-status');
+                if (status) status.textContent = isVisible ? 'Verificando la cuenta administradora…' : 'Desactivando el monitor…';
+                void setRemoteSeatTraceEnabled(isVisible).then((enabled) => {
+                    if (toggle) toggle.checked = enabled;
+                    if (status) status.textContent = enabled
+                        ? 'Activo en esta sesión. El panel aparece sobre el mall y sólo esta cuenta puede activarlo.'
+                        : isVisible
+                            ? 'No se activó: inicia sesión con la cuenta administradora autorizada. El monitor permanece apagado.'
+                            : 'Desactivado. Sólo la cuenta administradora puede abrir este monitor.';
+                });
             }
         }
 
@@ -6914,8 +7066,519 @@
                 document.getElementById('store-contact-form').reset();
             }
         }
-        let otherPlayers = {}; // { sessionId: { mesh, label, targetPos, targetRot } }
+let otherPlayers = {}; // { sessionId: { mesh, label, targetPos, targetRot } }
         let presenceChannel = null;
+        let remoteSeatTraceEnabled = false;
+        let remoteSeatTracePanel = null;
+        let remoteSeatTraceRenderTimer = null;
+        window.mallRemoteSeatTrace = [];
+        window.mallRemoteSeatBreakpoint = null;
+        let remoteSeatTraceFrame = 0;
+
+        function publishRemoteSeatTraceStatus() {
+            if (!remoteSeatTraceEnabled) {
+                delete document.documentElement.dataset.remoteSeatTrace;
+                return;
+            }
+            const breakpoint = window.mallRemoteSeatBreakpoint;
+            document.documentElement.dataset.remoteSeatTrace = JSON.stringify({
+                enabled: true,
+                frame: remoteSeatTraceFrame,
+                records: window.mallRemoteSeatTrace.length,
+                actors: Object.values(otherPlayers).map((actor) => ({
+                    id: actor.playerId,
+                    nickname: actor.nickname,
+                    motion: actor.motionMode,
+                    armed: Boolean(actor.remoteSeatTraceArmed),
+                    frozen: Boolean(actor.remoteTraceFrozen)
+                })),
+                breakpoint: breakpoint ? {
+                    frame: breakpoint.frame,
+                    source: breakpoint.source,
+                    playerId: breakpoint.playerId,
+                    nickname: breakpoint.nickname,
+                    distance: breakpoint.distance,
+                    before: breakpoint.before,
+                    after: breakpoint.after,
+                    target: breakpoint.target,
+                    seat: breakpoint.seat,
+                    payload: breakpoint.payload
+                } : null
+            });
+        }
+
+        window.getMallRemoteSeatTrace = () => ({
+            enabled: remoteSeatTraceEnabled,
+            frame: remoteSeatTraceFrame,
+            breakpoint: window.mallRemoteSeatBreakpoint,
+            actors: Object.values(otherPlayers).map((actor) => ({
+                playerId: actor.playerId,
+                nickname: actor.nickname,
+                motion: actor.motionMode,
+                armed: Boolean(actor.remoteSeatTraceArmed),
+                frozen: Boolean(actor.remoteTraceFrozen),
+                position: actor.mesh ? snapshotRemoteSeatPosition(actor.mesh.position) : null,
+                target: actor.targetPos ? snapshotRemoteSeatPosition(actor.targetPos) : null,
+                seat: actor.seatedWorldAnchor ? snapshotRemoteSeatPosition(actor.seatedWorldAnchor) : null
+            })),
+            trace: [...window.mallRemoteSeatTrace]
+        });
+        publishRemoteSeatTraceStatus();
+
+        function snapshotRemoteSeatPosition(position) {
+            return {
+                x: Number(position.x.toFixed(4)),
+                y: Number(position.y.toFixed(4)),
+                z: Number(position.z.toFixed(4))
+            };
+        }
+
+        // Read-only live view for inspecting visitor and tenant seat motion.
+        // It is mounted only after the verified administrator enables it in the admin tools.
+        function mountRemoteSeatTracePanel() {
+            if (!remoteSeatTraceEnabled || remoteSeatTracePanel) return;
+            const panel = remoteSeatTracePanel = document.createElement('aside');
+            panel.id = 'mall-seat-debug-panel';
+            panel.style.cssText = 'position:fixed;right:12px;top:90px;z-index:2147483647;width:310px;max-width:calc(100vw - 24px);max-height:calc(100vh - 105px);overflow:auto;padding:12px;color:#fff;background:rgba(13,17,22,.92);border:1px solid #d4ab61;border-radius:8px;font:12px/1.45 Consolas,monospace;box-shadow:0 4px 20px #0009;pointer-events:auto';
+            panel.innerHTML = '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px"><strong>Movimiento de banca · diagnóstico</strong><button type="button" data-action="disable-monitor" aria-label="Desactivar monitor" title="Desactivar monitor">×</button></div><div style="margin:8px 0"><select aria-label="Avatar a inspeccionar" style="width:100%;padding:5px"></select></div><pre style="white-space:pre-wrap;margin:0">Esperando visitas o locatarios…</pre><details open style="margin-top:8px"><summary style="cursor:pointer;color:#f0d394">Código asociado a la fase</summary><pre data-role="source-code" style="white-space:pre-wrap;overflow-wrap:anywhere;margin:6px 0 0;font:11px/1.4 Consolas,monospace">Leyendo archivo mall-ui.js…</pre></details><div data-role="observer-status" aria-live="polite" style="margin-top:6px;min-height:1.4em;color:#f0d394"></div><div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px"><button type="button" data-action="focus-observer" title="Acerca al observador al avatar seleccionado sin cambiar la animación de ese avatar">Acercar observador</button><button type="button" data-action="restore-observer" disabled>Volver</button><button type="button" data-action="copy">Copiar datos</button></div>';
+            document.body.appendChild(panel);
+            const picker = panel.querySelector('select');
+            const output = panel.querySelector('pre');
+            const sourceCodeOutput = panel.querySelector('[data-role="source-code"]');
+            const observerStatus = panel.querySelector('[data-role="observer-status"]');
+            const focusObserverButton = panel.querySelector('[data-action="focus-observer"]');
+            const restoreObserverButton = panel.querySelector('[data-action="restore-observer"]');
+            const isVisitorOrTenant = (actor) => actor.isRemotePlayer
+                && ['guest', 'member', 'registered_visitor', 'tenant'].includes(actor.role);
+            const isInspectable = (actor) => isVisitorOrTenant(actor)
+                && actor.hasReceivedPose === true
+                && actor.mesh?.visible === true;
+            const selectedActor = () => otherPlayers[picker.value];
+            let lastSnapshot = null;
+            let observerBookmark = null;
+            const sourceNeedles = {
+                seatApproach: { scope: 'function updateOtherPlayers(', code: 'p.mesh.position.lerpVectors(approach.from, approach.to, progress);' },
+                sitTransition: { scope: 'function applyAvatarPose(', code: 'previousAction?.crossFadeTo(nextAction, GAME_READY_VISITOR_SIT_BLEND_SECONDS, false);' },
+                seatedPose: { scope: 'function attachGameReadyAvatarModel(', code: 'const sitAction = mixer.clipAction(actionClips.sit, clonedScene);' },
+                standDuration: { scope: 'function applyAvatarPose(', code: 'const standSeconds = nextAction.getClip().duration;' },
+                standSpeed: { scope: 'function applyAvatarPose(', code: 'nextAction.timeScale = actor.standUsesReverse ? -1 : 1;' },
+                standHold: { scope: 'function applyAvatarPose(', code: 'const holdVisitorStandPose = visitorSeatBlend' },
+                seatRoot: { scope: 'function applyAvatarPose(', code: 'updateGameReadySeatRoot(actor, nextMotion, nowMs);' },
+                remoteWalk: { scope: 'function updateOtherPlayers(', code: 'p.mesh.position.x = THREE.MathUtils.lerp(p.mesh.position.x, p.targetPos.x, 0.1);' },
+                walkAnimation: { scope: 'function applyAvatarPose(', code: 'locomotionAction.timeScale = THREE.MathUtils.clamp(0.78 + movementAmount * 34, 0.78, 1.22);' }
+            };
+            let mallUiSourceLines = null;
+            const mallUiScript = Array.from(document.scripts).find((script) =>
+                script.src && new URL(script.src).pathname.endsWith('/js/mall/mall-ui.js'));
+            if (mallUiScript) {
+                fetch(mallUiScript.src).then((response) => {
+                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                    return response.text();
+                }).then((source) => {
+                    mallUiSourceLines = source.split(/\r?\n/);
+                }).catch((error) => {
+                    sourceCodeOutput.textContent = `No se pudo leer el archivo cargado (${error.message}).\nUsa Ctrl+F en mall-ui.js para buscar el nombre del bloque.`;
+                });
+            } else {
+                sourceCodeOutput.textContent = 'No se encontró la etiqueta script de mall-ui.js en esta página.';
+            }
+            const makeCodeReference = (key, label, parameters) => {
+                const query = sourceNeedles[key];
+                const scopeIndex = mallUiSourceLines?.findIndex((line) => line.trim().startsWith(query.scope)) ?? -1;
+                const relativeIndex = scopeIndex >= 0
+                    ? mallUiSourceLines.slice(scopeIndex + 1).findIndex((line) => line.includes(query.code))
+                    : -1;
+                const index = relativeIndex >= 0 ? scopeIndex + 1 + relativeIndex : -1;
+                return {
+                    label,
+                    file: 'js/mall/mall-ui.js',
+                    line: index >= 0 ? index + 1 : null,
+                    code: index >= 0 ? mallUiSourceLines[index].trim() : query.code,
+                    parameters
+                };
+            };
+            const getActiveCodeReferences = (actor, nowMs) => {
+                const references = [];
+                const action = actor.actions?.[actor.activeMotion];
+                if (actor.remoteSeatApproach) {
+                    const approach = actor.remoteSeatApproach;
+                    const progress = approach.startedAt === null
+                        ? 0
+                        : THREE.MathUtils.clamp(
+                            (nowMs - approach.startedAt) / (GAME_READY_VISITOR_SIT_BLEND_SECONDS * 1000), 0, 1
+                        );
+                    references.push(makeCodeReference(
+                        'seatApproach',
+                        'Posición: aproximación a la banca · updateOtherPlayers()',
+                        `progreso=${progress.toFixed(2)}; duración=${GAME_READY_VISITOR_SIT_BLEND_SECONDS.toFixed(2)} s`
+                    ));
+                }
+                if (actor.activeMotion === 'sitDown') {
+                    references.push(makeCodeReference(
+                        'sitTransition',
+                        'Animación: transición al sentarse · applyAvatarPose()',
+                        `velocidad=${action?.timeScale ?? '—'}; mezcla=${GAME_READY_VISITOR_SIT_BLEND_SECONDS.toFixed(2)} s; clip=${action?.time?.toFixed(2) ?? '—'} / ${action?.getClip?.().duration?.toFixed(2) ?? '—'} s`
+                    ));
+                } else if (actor.activeMotion === 'sit') {
+                    references.push(makeCodeReference(
+                        'seatedPose',
+                        'Animación: pose sentada · attachGameReadyAvatarModel()',
+                        `clip=${action?.time?.toFixed(2) ?? '—'} / ${action?.getClip?.().duration?.toFixed(2) ?? '—'} s`
+                    ));
+                } else if (actor.activeMotion === 'stand') {
+                    const clipFinished = Boolean(action && action.time >= action.getClip().duration - 0.001);
+                    references.push(makeCodeReference(
+                        clipFinished ? 'standHold' : 'standDuration',
+                        clipFinished
+                            ? 'Animación: mantener el cuadro final · applyAvatarPose()'
+                            : 'Animación: levantarse · applyAvatarPose()',
+                        `clip=${action?.time?.toFixed(2) ?? '—'} / ${action?.getClip?.().duration?.toFixed(2) ?? '—'} s; velocidad=${action?.timeScale ?? '—'}; ${clipFinished ? 'pose final retenida' : 'clip en curso'}`
+                    ));
+                    if (!clipFinished) {
+                        references.push(makeCodeReference(
+                            'standSpeed',
+                            'Velocidad de levantarse · applyAvatarPose()',
+                            `standUsesReverse=${Boolean(actor.standUsesReverse)}; velocidad=${action?.timeScale ?? '—'}`
+                        ));
+                    }
+                } else if (actor.activeMotion === 'walk' || actor.activeMotion === 'backward') {
+                    references.push(makeCodeReference(
+                        'remoteWalk',
+                        'Posición: movimiento recibido · updateOtherPlayers()',
+                        `remotoEnMovimiento=${Boolean(actor.remoteMoving)}; rapidezRed=${Number(actor.remoteSpeed || 0).toFixed(2)}`
+                    ));
+                    references.push(makeCodeReference(
+                        'walkAnimation',
+                        'Animación: velocidad de caminar · applyAvatarPose()',
+                        `movementAmount=${Number(actor.seatDebugMovementAmount || 0).toFixed(4)}; timeScale=${action?.timeScale ?? '—'}`
+                    ));
+                }
+                if (actor.seatFootAnchors || ['sitDown', 'sit', 'stand'].includes(actor.activeMotion)) {
+                    references.push(makeCodeReference(
+                        'seatRoot',
+                        'Corrección visual y anclaje de pies · applyAvatarPose()',
+                        `anclas=${Boolean(actor.seatFootAnchors)}; raízXZ=${actor.gltfRoot ? Math.hypot(actor.gltfRoot.position.x, actor.gltfRoot.position.z).toFixed(3) : '—'} m`
+                    ));
+                }
+                return references;
+            };
+            const renderCodeReferences = (references) => {
+                if (!references.length) {
+                    sourceCodeOutput.textContent = 'Esperando una fase de asiento, levantamiento o desplazamiento…';
+                    return;
+                }
+                sourceCodeOutput.textContent = references.map((reference) =>
+                    `${reference.label}\n${reference.file}:${reference.line ?? '?'}\nParámetros: ${reference.parameters}\n${reference.code}`
+                ).join('\n\n');
+            };
+            const publishObserverPosition = () => {
+                const direction = camera.getWorldDirection(new THREE.Vector3());
+                const yaw = Math.atan2(direction.x, direction.z);
+                myIsMoving = false;
+                myMoveSpeed = 0;
+                sampledMotion = 'idle';
+                lastSentMotion = 'idle';
+                lastSentPos.copy(camera.position);
+                lastMovementSamplePos.copy(camera.position);
+                lastSentRot = yaw;
+                lastSampleYaw = yaw;
+                lastMovementSampleAt = performance.now();
+                lastUpdateTime = Date.now();
+                broadcastMyPosition();
+                void trackMySelf();
+            };
+            panel.addEventListener('click', async (event) => {
+                const action = event.target?.closest?.('button[data-action]')?.dataset?.action;
+                if (action === 'disable-monitor') {
+                    await setRemoteSeatTraceEnabled(false);
+                    const toggle = document.getElementById('admin-toggle-seat-motion-monitor');
+                    if (toggle) toggle.checked = false;
+                    const status = document.getElementById('admin-seat-motion-monitor-status');
+                    if (status) status.textContent = 'Desactivado. Sólo la cuenta administradora puede abrir este monitor.';
+                    return;
+                }
+                if (action === 'copy') {
+                    if (lastSnapshot) await navigator.clipboard.writeText(JSON.stringify(lastSnapshot, null, 2));
+                    return;
+                }
+                if (action === 'focus-observer') {
+                    const actor = selectedActor();
+                    if (!actor?.mesh || !isInspectable(actor)) {
+                        observerStatus.textContent = 'Selecciona primero una visita o locatario.';
+                        return;
+                    }
+                    if (window.mallMotionSeated) {
+                        observerStatus.textContent = 'Levántate con C antes de acercar al observador.';
+                        return;
+                    }
+                    actor.mesh.updateWorldMatrix(true, false);
+                    const actorPosition = actor.mesh.getWorldPosition(new THREE.Vector3());
+                    const side = camera.position.clone().sub(actorPosition);
+                    side.y = 0;
+                    if (side.lengthSq() < 0.0001) {
+                        const view = camera.getWorldDirection(new THREE.Vector3());
+                        side.set(-view.x, 0, -view.z);
+                    }
+                    if (side.lengthSq() < 0.0001) {
+                        side.set(-Math.sin(actor.mesh.rotation.y), 0, -Math.cos(actor.mesh.rotation.y));
+                    }
+                    side.normalize();
+                    const destination = actorPosition.clone().addScaledVector(side, 2.8);
+                    destination.y = actorPosition.y - AVATAR_FLOOR_OFFSET + PLAYER_EYE_HEIGHT;
+                    const lookTarget = actorPosition.clone().add(new THREE.Vector3(0, actor.motionMode === 'sit' ? 0.95 : 1.15, 0));
+                    const walkingCamera = controls.maxDistance <= 0.2;
+
+                    if (!observerBookmark) {
+                        observerBookmark = {
+                            position: camera.position.clone(),
+                            target: controls.target.clone(),
+                            quaternion: camera.quaternion.clone()
+                        };
+                    }
+                    camera.position.copy(destination);
+                    camera.lookAt(lookTarget);
+                    const viewDirection = camera.getWorldDirection(new THREE.Vector3());
+                    controls.target.copy(walkingCamera
+                        ? camera.position.clone().addScaledVector(viewDirection, 0.04)
+                        : lookTarget);
+                    controls.update();
+                    camera.position.copy(destination);
+                    camera.lookAt(lookTarget);
+                    if (walkingCamera) {
+                        controls.target.copy(camera.position).addScaledVector(camera.getWorldDirection(new THREE.Vector3()), 0.04);
+                    } else controls.target.copy(lookTarget);
+                    camera.updateMatrixWorld(true);
+                    publishObserverPosition();
+                    restoreObserverButton.disabled = false;
+                    observerStatus.textContent = `Observador acercado a ${actor.nickname}; el avatar inspeccionado conserva su posición y animación.`;
+                } else if (action === 'restore-observer') {
+                    if (!observerBookmark) return;
+                    if (window.mallMotionSeated) {
+                        observerStatus.textContent = 'Levántate con C antes de restaurar la posición del observador.';
+                        return;
+                    }
+                    camera.position.copy(observerBookmark.position);
+                    controls.target.copy(observerBookmark.target);
+                    controls.update();
+                    camera.position.copy(observerBookmark.position);
+                    camera.quaternion.copy(observerBookmark.quaternion);
+                    camera.updateMatrixWorld(true);
+                    observerBookmark = null;
+                    publishObserverPosition();
+                    restoreObserverButton.disabled = true;
+                    observerStatus.textContent = 'Posición original del observador restaurada.';
+                }
+            });
+            remoteSeatTraceRenderTimer = setInterval(() => {
+                const visitorPresences = Object.values(otherPlayers).filter(isVisitorOrTenant);
+                const actors = visitorPresences.filter(isInspectable);
+                const currentId = picker.value;
+                if (actors.length !== picker.options.length
+                    || actors.some((actor, index) => picker.options[index]?.value !== actor.playerId)) {
+                    picker.replaceChildren(...actors.map((actor) => {
+                        const option = document.createElement('option');
+                        option.value = actor.playerId;
+                        option.textContent = `${actor.nickname} · ${actor.role}`;
+                        return option;
+                    }));
+                    if (actors.some((actor) => actor.playerId === currentId)) picker.value = currentId;
+                }
+                focusObserverButton.disabled = actors.length === 0;
+                const actor = selectedActor();
+                if (!actor) {
+                    const pendingCount = visitorPresences.length - actors.length;
+                    output.textContent = visitorPresences.length
+                        ? `Sin avatares visibles con posición recibida.\nPresencias de visita o locatario conectadas: ${visitorPresences.length}\nPendientes de posición válida: ${pendingCount}`
+                        : 'Esperando visitas o locatarios…';
+                    sourceCodeOutput.textContent = 'El código asociado aparecerá al seleccionar una visita o locatario visible.';
+                    lastSnapshot = null;
+                    return;
+                }
+                actor.mesh.updateWorldMatrix(true, true);
+                const rig = actor.gameReadyRig;
+                const world = (bone) => bone ? snapshotRemoteSeatPosition(bone.getWorldPosition(new THREE.Vector3())) : null;
+                const head = world(rig?.head);
+                const hips = world(rig?.hips);
+                const leftFoot = world(rig?.footL);
+                const rightFoot = world(rig?.footR);
+                const action = actor.actions?.[actor.activeMotion];
+                const position = snapshotRemoteSeatPosition(actor.mesh.position);
+                const seatTarget = actor.seatedWorldAnchor || actor.remoteSeatApproach?.to || null;
+                const seatGapCm = seatTarget
+                    ? Number((Math.hypot(
+                        actor.mesh.position.x - seatTarget.x,
+                        actor.mesh.position.z - seatTarget.z
+                    ) * 100).toFixed(1))
+                    : null;
+                const visualRootGapCm = actor.gltfRoot
+                    ? Number((Math.hypot(actor.gltfRoot.position.x, actor.gltfRoot.position.z) * 100).toFixed(1))
+                    : null;
+                const frameStep = actor.seatDebugHeadFrameStep || 0;
+                const maxFrameStep = actor.seatDebugMaxHeadFrameStep || 0;
+                const anchors = actor.seatFootAnchors;
+                const parent = actor.gltfRoot?.parent;
+                const anchorWorld = (foot) => foot && parent
+                    ? snapshotRemoteSeatPosition(foot.clone().applyMatrix4(parent.matrixWorld)) : null;
+                const leftAnchor = anchorWorld(anchors?.left);
+                const rightAnchor = anchorWorld(anchors?.right);
+                const horizontalGapCm = (a, b) => a && b
+                    ? Number((Math.hypot(a.x - b.x, a.z - b.z) * 100).toFixed(1)) : null;
+                lastSnapshot = {
+                    at: Number(performance.now().toFixed(1)),
+                    playerId: actor.playerId,
+                    role: actor.role,
+                    hasReceivedPose: actor.hasReceivedPose === true,
+                    meshVisible: actor.mesh.visible === true,
+                    networkMotion: actor.motionMode,
+                    activeClip: actor.activeMotion,
+                    clipTime: action ? Number(action.time.toFixed(3)) : null,
+                    clipDuration: action ? Number(action.getClip().duration.toFixed(3)) : null,
+                    clipTimeScale: action ? Number(action.timeScale.toFixed(3)) : null,
+                    movementAmount: Number(actor.seatDebugMovementAmount || 0),
+                    moving: Boolean(actor.remoteMoving),
+                    sitSecondsRemaining: actor.sitDownUntil
+                        ? Number(Math.max(0, (actor.sitDownUntil - performance.now()) / 1000).toFixed(2)) : null,
+                    standSecondsRemaining: actor.standUntil
+                        ? Number(Math.max(0, (actor.standUntil - performance.now()) / 1000).toFixed(2)) : null,
+                    releaseSecondsRemaining: actor.seatReleaseUntil
+                        ? Number(Math.max(0, (actor.seatReleaseUntil - performance.now()) / 1000).toFixed(2)) : null,
+                    group: position,
+                    visualRoot: actor.gltfRoot ? snapshotRemoteSeatPosition(actor.gltfRoot.position) : null,
+                    seatGapCm,
+                    visualRootGapCm,
+                    head, hips, leftFoot, rightFoot,
+                    footGapCm: { left: horizontalGapCm(leftFoot, leftAnchor), right: horizontalGapCm(rightFoot, rightAnchor) },
+                    headStepCm: Number((frameStep * 100).toFixed(1)),
+                    maxObservedHeadStepCm: Number((maxFrameStep * 100).toFixed(1)),
+                    seatTarget: seatTarget ? snapshotRemoteSeatPosition(seatTarget) : null,
+                    standTarget: actor.remoteStandDestination || null,
+                    rejectedStandTarget: actor.remoteStandRejectedDestination || null,
+                    standHold: actor.remoteSeatStandHold || null,
+                    seatJump: window.mallRemoteSeatBreakpoint?.playerId === actor.playerId
+                        ? window.mallRemoteSeatBreakpoint : null,
+                    lastNetworkTrace: window.mallRemoteSeatTrace.findLast((item) => item.playerId === actor.playerId) || null
+                };
+                lastSnapshot.codeReferences = getActiveCodeReferences(actor, performance.now());
+                renderCodeReferences(lastSnapshot.codeReferences);
+                output.textContent = `Fase: ${lastSnapshot.activeClip} (${lastSnapshot.networkMotion})\n`+
+                    `Clip: ${lastSnapshot.clipTime ?? '—'} / ${lastSnapshot.clipDuration ?? '—'} s\n`+
+                    `Velocidad clip: ${lastSnapshot.clipTimeScale ?? '—'}× · movimiento: ${lastSnapshot.movementAmount.toFixed(4)} · red: ${lastSnapshot.moving ? 'sí' : 'no'}\n`+
+                    `Temporizadores sentarse/levantarse/liberar: ${lastSnapshot.sitSecondsRemaining ?? '—'} / ${lastSnapshot.standSecondsRemaining ?? '—'} / ${lastSnapshot.releaseSecondsRemaining ?? '—'} s\n`+
+                    `Cabeza: ${JSON.stringify(head)}\nCadera: ${JSON.stringify(hips)}\n`+
+                    `Pies anclados: I ${lastSnapshot.footGapCm.left ?? '—'} cm · D ${lastSnapshot.footGapCm.right ?? '—'} cm\n`+
+                    `Paso cabeza: ${lastSnapshot.headStepCm} cm · máximo fase ${lastSnapshot.maxObservedHeadStepCm} cm\n`+
+                    `Brecha asiento: ${lastSnapshot.seatGapCm ?? '—'} cm · raíz visual XZ: ${lastSnapshot.visualRootGapCm ?? '—'} cm\n`+
+                    `Grupo: ${JSON.stringify(position)}\nRaíz visual: ${JSON.stringify(lastSnapshot.visualRoot)}\n`+
+                    `Destino al levantarse: ${JSON.stringify(lastSnapshot.standTarget)}\n`+
+                    `Posición retenida: ${JSON.stringify(lastSnapshot.standHold)}\n`+
+                    (lastSnapshot.rejectedStandTarget ? `Destino remoto descartado: ${JSON.stringify(lastSnapshot.rejectedStandTarget)}\n` : '')+
+                    (lastSnapshot.seatJump ? `Salto detectado: ${(lastSnapshot.seatJump.distance * 100).toFixed(1)} cm (${lastSnapshot.seatJump.source})\n` : '')+
+                    'EN VIVO';
+            }, 100);
+        }
+
+        async function setRemoteSeatTraceEnabled(enabled, options = {}) {
+            if (!enabled) {
+                remoteSeatTraceEnabled = false;
+                if (remoteSeatTraceRenderTimer !== null) clearInterval(remoteSeatTraceRenderTimer);
+                remoteSeatTraceRenderTimer = null;
+                remoteSeatTracePanel?.remove();
+                remoteSeatTracePanel = null;
+                window.mallRemoteSeatTrace.length = 0;
+                window.mallRemoteSeatBreakpoint = null;
+                remoteSeatTraceFrame = 0;
+                Object.values(otherPlayers).forEach((actor) => {
+                    actor.remoteSeatTraceArmed = false;
+                    actor.remoteTraceFrozen = false;
+                    actor.remoteSeatTraceJumpSeen = false;
+                });
+                publishRemoteSeatTraceStatus();
+                return false;
+            }
+
+            if (!options.testOnly) {
+                const sessionUser = await requireAuthoritativeAdminAccess({ showAlert: false });
+                if (!sessionUser || !window.mallCanUseAdminTools?.()) {
+                    await setRemoteSeatTraceEnabled(false);
+                    return false;
+                }
+            }
+
+            remoteSeatTraceEnabled = true;
+            window.mallRemoteSeatTrace.length = 0;
+            window.mallRemoteSeatBreakpoint = null;
+            remoteSeatTraceFrame = 0;
+            Object.values(otherPlayers).forEach((actor) => {
+                actor.remoteSeatTraceArmed = actor.motionMode === 'sit' || actor.activeMotion === 'sit';
+                actor.remoteTraceFrozen = false;
+                actor.remoteSeatTraceJumpSeen = false;
+            });
+            mountRemoteSeatTracePanel();
+            publishRemoteSeatTraceStatus();
+            return true;
+        }
+
+        function traceRemoteSeatPosition(actor, source, before, extra = {}) {
+            if (!remoteSeatTraceEnabled || !actor?.mesh || !before) return;
+            const after = actor.mesh.position;
+            const distance = before.distanceTo(after);
+            const trace = window.mallRemoteSeatTrace;
+            trace.push({
+                frame: remoteSeatTraceFrame,
+                at: Number(performance.now().toFixed(2)),
+                source,
+                playerId: actor.playerId,
+                nickname: actor.nickname,
+                motion: actor.motionMode,
+                seatedArmed: Boolean(actor.remoteSeatTraceArmed),
+                remoteMoving: Boolean(actor.remoteMoving),
+                distance: Number(distance.toFixed(4)),
+                before: snapshotRemoteSeatPosition(before),
+                after: snapshotRemoteSeatPosition(after),
+                target: snapshotRemoteSeatPosition(actor.targetPos),
+                seat: actor.seatedWorldAnchor ? snapshotRemoteSeatPosition(actor.seatedWorldAnchor) : null,
+                standDestination: actor.remoteStandDestination || null,
+                rejectedStandDestination: actor.remoteStandRejectedDestination || null,
+                standHold: actor.remoteSeatStandHold || null,
+                ...extra
+            });
+            if (trace.length > 1200) trace.splice(0, trace.length - 1200);
+            publishRemoteSeatTraceStatus();
+        }
+
+        function guardRemoteSeatDisplacement(actor, source, before, extra = {}) {
+            if (!remoteSeatTraceEnabled || !actor?.remoteSeatTraceArmed || actor.remoteSeatTraceJumpSeen) return false;
+            const distance = before.distanceTo(actor.mesh.position);
+            if (distance <= 0.7) return false;
+            traceRemoteSeatPosition(actor, source, before, { ...extra, breakpoint: true });
+            actor.remoteSeatTraceJumpSeen = true;
+            window.mallRemoteSeatBreakpoint = window.mallRemoteSeatTrace.at(-1);
+            publishRemoteSeatTraceStatus();
+            // Keep the jump in the trace but let the avatar pose continue. Freezing
+            // here skipped applyAvatarPose and left a received sit pose visually idle.
+            return false;
+        }
+
+        function acceptRemotePose(actor, pose) {
+            const poseUpdatedAt = Number(pose?.poseUpdatedAt) || 0;
+            const poseRevision = Number(pose?.poseRevision);
+            const hasRevision = Number.isInteger(poseRevision) && poseRevision >= 0;
+            const lastRevision = Number(actor.lastPoseRevision);
+            const hasLastRevision = Number.isInteger(lastRevision) && lastRevision >= 0;
+
+            // Once a peer supports revisions, never let an unversioned legacy
+            // presence snapshot replace its newer pose.
+            if (hasLastRevision && !hasRevision) return false;
+            if (hasRevision && hasLastRevision && poseRevision < lastRevision) return false;
+            if (
+                (!hasRevision || poseRevision === lastRevision)
+                && poseUpdatedAt < (actor.lastPoseUpdatedAt || 0)
+            ) return false;
+
+            if (hasRevision) actor.lastPoseRevision = poseRevision;
+            actor.lastPoseUpdatedAt = poseUpdatedAt || Date.now();
+            return true;
+        }
 
         // Variables de optimización (ahorro de datos)
         let lastSentPos = new THREE.Vector3();
@@ -6923,7 +7586,277 @@
         let lastMovementSamplePos = new THREE.Vector3();
         let lastMovementSampleAt = performance.now();
         let myIsMoving = false;
-        let myMoveSpeed = 0;
+let myMoveSpeed = 0;
+        let lastSentMotion = 'idle';
+        let sampledMotion = 'idle';
+        let lastSampleYaw = null;
+        // Presence and broadcast travel independently. This revision makes a
+        // semantic pose transition (especially sit -> idle) win over a late packet.
+        let myPoseRevision = 1;
+
+        function advanceMyPoseRevision() {
+            myPoseRevision += 1;
+            return myPoseRevision;
+        }
+        const MALL_SEAT_AUTOPARK_DISTANCE = 3.6;
+        const MALL_SEATED_EYE_HEIGHT = 1.16;
+        const MALL_BENCH_STAND_CLEARANCE = 0.55;
+        const mallBenchSeatReservations = new Map();
+
+        function getBenchSeatWorldData(node) {
+            node.updateWorldMatrix(true, false);
+            const position = node.getWorldPosition(new THREE.Vector3());
+            const quaternion = node.getWorldQuaternion(new THREE.Quaternion());
+            const forward = new THREE.Vector3(0, 0, 1).applyQuaternion(quaternion).setY(0).normalize();
+            return {
+                id: node.name || node.uuid,
+                node,
+                position,
+                yaw: Math.atan2(forward.x, forward.z)
+            };
+        }
+
+        function findMallBenchSeat(origin, maxDistance = Infinity, options = {}) {
+            if (!scene || !origin) return null;
+            const benches = new Map();
+            const now = Date.now();
+            scene.traverse((node) => {
+                const data = node.userData?.sittableBench;
+                if (!data?.footAnchor) return;
+                if (options.benchType && data.benchType !== options.benchType) return;
+                const seat = getBenchSeatWorldData(node);
+                if (options.floorY !== undefined && Math.abs(seat.position.y - options.floorY) > 1.1) return;
+                const benchCenter = data.benchCenterNode
+                    ? data.benchCenterNode.getWorldPosition(new THREE.Vector3())
+                    : (data.benchCenter?.clone?.() || seat.position.clone());
+                const benchDistance = Math.hypot(origin.x - benchCenter.x, origin.z - benchCenter.z);
+                if (benchDistance > maxDistance) return;
+                const benchId = data.benchId || seat.id;
+                let bench = benches.get(benchId);
+                if (!bench) {
+                    bench = { id: benchId, center: benchCenter, distance: benchDistance, seats: [] };
+                    benches.set(benchId, bench);
+                }
+                const reservation = mallBenchSeatReservations.get(seat.id);
+                if (reservation && reservation.until <= now) mallBenchSeatReservations.delete(seat.id);
+                const activeReservation = mallBenchSeatReservations.get(seat.id);
+                if (activeReservation && activeReservation.owner !== options.owner) return;
+                bench.seats.push({ ...seat, distance: Math.hypot(origin.x - seat.position.x, origin.z - seat.position.z) });
+            });
+            const nearestBench = [...benches.values()]
+                .sort((a, b) => a.distance - b.distance)
+                .find((bench) => !options.requireAvailable || bench.seats.length > 0);
+            if (!nearestBench) return null;
+            const nearestSeat = nearestBench.seats.sort((a, b) => a.distance - b.distance)[0];
+            return nearestSeat
+                ? { ...nearestSeat, benchId: nearestBench.id, benchCenter: nearestBench.center, benchDistance: nearestBench.distance }
+                : { occupied: true, id: nearestBench.id, position: nearestBench.center, distance: nearestBench.distance };
+        }
+
+        function reserveMallBenchSeat(seat, owner, durationMs = 30000) {
+            if (!seat?.id || !owner) return false;
+            const now = Date.now();
+            const existing = mallBenchSeatReservations.get(seat.id);
+            if (existing && existing.until > now && existing.owner !== owner) return false;
+            mallBenchSeatReservations.set(seat.id, { owner, until: now + durationMs });
+            return true;
+        }
+
+        function releaseMallBenchSeat(seatOrId, owner) {
+            const id = typeof seatOrId === 'string' ? seatOrId : seatOrId?.id;
+            const existing = id && mallBenchSeatReservations.get(id);
+            if (existing && (!owner || existing.owner === owner)) mallBenchSeatReservations.delete(id);
+        }
+
+        let cancelActiveSeatCameraTransition = null;
+        function transitionSeatCamera(destination, yaw, durationMs, onComplete) {
+            cancelActiveSeatCameraTransition?.();
+            const startPosition = camera.position.clone();
+            const startedAt = performance.now();
+            const direction = new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw));
+            const framePosition = new THREE.Vector3();
+            const frameTarget = new THREE.Vector3();
+            let completed = false;
+            let fallbackTimer = null;
+            const cancel = () => {
+                completed = true;
+                if (fallbackTimer !== null) clearTimeout(fallbackTimer);
+            };
+            cancelActiveSeatCameraTransition = cancel;
+            const finish = () => {
+                if (completed) return;
+                completed = true;
+                if (cancelActiveSeatCameraTransition === cancel) cancelActiveSeatCameraTransition = null;
+                camera.position.copy(destination);
+                controls.target.copy(destination).addScaledVector(direction, 6);
+                controls.update();
+                camera.position.copy(destination);
+                controls.target.copy(destination).addScaledVector(direction, 6);
+                if (fallbackTimer !== null) clearTimeout(fallbackTimer);
+                onComplete?.();
+            };
+            const step = (nowMs) => {
+                if (completed) return;
+                const progress = Math.min(1, (nowMs - startedAt) / durationMs);
+                const eased = 1 - Math.pow(1 - progress, 3);
+                framePosition.lerpVectors(startPosition, destination, eased);
+                frameTarget.copy(framePosition).addScaledVector(direction, 6);
+                camera.position.copy(framePosition);
+                controls.target.copy(frameTarget);
+                controls.update();
+                // OrbitControls can adjust the camera from its previous orbital state.
+                // Restore the computed frame so automatic parking remains anchored.
+                camera.position.copy(framePosition);
+                controls.target.copy(frameTarget);
+                if (progress < 1) requestAnimationFrame(step);
+                else finish();
+            };
+            fallbackTimer = setTimeout(finish, durationMs + 80);
+            requestAnimationFrame(step);
+        }
+
+        function setSeatedCameraHeight(seat, seated, durationMs = 340) {
+            const floorY = seat?.position?.y > 3 ? 5.4 : 0.1;
+            const target = camera.position.clone();
+            target.y = floorY + (seated ? MALL_SEATED_EYE_HEIGHT : PLAYER_EYE_HEIGHT);
+            if (seat?.position) {
+                const distance = seated ? 0 : MALL_BENCH_STAND_CLEARANCE;
+                target.x = seat.position.x + Math.sin(seat.yaw) * distance;
+                target.z = seat.position.z + Math.cos(seat.yaw) * distance;
+            }
+            const direction = new THREE.Vector3();
+            camera.getWorldDirection(direction);
+            const yaw = Math.atan2(direction.x, direction.z);
+            window.mallSeatCameraTransitionUntil = performance.now() + durationMs;
+            transitionSeatCamera(target, yaw, durationMs, () => {
+                window.mallSeatCameraTransitionUntil = 0;
+                if (!seated) {
+                    myIsMoving = false;
+                    myMoveSpeed = 0;
+                    sampledMotion = 'idle';
+                    advanceMyPoseRevision();
+                    broadcastMyPosition();
+                    void trackMySelf();
+                }
+            });
+        }
+
+        window.keepMallSeatedCameraAnchored = function() {
+            const seatPosition = window.mallMotionSeated
+                ? window.mallSeatInteraction?.position
+                : null;
+            if (!seatPosition) return;
+            if (performance.now() < (window.mallSeatCameraTransitionUntil || 0)) return;
+
+            // OrbitControls runs after navigation each frame and can restore its
+            // previous orbital offset. The seated avatar and its camera share the
+            // same physical foot anchor, so no horizontal correction is allowed.
+            camera.position.x = seatPosition.x;
+            camera.position.z = seatPosition.z;
+            camera.position.y = (seatPosition.y > 3 ? 5.4 : 0.1) + MALL_SEATED_EYE_HEIGHT;
+        };
+
+        window.findMallBenchSeat = findMallBenchSeat;
+        window.reserveMallBenchSeat = reserveMallBenchSeat;
+        window.releaseMallBenchSeat = releaseMallBenchSeat;
+
+        const postureButton = document.createElement('button');
+        postureButton.className = 'controls-menu-item';
+        const updatePostureButton = () => {
+            const seated = Boolean(window.mallMotionSeated);
+            const seatingEnabled = window.mallFeatureFlags?.benchSeatingEnabled === true;
+            const parking = Boolean(window.mallSeatAutoparking);
+            postureButton.textContent = seated
+                ? 'Levantarse (C)'
+                : seatingEnabled ? 'Sentarse (C)' : 'Sentarse (C) · pausado';
+            postureButton.title = seated
+                ? 'Levantarse de la banca (tecla C)'
+                : seatingEnabled ? 'Sentarse en una banca (tecla C)' : 'La opción de sentarse está pausada mientras se valida el movimiento.';
+            postureButton.disabled = parking || (!seatingEnabled && !seated);
+            window.updateMallSeatControl?.();
+        };
+        updatePostureButton();
+        window.toggleMallSeatedPosture = function() {
+            if (window.mallSeatAutoparking) return;
+            if (!window.mallMotionSeated && window.mallFeatureFlags?.benchSeatingEnabled !== true) return;
+            if (window.mallMotionSeated) {
+                const previousSeat = window.mallSeatInteraction;
+                window.mallMotionSeated = false;
+                window.mallSeatInteraction = null;
+                releaseMallBenchSeat(previousSeat?.id, 'visitor');
+                window.resetMallNavigationInputs?.();
+                myIsMoving = false;
+                myMoveSpeed = 0;
+                sampledMotion = 'idle';
+                advanceMyPoseRevision();
+                updatePostureButton();
+                setSeatedCameraHeight(previousSeat, false, 2300);
+                window.updateMallSeatControl?.();
+                void trackMySelf();
+                broadcastMyPosition();
+                showInteractionFeedback('Te has levantado de la banca.');
+                return;
+            }
+
+            const floorY = camera.position.y > 3 ? 5.4 : 0.1;
+            const seat = findMallBenchSeat(camera.position, MALL_SEAT_AUTOPARK_DISTANCE, {
+                floorY,
+                owner: 'visitor',
+                benchType: 'linear'
+            });
+            if (!seat || seat.occupied || !reserveMallBenchSeat(seat, 'visitor', 10 * 60 * 1000)) {
+                showInteractionFeedback(seat?.occupied
+                    ? 'La banca más cercana está ocupada.'
+                    : 'Acércate al frente de una banca para sentarte.');
+                return;
+            }
+
+            window.mallLastSeatSelection = {
+                id: seat.id,
+                distance: Number(seat.distance.toFixed(2)),
+                origin: {
+                    x: Number(camera.position.x.toFixed(2)),
+                    y: Number(camera.position.y.toFixed(2)),
+                    z: Number(camera.position.z.toFixed(2))
+                },
+                anchor: {
+                    x: Number(seat.position.x.toFixed(2)),
+                    y: Number(seat.position.y.toFixed(2)),
+                    z: Number(seat.position.z.toFixed(2))
+                },
+                benchDistance: Number(seat.benchDistance.toFixed(2))
+            };
+            window.mallSeatAutoparking = true;
+            updatePostureButton();
+            window.resetMallNavigationInputs?.();
+            window.mallMobileControls?.stopAutoForward?.();
+            showInteractionFeedback('Acomodando tu posición para sentarte.');
+            const seatedPosition = seat.position.clone();
+            seatedPosition.y = floorY + MALL_SEATED_EYE_HEIGHT;
+            const sitApproachDurationMs = THREE.MathUtils.clamp(
+                (seat.distance / 1.1) * 1000,
+                GAME_READY_VISITOR_SIT_BLEND_SECONDS * 1000,
+                1800
+            );
+            window.mallSeatCameraTransitionUntil = performance.now() + sitApproachDurationMs;
+            transitionSeatCamera(seatedPosition, seat.yaw, sitApproachDurationMs, () => {
+                window.mallSeatCameraTransitionUntil = 0;
+                window.mallSeatAutoparking = false;
+                window.mallMotionSeated = true;
+                window.mallSeatInteraction = { id: seat.id, position: seat.position.clone(), yaw: seat.yaw };
+myIsMoving = false;
+                myMoveSpeed = 0;
+                sampledMotion = 'sit';
+                advanceMyPoseRevision();
+                updatePostureButton();
+                window.updateMallSeatControl?.();
+                void trackMySelf();
+                broadcastMyPosition();
+                showInteractionFeedback('Sentado en la banca.');
+            });
+        };
+        postureButton.addEventListener('click', window.toggleMallSeatedPosture);
+        document.getElementById('walk-mode-menu-item')?.parentElement.appendChild(postureButton);
         const POS_THRESHOLD = 0.2; // Sensibilidad de movimiento (20cm)
         const ROT_THRESHOLD = 0.05; // Sensibilidad de giro mucho más alta (~3 grados)
         const MOVEMENT_SPEED_THRESHOLD = 0.08;
@@ -7253,10 +8186,9 @@
                     if (key !== myPresenceId) addChatMessage("Sistema", `${displayName} ha salido del mall.`);
                 })
                 .on('presence', { event: 'join' }, ({ key, newPresences }) => {
-                    if (key !== myPresenceId) {
+                    if (key !== myPresenceId && !otherPlayers[key]) {
                         const displayName = newPresences?.[0]?.nickname || key;
                         addChatMessage("Sistema", `${displayName} ha entrado al mall.`);
-                        broadcastMyPosition(); // Responder inmediatamente al que acaba de entrar
                     }
                 })
                 .on('broadcast', { event: 'chat_msg' }, payload => {
@@ -7277,35 +8209,84 @@
                     if (!id || id === myPresenceId || (!pData.playerId && pData.user === myNickname)) return;
                     const displayName = String(pData.nickname || pData.user || "Visitante");
                     const remoteStyle = pData.style || "1";
-            if (!otherPlayers[id]) otherPlayers[id] = createProceduralAvatar(displayName, remoteStyle);
+                    if (!otherPlayers[id]) otherPlayers[id] = createAvatar(id, displayName, remoteStyle);
                     else updateRemoteAvatarStyle(otherPlayers[id], remoteStyle);
                     const p = otherPlayers[id];
+                    p.role = pData.role || p.role;
                     updateRemotePlayerIdentity(p, displayName);
-                    p.remoteMoving = Boolean(pData.moving);
+                    if (!acceptRemotePose(p, pData)) return;
+                    const previousMotion = p.motionMode;
+                    const previousSeatAnchor = p.seatedWorldAnchor;
+                    const receivedAt = performance.now();
+                    if (pData.moving) p.lastRemoteMovingAt = receivedAt;
+                    p.remoteMoving = Boolean(pData.moving)
+                        || receivedAt - (p.lastRemoteMovingAt || 0) < 350;
                     p.remoteSpeed = Number.isFinite(pData.speed) ? Math.max(0, pData.speed) : 0;
-                    p.lastPoseReceivedAt = performance.now();
+                    p.motionMode = ['idle', 'walk', 'backward', 'turnLeft', 'turnRight', 'sit'].includes(pData.motion)
+                        ? pData.motion
+                        : (p.remoteMoving ? 'walk' : 'idle');
+                    // Sitting is an anchored state, not locomotion. Do not carry the
+                    // previous walk interpolation into the seated animation.
+                    if (p.motionMode === 'sit') {
+                        p.remoteMoving = false;
+                        p.remoteSeatTraceArmed = true;
+                        p.remoteTraceFrozen = false;
+                    }
+                    p.lastPoseReceivedAt = receivedAt;
                     if (typeof pData.escId === 'number' && typeof pData.escT === 'number' && escalatorList[pData.escId]) {
                         const escalator = escalatorList[pData.escId];
+                        p.remoteStandAnchor = null;
                         const escProgress = THREE.MathUtils.clamp(pData.escT, 0, 1) * escalator.pathLenZ;
                         p.targetPos.copy(getEscalatorRidePosition(escalator, escProgress, AVATAR_FLOOR_OFFSET));
                         p.targetRot = escalator.travelDir > 0 ? 0 : Math.PI;
                         p.escalatorState = { id: escalator.id, t: pData.escT };
                         p.remoteMoving = true;
+                        p.motionMode = 'walk';
                     } else {
-                        const remoteGroundY = pData.y - PLAYER_EYE_HEIGHT + AVATAR_FLOOR_OFFSET;
-                        p.targetPos.set(pData.x, remoteGroundY, pData.z);
+                        const hasSeatAnchor = p.motionMode === 'sit'
+                            && [pData.seatX, pData.seatY, pData.seatZ].every(Number.isFinite);
+                        const remoteGroundY = hasSeatAnchor
+                            ? pData.seatY
+                            : Number.isFinite(pData.avatarY)
+                                ? pData.avatarY
+                                : pData.y - PLAYER_EYE_HEIGHT + AVATAR_FLOOR_OFFSET;
+                        if (hasSeatAnchor) {
+                            p.seatedWorldAnchor = p.seatedWorldAnchor || new THREE.Vector3();
+                            p.seatedWorldAnchor.set(pData.seatX, remoteGroundY, pData.seatZ);
+                            p.targetPos.copy(p.seatedWorldAnchor);
+                        } else {
+                            p.seatedWorldAnchor = null;
+                            p.targetPos.set(pData.x, remoteGroundY, pData.z);
+                        }
+                        applyRemoteSeatStandAnchor(
+                            p,
+                            previousMotion,
+                            previousSeatAnchor,
+                            p.motionMode,
+                            hasSeatAnchor
+                        );
                         p.targetRot = pData.r;
                         p.escalatorState = null;
                         if (Math.abs(p.mesh.position.y - remoteGroundY) > 0.75) {
                             p.mesh.position.y = remoteGroundY;
                         }
                     }
+                    const beforeBroadcastSnap = p.mesh.position.clone();
                     if (!p.hasReceivedPose) {
                         p.mesh.position.copy(p.targetPos);
                         p.mesh.rotation.y = p.targetRot;
                         p.hasReceivedPose = true;
-                    } else if (!p.remoteMoving && !p.escalatorState) {
+} else if (!p.remoteMoving && !p.escalatorState && !p.remoteSeatApproach) {
                         p.mesh.position.copy(p.targetPos);
+                    }
+                    if (!guardRemoteSeatDisplacement(p, 'broadcast-snap', beforeBroadcastSnap, {
+                        payload: {
+                            x: Number(pData.x), y: Number(pData.y), z: Number(pData.z),
+                            avatarY: Number(pData.avatarY), motion: pData.motion,
+                            seatX: Number(pData.seatX), seatY: Number(pData.seatY), seatZ: Number(pData.seatZ)
+                        }
+                    })) {
+                        traceRemoteSeatPosition(p, 'broadcast-snap', beforeBroadcastSnap);
                     }
                     p.mesh.visible = true;
                 })
@@ -7344,7 +8325,16 @@
                     camera.position.z - lastMovementSamplePos.z
                 );
                 const sampledSpeed = sampleDistance / sampleSeconds;
-                const nextMoving = Boolean(currentEscalatorState) || sampledSpeed > MOVEMENT_SPEED_THRESHOLD;
+                const seatCameraMoving = sampleNow < (window.mallSeatCameraTransitionUntil || 0);
+                const nextMoving = !seatCameraMoving
+                    && (Boolean(currentEscalatorState) || sampledSpeed > MOVEMENT_SPEED_THRESHOLD);
+                const forwardDistance = (camera.position.x - lastMovementSamplePos.x) * dir.x
+                    + (camera.position.z - lastMovementSamplePos.z) * dir.z;
+                const yawDelta = lastSampleYaw === null ? 0 : Math.atan2(Math.sin(realRot - lastSampleYaw), Math.cos(realRot - lastSampleYaw));
+                sampledMotion = window.mallMotionSeated ? 'sit'
+                    : nextMoving ? (forwardDistance < -0.005 ? 'backward' : 'walk')
+                    : Math.abs(yawDelta) > 0.008 ? (yawDelta > 0 ? 'turnLeft' : 'turnRight') : 'idle';
+                lastSampleYaw = realRot;
                 const movementChanged = nextMoving !== myIsMoving;
                 myIsMoving = nextMoving;
                 myMoveSpeed = nextMoving ? sampledSpeed : 0;
@@ -7352,7 +8342,7 @@
                 lastMovementSampleAt = sampleNow;
 
                 // LÓGICA DE OPTIMIZACIÓN: Solo enviar si hubo cambio o pasó el tiempo límite
-                if (movementChanged || dist > POS_THRESHOLD || rotDiff > ROT_THRESHOLD || (now - lastUpdateTime) > HEARTBEAT_LIMIT) {
+                if (sampledMotion !== lastSentMotion || movementChanged || dist > POS_THRESHOLD || rotDiff > ROT_THRESHOLD || (now - lastUpdateTime) > HEARTBEAT_LIMIT) {
                     broadcastMyPosition();
                     lastSentPos.copy(camera.position);
                     lastSentRot = realRot;
@@ -7361,14 +8351,45 @@
             }, 100);
         }
 
+        function getSeatedAvatarAnchor() {
+            const seatPosition = window.mallMotionSeated
+                ? window.mallSeatInteraction?.position
+                : null;
+            if (!seatPosition) return null;
+            return {
+                x: seatPosition.x,
+                y: seatPosition.y + AVATAR_FLOOR_OFFSET,
+                z: seatPosition.z
+            };
+        }
+
         async function trackMySelf() {
             if (!presenceChannel || !presenceReady) return;
-            // Solo registrar presencia física y qué avatar escogimos
+            const now = Date.now();
+            const direction = new THREE.Vector3();
+            camera.getWorldDirection(direction);
+            const seatedAnchor = getSeatedAvatarAnchor();
+            // Presence is the recoverable pose channel; broadcast makes motion feel immediate.
             await presenceChannel.track({
                 playerId: myPresenceId,
                 nickname: myNickname,
                 style: myAvatarStyle,
-                role: currentAccessRole
+                role: currentAccessRole,
+                x: camera.position.x,
+                y: camera.position.y,
+                z: camera.position.z,
+                avatarY: seatedAnchor?.y ?? (window.mallMotionSeated
+                    ? camera.position.y - MALL_SEATED_EYE_HEIGHT + AVATAR_FLOOR_OFFSET
+                    : camera.position.y - PLAYER_EYE_HEIGHT + AVATAR_FLOOR_OFFSET),
+                seatX: seatedAnchor?.x ?? null,
+                seatY: seatedAnchor?.y ?? null,
+                seatZ: seatedAnchor?.z ?? null,
+                r: Math.atan2(direction.x, direction.z),
+                moving: myIsMoving,
+                speed: Number(myMoveSpeed.toFixed(3)),
+                motion: window.mallMotionSeated ? 'sit' : sampledMotion,
+                poseRevision: myPoseRevision,
+                poseUpdatedAt: now
             });
         }
 
@@ -7379,6 +8400,10 @@
             const dir = new THREE.Vector3();
             camera.getWorldDirection(dir);
             const realRot = Math.atan2(dir.x, dir.z);
+            const motion = window.mallMotionSeated ? 'sit' : sampledMotion;
+            const poseUpdatedAt = Date.now();
+            const seatedAnchor = getSeatedAvatarAnchor();
+            lastSentMotion = motion;
 
             presenceChannel.send({
                 type: 'broadcast',
@@ -7392,13 +8417,23 @@
                     x: camera.position.x,
                     y: camera.position.y,
                     z: camera.position.z,
+                    avatarY: seatedAnchor?.y ?? (window.mallMotionSeated
+                        ? camera.position.y - MALL_SEATED_EYE_HEIGHT + AVATAR_FLOOR_OFFSET
+                        : camera.position.y - PLAYER_EYE_HEIGHT + AVATAR_FLOOR_OFFSET),
+                    seatX: seatedAnchor?.x ?? null,
+                    seatY: seatedAnchor?.y ?? null,
+                    seatZ: seatedAnchor?.z ?? null,
                     r: realRot,
                     moving: myIsMoving,
-                    speed: Number(myMoveSpeed.toFixed(3)),
+speed: Number(myMoveSpeed.toFixed(3)),
+                    motion,
+                    poseRevision: myPoseRevision,
+                    poseUpdatedAt,
                     escId: currentEscalatorState ? currentEscalatorState.id : null,
                     escT: currentEscalatorState ? currentEscalatorState.t : null
                 }
             });
+
         }
 
         function addChatMessage(user, text, to = "Todos") {
@@ -7465,28 +8500,186 @@
 
         // Versión optimizada del archivo fuente de Blender: se descarga una vez y
         // se clona con SkeletonUtils para cada jugador remoto.
-        // Mall Persona is the lightweight, branded visitor avatar. It replaces the
-        // photorealistic source for multiplayer visitors while keeping Idle/Walk.
+        // Each dressed body must use skinned clothing against this same Mixamo rig.
+        // The neutral body remains the fallback for body variants not exported yet.
         const GAME_READY_AVATAR_URLS = {
-            male: "assets/avatars/mall-persona-masculino-v1.glb?v=20260912-mpfb-walk-v1",
-            female: "assets/avatars/mall-persona-femenino-v1.glb?v=20260912-mpfb-walk-v1"
+            "male-casual": "assets/avatars/mall-persona-masculino-casual-v7-mejorada.glb?v=20260926-staging-avatar-rig-v1",
+            "male-elegant": "assets/avatars/mall-persona-masculino-elegant-v7-mejorada.glb?v=20260926-staging-avatar-rig-v1",
+            "male-work": "assets/avatars/mall-persona-masculino-work-v7-mejorada.glb?v=20260926-staging-avatar-rig-v1",
+            "female-casual": "assets/avatars/mall-persona-femenino-casual-v5-mejorada.glb?v=20260926-staging-avatar-rig-v1",
+            "female-elegant": "assets/avatars/mall-persona-femenino-elegant-v5-mejorada.glb?v=20260926-staging-avatar-rig-v1",
+            "female-sport": "assets/avatars/mall-persona-femenino-sport-v5-mejorada.glb?v=20260926-staging-avatar-rig-v1"
         };
-        // MPFB exports in decimeter-sized scene units while the mall uses meters.
-        const GAME_READY_AVATAR_BASE_SCALE = 0.108;
-        const GAME_READY_AVATAR_YAW_OFFSET = Math.PI / 6;
+        const GAME_READY_AVATAR_ACTION_URLS = {
+            // This is the walk clip already calibrated for the mall. Do not use an
+            // animation embedded in a cosmetic body: it may be authored differently.
+            walk: "assets/avatars/hombre-caminando-2.glb?v=20260926-staging-avatar-rig-v1",
+            walkFemale: "assets/avatars/animations/female-walk.glb?v=20260926-staging-avatar-rig-v1",
+            idle: "assets/avatars/animations/standing-idle.glb?v=20260926-staging-avatar-rig-v1",
+            backward: "assets/avatars/animations/backward.glb?v=20260926-staging-avatar-rig-v1",
+            turnLeft: "assets/avatars/animations/turn-left.glb?v=20260926-staging-avatar-rig-v1",
+            sit: "assets/avatars/animations/sitting.glb?v=20260926-staging-avatar-rig-v1",
+            stand: "assets/avatars/animations/stand.glb?v=20260926-staging-avatar-rig-v1"
+        };
+        // Shared reference scale for every local and remote neutral-rig avatar.
+        const GAME_READY_AVATAR_BASE_SCALE = 1.25;
+        // Keep the planted feet fixed while the seated clip bends the rig.
+        const GAME_READY_AVATAR_SEAT_TRANSITION_SECONDS = 0.36;
+        const GAME_READY_AVATAR_STAND_SETTLE_SECONDS = 0.24;
+        const GAME_READY_VISITOR_SIT_BLEND_SECONDS = 0.7;
+        const GAME_READY_AVATAR_YAW_OFFSET = 0;
         const gameReadyAvatarState = {
             loader: null,
             promises: {},
             gltfs: {},
-            errors: {}
+            errors: {},
+            actionPromise: null,
+            actionClips: null
+        };
+        const GAME_READY_EYE_TEXTURES = Object.freeze({
+            brown: "assets/avatars/eyes/brown_eye.png",
+            hazel: "assets/avatars/eyes/bluegreen_eye.png",
+            green: "assets/avatars/eyes/green_eye.png",
+            blue: "assets/avatars/eyes/blue_eye.png"
+        });
+        const gameReadyEyeTextureCache = {};
+
+        function getGameReadyEyeTexture(color) {
+            const url = GAME_READY_EYE_TEXTURES[color] || GAME_READY_EYE_TEXTURES.brown;
+            if (!gameReadyEyeTextureCache[url]) {
+                const texture = new THREE.TextureLoader().load(url);
+                // External eye maps are authored with GLTF UV orientation. The
+                // TextureLoader default flips them vertically and samples only
+                // the blank sclera region on the high-poly eye mesh.
+                texture.flipY = false;
+                texture.colorSpace = THREE.SRGBColorSpace;
+                texture.needsUpdate = true;
+                gameReadyEyeTextureCache[url] = texture;
+            }
+            return gameReadyEyeTextureCache[url];
+        }
+        const avatarMirrorState = {
+            renderer: null,
+            scene: null,
+            camera: null,
+            root: null,
+            mixer: null,
+            lastFrameAt: 0,
+            requestId: 0,
+            frameId: 0,
+            width: 0,
+            height: 0
         };
 
         function getGameReadyAvatarModelKey(styleCode = "1") {
-            return parseAvatarStyleCode(styleCode).body === "female" ? "female" : "male";
+            const appearance = parseAvatarStyleCode(styleCode);
+            const key = `${appearance.body}-${appearance.outfit}`;
+            return GAME_READY_AVATAR_URLS[key] ? key : `${appearance.body}-casual`;
+        }
+
+        function ensureAvatarMirror() {
+            const canvas = document.getElementById('avatar-mirror-canvas');
+            if (!canvas || !THREE.WebGLRenderer || !THREE.SkeletonUtils) return null;
+            if (avatarMirrorState.renderer) return avatarMirrorState;
+
+            const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
+            renderer.outputEncoding = THREE.sRGBEncoding;
+            const previewScene = new THREE.Scene();
+            const camera = new THREE.PerspectiveCamera(28, 1, 0.1, 20);
+            camera.position.set(0, 1.06, 4.05);
+            camera.lookAt(0, 0.95, 0);
+            previewScene.add(new THREE.HemisphereLight(0xf7f0df, 0x273038, 1.05));
+            const keyLight = new THREE.DirectionalLight(0xffffff, 0.92);
+            keyLight.position.set(2.8, 4.2, 3.6);
+            previewScene.add(keyLight);
+            const fillLight = new THREE.DirectionalLight(0xd9b879, 0.22);
+            fillLight.position.set(-3, 1.7, 2);
+            previewScene.add(fillLight);
+            const floor = new THREE.Mesh(
+                new THREE.CircleGeometry(1.45, 48),
+                new THREE.MeshStandardMaterial({ color: 0x303331, roughness: 0.92, transparent: true, opacity: 0.7 })
+            );
+            floor.rotation.x = -Math.PI / 2;
+            floor.position.y = -0.02;
+            previewScene.add(floor);
+            Object.assign(avatarMirrorState, { renderer, scene: previewScene, camera });
+            return avatarMirrorState;
+        }
+
+        function renderAvatarMirror(nowMs = performance.now()) {
+            const modal = document.getElementById('avatar-customizer-modal');
+            const mirror = avatarMirrorState;
+            if (!modal || modal.hidden || !mirror.renderer || !mirror.scene || !mirror.camera) {
+                mirror.frameId = 0;
+                return;
+            }
+            const canvas = mirror.renderer.domElement;
+            const width = Math.max(1, Math.round(canvas.clientWidth));
+            const height = Math.max(1, Math.round(canvas.clientHeight));
+            if (width !== mirror.width || height !== mirror.height) {
+                mirror.width = width;
+                mirror.height = height;
+                mirror.renderer.setSize(width, height, false);
+                mirror.camera.aspect = width / height;
+                mirror.camera.updateProjectionMatrix();
+            }
+            if (mirror.mixer) {
+                const deltaSec = mirror.lastFrameAt
+                    ? THREE.MathUtils.clamp((nowMs - mirror.lastFrameAt) / 1000, 0, 1 / 20)
+                    : 0;
+                mirror.mixer.update(deltaSec);
+            }
+            mirror.lastFrameAt = nowMs;
+            if (mirror.root) mirror.root.rotation.y = Math.sin(nowMs * 0.00045) * 0.16;
+            mirror.renderer.render(mirror.scene, mirror.camera);
+            mirror.frameId = requestAnimationFrame(renderAvatarMirror);
+        }
+
+        function startAvatarMirror() {
+            if (avatarMirrorState.frameId || !avatarMirrorState.renderer) return;
+            avatarMirrorState.frameId = requestAnimationFrame(renderAvatarMirror);
+        }
+
+        function stopAvatarMirror() {
+            if (!avatarMirrorState.frameId) return;
+            cancelAnimationFrame(avatarMirrorState.frameId);
+            avatarMirrorState.frameId = 0;
+        }
+
+        function refreshAvatarMirror(styleCode = myAvatarStyle) {
+            const modal = document.getElementById('avatar-customizer-modal');
+            if (!modal || modal.hidden) return;
+            const mirror = ensureAvatarMirror();
+            if (!mirror) return;
+            const modelKey = getGameReadyAvatarModelKey(styleCode);
+            const requestId = ++mirror.requestId;
+            Promise.all([ensureGameReadyAvatarModel(modelKey), ensureGameReadyAvatarActionClips()])
+                .then(([gltf, actionClips]) => {
+                    if (requestId !== mirror.requestId) return;
+                    if (mirror.root) mirror.scene.remove(mirror.root);
+                    const root = THREE.SkeletonUtils.clone(gltf.scene);
+                    const appearance = parseAvatarStyleCode(styleCode);
+                    root.scale.setScalar(GAME_READY_AVATAR_BASE_SCALE * (appearance.height || 175) / 175);
+                    applyGameReadyAvatarStyle(root, styleCode);
+                    addGameReadyFacialDetails(extractGameReadyRig(root), styleCode);
+                    mirror.scene.add(root);
+                    mirror.root = root;
+                    mirror.mixer = null;
+                    mirror.lastFrameAt = 0;
+                    if (actionClips.idle) {
+                        mirror.mixer = new THREE.AnimationMixer(root);
+                        mirror.mixer.clipAction(actionClips.idle, root).play();
+                    } else {
+                        applyGameReadyRestPose(extractGameReadyRig(root));
+                    }
+                    startAvatarMirror();
+                })
+                .catch((error) => console.warn('No se pudo cargar la vista previa del avatar:', error));
         }
 
         function ensureGameReadyAvatarModel(modelKey = "male") {
-            const key = GAME_READY_AVATAR_URLS[modelKey] ? modelKey : "male";
+            const key = GAME_READY_AVATAR_URLS[modelKey] ? modelKey : "male-casual";
             if (gameReadyAvatarState.gltfs[key]) return Promise.resolve(gameReadyAvatarState.gltfs[key]);
             if (gameReadyAvatarState.errors[key]) return Promise.reject(gameReadyAvatarState.errors[key]);
             if (gameReadyAvatarState.promises[key]) return gameReadyAvatarState.promises[key];
@@ -7512,6 +8705,66 @@
                 );
             });
             return gameReadyAvatarState.promises[key];
+        }
+
+        function ensureGameReadyAvatarActionClips() {
+            if (gameReadyAvatarState.actionClips) return Promise.resolve(gameReadyAvatarState.actionClips);
+            if (gameReadyAvatarState.actionPromise) return gameReadyAvatarState.actionPromise;
+            if (!THREE.GLTFLoader) return Promise.resolve({});
+
+            gameReadyAvatarState.loader = gameReadyAvatarState.loader || new THREE.GLTFLoader();
+            const entries = Object.entries(GAME_READY_AVATAR_ACTION_URLS);
+            gameReadyAvatarState.actionPromise = Promise.all(entries.map(([name, url]) => new Promise((resolve) => {
+                gameReadyAvatarState.loader.load(
+                    url,
+                    (gltf) => {
+                        resolve([name, lockAnimationHorizontalRootMotion(gltf.animations?.[0] || null, name)]);
+                    },
+                    undefined,
+                    (error) => {
+                        console.warn(`No se pudo cargar la accion ${name}:`, error);
+                        resolve([name, null]);
+                    }
+                );
+            }))).then((loaded) => {
+                gameReadyAvatarState.actionClips = Object.fromEntries(loaded.filter(([, clip]) => !!clip));
+                return gameReadyAvatarState.actionClips;
+            });
+            return gameReadyAvatarState.actionPromise;
+        }
+
+        function lockAnimationHorizontalRootMotion(clip, actionName = '') {
+            if (!clip?.tracks) return clip;
+            const isSeatMotion = actionName === 'stand' || actionName === 'sit' || actionName === 'sitDown';
+            clip.tracks.forEach((track) => {
+                // Some exported actions include a different authored scale for their
+                // rig root. Keep every action at neutral scale so the shared avatar
+                // base scale is identical while idle, walking, turning, or seated.
+                if (/\.scale$/i.test(track.name) && track.values.length >= 3) {
+                    for (let index = 0; index < track.values.length; index += 3) {
+                        track.values[index] = 1;
+                        track.values[index + 1] = 1;
+                        track.values[index + 2] = 1;
+                    }
+                    return;
+                }
+                // Do not clamp horizontal root motion on sit/stand clips:
+                // Mixamo already authored planted feet with natural forward hip translation.
+                // Clamping X/Z strips the hip translation and causes feet to drag backward.
+                if (isSeatMotion) return;
+
+                // The locomotion clip may translate its root or any rig node in X/Z.
+                // Keep every horizontal position channel fixed so the feet remain anchored
+                // at the world position where the gesture began; Y remains animated.
+                if (!/\.position$/i.test(track.name) || track.values.length < 3) return;
+                const firstX = track.values[0];
+                const firstZ = track.values[2];
+                for (let index = 0; index < track.values.length; index += 3) {
+                    track.values[index] = firstX;
+                    track.values[index + 2] = firstZ;
+                }
+            });
+            return clip;
         }
 
         function findBoneByTokens(root, tokens) {
@@ -7546,17 +8799,17 @@
                 chest: findBoneByTokens(root, ['spine03', 'spine3', 'spine02', 'spine2', 'chest']),
                 neck: findBoneByTokens(root, ['neck01', 'neck']),
                 head: findBoneByTokens(root, ['head']),
-                upperArmL: findBoneByTokens(root, ['leftarm', 'leftupperarm', 'upperarml']),
-                lowerArmL: findBoneByTokens(root, ['leftforearm', 'leftlowerarm', 'lowerarml']),
+                upperArmL: findBoneByTokens(root, ['leftarm', 'leftupperarm', 'upperarm01l', 'upperarml']),
+                lowerArmL: findBoneByTokens(root, ['leftforearm', 'leftlowerarm', 'lowerarm01l', 'lowerarml']),
                 handL: findBoneByTokens(root, ['lefthand', 'handl']),
-                upperArmR: findBoneByTokens(root, ['rightarm', 'rightupperarm', 'upperarmr']),
-                lowerArmR: findBoneByTokens(root, ['rightforearm', 'rightlowerarm', 'lowerarmr']),
+                upperArmR: findBoneByTokens(root, ['rightarm', 'rightupperarm', 'upperarm01r', 'upperarmr']),
+                lowerArmR: findBoneByTokens(root, ['rightforearm', 'rightlowerarm', 'lowerarm01r', 'lowerarmr']),
                 handR: findBoneByTokens(root, ['righthand', 'handr']),
-                upperLegL: findBoneByTokens(root, ['leftupleg', 'leftthigh', 'uplegl', 'thighl']),
-                lowerLegL: findBoneByTokens(root, ['leftleg', 'leftcalf', 'lowerlegl', 'calfl']),
+                upperLegL: findBoneByTokens(root, ['leftupleg', 'leftthigh', 'upperleg01l', 'uplegl', 'thighl']),
+                lowerLegL: findBoneByTokens(root, ['leftleg', 'leftcalf', 'lowerleg01l', 'lowerlegl', 'calfl']),
                 footL: findBoneByTokens(root, ['leftfoot', 'footl']),
-                upperLegR: findBoneByTokens(root, ['rightupleg', 'rightthigh', 'uplegr', 'thighr']),
-                lowerLegR: findBoneByTokens(root, ['rightleg', 'rightcalf', 'lowerlegr', 'calfr']),
+                upperLegR: findBoneByTokens(root, ['rightupleg', 'rightthigh', 'upperleg01r', 'uplegr', 'thighr']),
+                lowerLegR: findBoneByTokens(root, ['rightleg', 'rightcalf', 'lowerleg01r', 'lowerlegr', 'calfr']),
                 footR: findBoneByTokens(root, ['rightfoot', 'footr'])
             };
             rig.base = captureBoneEulerMap(rig);
@@ -7593,29 +8846,506 @@
             setBoneFromBase(base, 'footR', rig, 0.04, 0, 0);
         }
 
+        function applyGameReadyRelaxedIdleArms(actor) {
+            // The selected Standing Idle clip already contains the intended
+            // relaxed arm placement. Keep it authored rather than overriding
+            // individual bones after the animation mixer updates.
+        }
+
         function applyGameReadyAvatarStyle(root, styleCode = "1") {
             const appearance = parseAvatarStyleCode(styleCode);
-            const skinTones = { fair: 0xf2cfb5, light: 0xe2b08b, medium: 0xbd7a58, deep: 0x70442f };
+            const selectedHairStyle = AVATAR_HAIR_STYLES[appearance.body]?.includes(appearance.hairStyle)
+                ? appearance.hairStyle
+                : getDefaultAvatarHairStyle(appearance.body);
+            const skinTones = {
+                fair: 0xf2cfb5, light: 0xe2b08b, olive: 0xc78c63, latino: 0xac6846,
+                asian: 0xd59b72, medium: 0xbd7a58, deep: 0x70442f, rich: 0x42251d
+            };
             const hairColors = { black: 0x181414, brown: 0x4a2b20, blonde: 0xb88a48, auburn: 0x783522 };
-            const outfitColors = { formal: 0x353333, casual: 0x526b7f, sport: 0x2e6f9e };
+            const outfitColors = { casual: 0x526b7f, elegant: 0x353333, work: 0x6a604d, sport: 0x2e6f9e };
+            const ageRoughness = { young: 0.54, adult: 0.62, senior: 0.76 };
             root.traverse((node) => {
-                if (!node.isMesh || !node.material) return;
+                if (!node.isMesh) return;
+                // GLTFLoader may retain either the Blender node name
+                // (AvatarHair.afro01) or the mesh name (afro01). Resolve the
+                // style from both so the selector is independent of loader
+                // naming behavior.
+                const hairStyleMatch = String(node.name || '')
+                    .match(/(?:avatarhair\.)?(short0[1-4]|bob01|long01|ponytail01|braid01|afro01)$/i);
+                const catalogHairStyle = hairStyleMatch?.[1]?.toLowerCase() || null;
+                const isCatalogHair = Boolean(catalogHairStyle);
+                if (isCatalogHair) {
+                    node.visible = catalogHairStyle === selectedHairStyle;
+                }
+                if (!node.material) return;
                 node.castShadow = true;
                 node.receiveShadow = true;
                 const materials = (Array.isArray(node.material) ? node.material : [node.material]).map((material) => material?.clone?.() || material);
                 node.material = Array.isArray(node.material) ? materials : materials[0];
                 materials.forEach((material) => {
                     if (!material) return;
+                    // MPFB exports legacy vertex colors intended for Blender's
+                    // material graph. They tint the WebGL materials into patches.
+                    material.vertexColors = false;
                     material.roughness = Math.min(1, (material.roughness ?? 0.7) + 0.08);
                     material.metalness = Math.min(1, material.metalness ?? 0.05);
-                    if (/body/i.test(node.name)) material.color.setHex(skinTones[appearance.skinTone] || skinTones.medium);
-                    if (/hair/i.test(node.name)) material.color.setHex(hairColors[appearance.hairColor] || hairColors.brown);
-                    if (/look/i.test(node.name)) material.color.setHex(outfitColors[appearance.outfit] || outfitColors.formal);
+                    const materialName = String(material.name || '');
+                    // Each catalog option is an independent skinned mesh. Keep
+                    // the material in the same state as its mesh because some
+                    // WebGL drivers retain a skinned draw during a scene clone.
+                    if (isCatalogHair) material.visible = node.visible;
+                    const isNeutralBody = material.name === 'MotionMannequin';
+                    if (/^AvatarEyeWhite$/i.test(materialName)) material.color.setHex(0xe6e4dc);
+                    if (/^AvatarIris$/i.test(materialName)) material.color.setHex(getGameReadyEyeColor(appearance.eyeColor));
+                    if (/^AvatarPupil$/i.test(materialName)) material.color.setHex(0x100d0c);
+                    if (/^AvatarBrow$/i.test(materialName)) material.color.setHex(getGameReadyBrowColor(appearance.hairColor));
+                    if (/^AvatarLash$/i.test(materialName)) material.color.setHex(getGameReadyBrowColor(appearance.hairColor));
+                    if (isNeutralBody || /body|skin/i.test(`${node.name} ${materialName}`)) material.color.setHex(skinTones[appearance.skinTone] || skinTones.medium);
+                    if (isNeutralBody || /body|skin/i.test(`${node.name} ${materialName}`)) material.roughness = ageRoughness[appearance.age] || ageRoughness.adult;
+                    if (/(hair|short|bob|ponytail|braid|afro|long)/i.test(`${node.name} ${materialName}`)) material.color.setHex(hairColors[appearance.hairColor] || hairColors.brown);
+                    if (/eyebrow/i.test(`${node.name} ${materialName}`)) material.color.setHex(getGameReadyBrowColor(appearance.hairColor));
+                    if (/eyelashes/i.test(`${node.name} ${materialName}`)) material.color.setHex(getGameReadyBrowColor(appearance.hairColor));
+                    if (/high-poly/i.test(node.name)) {
+                        material.map = getGameReadyEyeTexture(appearance.eyeColor);
+                        material.color.setHex(0xffffff);
+                    }
+                    if (/look|outfit|jacket|sleeve|pants|casualsuit|elegantsuit|worksuit|sportsuit|shoes/i.test(`${node.name} ${materialName}`)) {
+                        material.color.setHex(outfitColors[appearance.outfit] || outfitColors.casual);
+                        // Some MPFB garments contain outward and inward triangles.
+                        // Render both faces so their source topology cannot expose
+                        // the body as apparent holes in WebGL.
+                        material.side = THREE.DoubleSide;
+                        material.transparent = false;
+                        material.opacity = 1;
+                        material.alphaTest = 0;
+                        material.depthWrite = true;
+                    }
+                    material.needsUpdate = true;
                 });
+            });
+            // All catalog meshes stay attached to the shared skeleton. Their
+            // visibility is enough once the loader-resolved style name is used;
+            // removing skinned nodes can invalidate the preview on some GPUs.
+        }
+
+        function getGameReadyEyeColor(eyeColor) {
+            return {
+                brown: 0x3f2818,
+                hazel: 0x70511f,
+                green: 0x3e5935,
+                blue: 0x2f5360
+            }[eyeColor] || 0x3f2818;
+        }
+
+        function getGameReadyBrowColor(hairColor) {
+            return {
+                black: 0x15100f,
+                brown: 0x342018,
+                blonde: 0x715020,
+                auburn: 0x522116
+            }[hairColor] || 0x342018;
+        }
+
+        function removeGameReadyFacialDetails(rig) {
+            const details = rig?.head?.getObjectByName('mall-game-ready-facial-details');
+            if (details) details.parent.remove(details);
+        }
+
+        function addGameReadyFacialDetails(rig, styleCode = "1") {
+            if (!rig?.head) return null;
+            removeGameReadyFacialDetails(rig);
+            return null;
+        }
+
+        function captureGameReadyAvatarScale(actor) {
+            if (!actor?.gltfRoot) return;
+            actor.gameReadyRestScales = [];
+            actor.gltfRoot.traverse((node) => {
+                actor.gameReadyRestScales.push({ node, scale: node.scale.clone() });
             });
         }
 
-        function attachGameReadyAvatarModel(actor, nickname, gltf) {
+        function restoreGameReadyAvatarScale(actor) {
+            actor?.gameReadyRestScales?.forEach(({ node, scale }) => {
+                node.scale.copy(scale);
+            });
+        }
+
+        function getGameReadyFootPositions(actor) {
+            const root = actor?.gltfRoot;
+            const rig = actor?.gameReadyRig;
+            if (!root?.parent || !rig?.footL || !rig?.footR) return null;
+
+            root.updateWorldMatrix(true, true);
+            const parentInverse = new THREE.Matrix4().copy(root.parent.matrixWorld).invert();
+            const left = rig.footL.getWorldPosition(new THREE.Vector3()).applyMatrix4(parentInverse);
+            const right = rig.footR.getWorldPosition(new THREE.Vector3()).applyMatrix4(parentInverse);
+            return {
+                left,
+                right,
+                center: left.clone().add(right).multiplyScalar(0.5)
+            };
+        }
+
+        function captureGameReadyFootAnchors(actor) {
+            const feet = getGameReadyFootPositions(actor);
+            if (!feet) return null;
+            const root = actor.gltfRoot;
+            const parent = root.parent;
+            const parentWorldRotation = parent.getWorldQuaternion(new THREE.Quaternion());
+            const parentInverseRotation = parentWorldRotation.invert();
+            const toParentRotation = (bone) => {
+                if (!bone) return null;
+                return parentInverseRotation.clone().multiply(bone.getWorldQuaternion(new THREE.Quaternion()));
+            };
+            const toParentPosition = (bone) => {
+                if (!bone) return null;
+                return bone.getWorldPosition(new THREE.Vector3()).applyMatrix4(
+                    new THREE.Matrix4().copy(parent.matrixWorld).invert()
+                );
+            };
+            const leftHip = toParentPosition(actor.gameReadyRig.upperLegL);
+            const rightHip = toParentPosition(actor.gameReadyRig.upperLegR);
+            const leftKnee = toParentPosition(actor.gameReadyRig.lowerLegL);
+            const rightKnee = toParentPosition(actor.gameReadyRig.lowerLegR);
+            return {
+                left: feet.left.clone(),
+                right: feet.right.clone(),
+                leftRotation: toParentRotation(actor.gameReadyRig.footL),
+                rightRotation: toParentRotation(actor.gameReadyRig.footR),
+                leftPole: leftHip && leftKnee ? leftKnee.sub(leftHip) : null,
+                rightPole: rightHip && rightKnee ? rightKnee.sub(rightHip) : null
+            };
+        }
+
+        function captureGameReadySeatIkBasePose(actor) {
+            const rig = actor?.gameReadyRig;
+            if (!rig) return;
+            actor.seatIkBasePose = ['upperLegL', 'lowerLegL', 'footL', 'upperLegR', 'lowerLegR', 'footR']
+                .map((key) => ({ bone: rig[key], quaternion: rig[key]?.quaternion.clone() }))
+                .filter((entry) => entry.bone && entry.quaternion);
+        }
+
+        function restoreGameReadySeatIkBasePose(actor) {
+            actor?.seatIkBasePose?.forEach(({ bone, quaternion }) => bone.quaternion.copy(quaternion));
+        }
+
+        function rotateGameReadyBoneTowards(bone, child, targetWorldPosition) {
+            if (!bone?.parent || !child) return;
+            bone.updateWorldMatrix(true, true);
+            const origin = bone.getWorldPosition(new THREE.Vector3());
+            const currentEnd = child.getWorldPosition(new THREE.Vector3());
+            const currentDirection = currentEnd.sub(origin);
+            const targetDirection = targetWorldPosition.clone().sub(origin);
+            if (currentDirection.lengthSq() < 1e-10 || targetDirection.lengthSq() < 1e-10) return;
+
+            const correction = new THREE.Quaternion().setFromUnitVectors(
+                currentDirection.normalize(),
+                targetDirection.normalize()
+            );
+            const desiredWorldRotation = bone.getWorldQuaternion(new THREE.Quaternion()).premultiply(correction);
+            const parentWorldRotation = bone.parent.getWorldQuaternion(new THREE.Quaternion()).invert();
+            bone.quaternion.copy(parentWorldRotation.multiply(desiredWorldRotation));
+            bone.updateWorldMatrix(false, true);
+        }
+
+        function setGameReadyBoneWorldRotation(bone, desiredWorldRotation) {
+            if (!bone?.parent || !desiredWorldRotation) return;
+            const parentWorldRotation = bone.parent.getWorldQuaternion(new THREE.Quaternion()).invert();
+            bone.quaternion.copy(parentWorldRotation.multiply(desiredWorldRotation));
+            bone.updateWorldMatrix(false, true);
+        }
+
+        function pinGameReadyLegToFoot(actor, upperLeg, lowerLeg, foot, targetPosition, targetRotation, bendHint, parentInverse, parentWorldRotation) {
+            if (!upperLeg || !lowerLeg || !foot || !targetPosition) return;
+            const getParentPosition = (bone) => bone.getWorldPosition(new THREE.Vector3()).applyMatrix4(parentInverse);
+            const hip = getParentPosition(upperLeg);
+            const knee = getParentPosition(lowerLeg);
+            const ankle = getParentPosition(foot);
+            const upperLength = hip.distanceTo(knee);
+            const lowerLength = knee.distanceTo(ankle);
+            const hipToTarget = targetPosition.clone().sub(hip);
+            const rawDistance = hipToTarget.length();
+            if (upperLength < 1e-4 || lowerLength < 1e-4 || rawDistance < 1e-4) return;
+
+            const distance = THREE.MathUtils.clamp(
+                rawDistance,
+                Math.abs(upperLength - lowerLength) + 1e-4,
+                upperLength + lowerLength - 1e-4
+            );
+            const direction = hipToTarget.multiplyScalar(1 / rawDistance);
+            let bendDirection = knee.sub(hip);
+            bendDirection.addScaledVector(direction, -bendDirection.dot(direction));
+            if (bendDirection.lengthSq() < 1e-8 && bendHint) {
+                bendDirection.copy(bendHint).addScaledVector(direction, -bendHint.dot(direction));
+            }
+            if (bendDirection.lengthSq() < 1e-8) {
+                bendDirection.set(0, 0, 1).addScaledVector(direction, -direction.z);
+            }
+            if (bendDirection.lengthSq() < 1e-8) return;
+            bendDirection.normalize();
+
+            const along = (upperLength * upperLength - lowerLength * lowerLength + distance * distance) / (2 * distance);
+            const bend = Math.sqrt(Math.max(0, upperLength * upperLength - along * along));
+            const kneeTargetParent = hip.clone()
+                .addScaledVector(direction, along)
+                .addScaledVector(bendDirection, bend);
+            const kneeTargetWorld = kneeTargetParent.applyMatrix4(actor.gltfRoot.parent.matrixWorld);
+            const ankleTargetWorld = targetPosition.clone().applyMatrix4(actor.gltfRoot.parent.matrixWorld);
+
+            rotateGameReadyBoneTowards(upperLeg, lowerLeg, kneeTargetWorld);
+            rotateGameReadyBoneTowards(lowerLeg, foot, ankleTargetWorld);
+            if (targetRotation) {
+                setGameReadyBoneWorldRotation(foot, parentWorldRotation.clone().multiply(targetRotation));
+            }
+        }
+
+        function applyGameReadyFootPlanting(actor, anchors) {
+            const root = actor?.gltfRoot;
+            const rig = actor?.gameReadyRig;
+            if (!root?.parent || !rig || !anchors) return;
+            root.updateWorldMatrix(true, true);
+            const parent = root.parent;
+            const parentInverse = new THREE.Matrix4().copy(parent.matrixWorld).invert();
+            const parentWorldRotation = parent.getWorldQuaternion(new THREE.Quaternion());
+            pinGameReadyLegToFoot(
+                actor, rig.upperLegL, rig.lowerLegL, rig.footL,
+                anchors.left, anchors.leftRotation, anchors.leftPole, parentInverse, parentWorldRotation
+            );
+            pinGameReadyLegToFoot(
+                actor, rig.upperLegR, rig.lowerLegR, rig.footR,
+                anchors.right, anchors.rightRotation, anchors.rightPole, parentInverse, parentWorldRotation
+            );
+            root.updateWorldMatrix(true, true);
+        }
+
+        function snapshotAvatarGpsVector(vector) {
+            return {
+                x: Number(vector.x.toFixed(5)),
+                y: Number(vector.y.toFixed(5)),
+                z: Number(vector.z.toFixed(5))
+            };
+        }
+
+        function sampleGameReadyShoeGps(actor, motion, nowMs) {
+            const gps = actor?.shoeGps;
+            const rig = actor?.gameReadyRig;
+            if (!gps?.active || !actor?.mesh || !actor?.gltfRoot || !rig?.footL || !rig?.footR) return;
+
+            actor.gltfRoot.updateWorldMatrix(true, true);
+            const left = rig.footL.getWorldPosition(new THREE.Vector3());
+            const right = rig.footR.getWorldPosition(new THREE.Vector3());
+            const parent = actor.gltfRoot.parent;
+            parent.updateWorldMatrix(true, false);
+            const anchors = actor.seatFootAnchors;
+            const leftAnchor = anchors?.left
+                ? anchors.left.clone().applyMatrix4(parent.matrixWorld)
+                : left.clone();
+            const rightAnchor = anchors?.right
+                ? anchors.right.clone().applyMatrix4(parent.matrixWorld)
+                : right.clone();
+            const center = left.clone().add(right).multiplyScalar(0.5);
+            const mesh = actor.mesh.getWorldPosition(new THREE.Vector3());
+            const root = actor.gltfRoot.getWorldPosition(new THREE.Vector3());
+            if ((motion === 'sitDown' || motion === 'sit') && !gps.reference) {
+                gps.reference = {
+                    left: left.clone(),
+                    right: right.clone(),
+                    center: center.clone(),
+                    mesh: mesh.clone(),
+                    root: root.clone(),
+                    leftRotation: rig.footL.getWorldQuaternion(new THREE.Quaternion()),
+                    rightRotation: rig.footR.getWorldQuaternion(new THREE.Quaternion())
+                };
+                gps.startedMotion = motion;
+            }
+            if (motion === 'stand' && !gps.sawStand) {
+                gps.sawStand = true;
+                // End after the planted-foot settle, before the NPC starts walking.
+                gps.finishAtMs = (actor.seatReleaseUntil || actor.standUntil || nowMs) + 80;
+            }
+
+            if (!gps.reference) return;
+            const horizontalDistance = (point, reference) => Math.hypot(
+                point.x - reference.x,
+                point.z - reference.z
+            );
+            const distance3d = (point, reference) => point.distanceTo(reference);
+            const verticalDistance = (point, reference) => Math.abs(point.y - reference.y);
+            const rotationDistance = (bone, reference) => {
+                const rotation = bone.getWorldQuaternion(new THREE.Quaternion());
+                return 2 * Math.acos(THREE.MathUtils.clamp(Math.abs(rotation.dot(reference)), -1, 1));
+            };
+            const frame = {
+                frame: gps.frames.length,
+                atMs: Number((nowMs - gps.startedAt).toFixed(2)),
+                motion,
+                left: snapshotAvatarGpsVector(left),
+                right: snapshotAvatarGpsVector(right),
+                center: snapshotAvatarGpsVector(center),
+                mesh: snapshotAvatarGpsVector(mesh),
+                root: snapshotAvatarGpsVector(root),
+                rootLocal: snapshotAvatarGpsVector(actor.gltfRoot.position),
+                drift: {
+                    left: distance3d(left, gps.reference.left),
+                    right: distance3d(right, gps.reference.right),
+                    center: distance3d(center, gps.reference.center),
+                    mesh: horizontalDistance(mesh, gps.reference.mesh),
+                    root: horizontalDistance(root, gps.reference.root)
+                },
+                horizontalDrift: {
+                    left: horizontalDistance(left, gps.reference.left),
+                    right: horizontalDistance(right, gps.reference.right),
+                    center: horizontalDistance(center, gps.reference.center)
+                },
+                verticalDrift: {
+                    left: verticalDistance(left, gps.reference.left),
+                    right: verticalDistance(right, gps.reference.right),
+                    center: verticalDistance(center, gps.reference.center)
+                },
+                rotationDrift: {
+                    left: rotationDistance(rig.footL, gps.reference.leftRotation),
+                    right: rotationDistance(rig.footR, gps.reference.rightRotation)
+                },
+                anchorError: {
+                    left: distance3d(left, leftAnchor),
+                    right: distance3d(right, rightAnchor)
+                }
+            };
+            const previousFrame = gps.frames[gps.frames.length - 1];
+            frame.step = previousFrame ? {
+                left: distance3d(left, new THREE.Vector3(previousFrame.left.x, previousFrame.left.y, previousFrame.left.z)),
+                right: distance3d(right, new THREE.Vector3(previousFrame.right.x, previousFrame.right.y, previousFrame.right.z)),
+                center: distance3d(center, new THREE.Vector3(previousFrame.center.x, previousFrame.center.y, previousFrame.center.z)),
+                mesh: horizontalDistance(mesh, previousFrame.mesh),
+                root: horizontalDistance(root, previousFrame.root)
+            } : { left: 0, right: 0, center: 0, mesh: 0, root: 0 };
+            gps.frames.push(frame);
+            Object.keys(frame.drift).forEach((key) => {
+                gps.maxDrift[key] = Math.max(gps.maxDrift[key] || 0, frame.drift[key]);
+                gps.maxFrameStep[key] = Math.max(gps.maxFrameStep[key] || 0, frame.step[key]);
+            });
+            Object.entries(frame.verticalDrift).forEach(([key, value]) => {
+                gps.maxVerticalDrift[key] = Math.max(gps.maxVerticalDrift[key] || 0, value);
+            });
+            Object.entries(frame.rotationDrift).forEach(([key, value]) => {
+                gps.maxRotationDrift[key] = Math.max(gps.maxRotationDrift[key] || 0, value);
+            });
+            Object.entries(frame.anchorError).forEach(([key, value]) => {
+                gps.maxAnchorError[key] = Math.max(gps.maxAnchorError[key] || 0, value);
+            });
+
+            if (gps.sawStand && nowMs >= (gps.finishAtMs || Infinity)) {
+                gps.active = false;
+                const report = {
+                    actor: actor.nickname || actor.name || 'NPC de prueba',
+                    seatId: gps.seatId,
+                    frameCount: gps.frames.length,
+                    maxDrift: Object.fromEntries(Object.entries(gps.maxDrift).map(([key, value]) => [key, Number(value.toFixed(5))])),
+                    maxFrameStep: Object.fromEntries(Object.entries(gps.maxFrameStep).map(([key, value]) => [key, Number(value.toFixed(5))])),
+                    maxVerticalDrift: Object.fromEntries(Object.entries(gps.maxVerticalDrift).map(([key, value]) => [key, Number(value.toFixed(5))])),
+                    maxRotationDriftRadians: Object.fromEntries(Object.entries(gps.maxRotationDrift).map(([key, value]) => [key, Number(value.toFixed(5))])),
+                    maxAnchorError: Object.fromEntries(Object.entries(gps.maxAnchorError).map(([key, value]) => [key, Number(value.toFixed(5))])),
+                    motionFrameCounts: gps.frames.reduce((counts, entry) => {
+                        counts[entry.motion] = (counts[entry.motion] || 0) + 1;
+                        return counts;
+                    }, {}),
+                    frames: gps.frames
+                };
+                window.mallLastShoeGpsTrace = report;
+                gps.resolve?.(report);
+            }
+        }
+
+        function updateGameReadySeatRoot(actor, motion, nowMs) {
+            if (!actor?.gltfRoot) return;
+            const shouldKeepFeetPlanted = motion === 'sit'
+                || motion === 'stand'
+                || motion === 'sitDown'
+                || (motion === 'idle' && !!actor.seatFootAnchors);
+            if (actor.isRemotePlayer) {
+                // Keep the network-controlled group at the received seat anchor;
+                // the visual child root can still compensate while feet are planted.
+                if (motion === 'sit' || motion === 'stand') {
+                    actor.seatVisualOffset.set(0, 0, 0);
+                    actor.gltfRoot.position.set(0, actor.gltfBaseY, 0);
+                }
+            }
+            const feet = getGameReadyFootPositions(actor);
+            const anchors = actor.seatFootAnchors;
+            const correctRemoteVisualRoot = actor.isRemotePlayer
+                && shouldKeepFeetPlanted
+                && !!anchors
+                && !!feet;
+
+            if (shouldKeepFeetPlanted && anchors && feet) {
+                const anchorCenter = anchors.left.clone().add(anchors.right).multiplyScalar(0.5);
+                const footCorrection = anchorCenter.sub(feet.center);
+                // Correct the animated root in all axes, then solve each leg so
+                // both ankles, not just their midpoint, stay over their own anchors.
+                if (!actor.isRemotePlayer || correctRemoteVisualRoot) {
+                    // AnimationMixer rewrites the root translation every update.
+                    // Base the correction on that fresh pose rather than adding
+                    // it to last frame's offset, which would accumulate drift.
+                    actor.seatVisualOffset.set(
+                        actor.gltfRoot.position.x + footCorrection.x,
+                        actor.gltfRoot.position.y + footCorrection.y - actor.gltfBaseY,
+                        actor.gltfRoot.position.z + footCorrection.z
+                    );
+                }
+            } else if (!shouldKeepFeetPlanted) {
+                actor.seatFootAnchors = null;
+                actor.seatIkBasePose = null;
+            }
+
+            actor.gltfRoot.position.set(
+                actor.seatVisualOffset.x,
+                actor.gltfBaseY + actor.seatVisualOffset.y,
+                actor.seatVisualOffset.z
+            );
+            if (motion === 'stand' && Number.isFinite(actor.standPelvisFloorY)
+                && actor.gameReadyRig?.upperLegL && actor.gameReadyRig?.upperLegR) {
+                actor.gltfRoot.updateWorldMatrix(true, true);
+                const leftHipY = actor.gameReadyRig.upperLegL.getWorldPosition(new THREE.Vector3()).y;
+                const rightHipY = actor.gameReadyRig.upperLegR.getWorldPosition(new THREE.Vector3()).y;
+                const liftWorld = Math.max(0, actor.standPelvisFloorY - (leftHipY + rightHipY) * 0.5);
+                if (liftWorld > 0) {
+                    const parentScaleY = actor.mesh.getWorldScale(new THREE.Vector3()).y || 1;
+                    const liftLocal = liftWorld / parentScaleY;
+                    actor.seatVisualOffset.y += liftLocal;
+                    actor.gltfRoot.position.y += liftLocal;
+                }
+            }
+            if (shouldKeepFeetPlanted && anchors && feet) {
+                captureGameReadySeatIkBasePose(actor);
+                applyGameReadyFootPlanting(actor, anchors);
+            }
+            sampleGameReadyShoeGps(actor, motion, nowMs);
+        }
+
+        function commitGameReadySeatRootOffset(actor, destination = null) {
+            if (!actor?.mesh || !actor?.gltfRoot || !actor?.seatVisualOffset) return;
+            const transferredOffset = destination
+                ? destination.clone().sub(actor.mesh.position)
+                    .applyQuaternion(actor.mesh.quaternion.clone().invert())
+                    .divide(actor.mesh.scale)
+                : actor.seatVisualOffset.clone();
+            if (actor.seatFootAnchors) {
+                actor.seatFootAnchors.left.sub(transferredOffset);
+                actor.seatFootAnchors.right.sub(transferredOffset);
+            }
+            const localOffset = transferredOffset.clone().multiply(actor.mesh.scale);
+            localOffset.applyQuaternion(actor.mesh.quaternion);
+            actor.mesh.position.add(localOffset);
+            actor.seatVisualOffset.sub(transferredOffset);
+            actor.gltfRoot.position.set(
+                actor.seatVisualOffset.x,
+                actor.gltfBaseY + actor.seatVisualOffset.y,
+                actor.seatVisualOffset.z
+            );
+        }
+
+        function attachGameReadyAvatarModel(actor, nickname, gltf, actionClips = {}) {
             if (actor.gltfRoot) actor.mesh.remove(actor.gltfRoot);
             const clonedScene = THREE.SkeletonUtils.clone(gltf.scene);
             const appearance = parseAvatarStyleCode(actor.styleCode);
@@ -7630,20 +9360,32 @@
             actor.mesh.add(clonedScene);
             actor.gltfRoot = clonedScene;
             actor.gameReadyRig = extractGameReadyRig(clonedScene);
-            applyGameReadyRestPose(actor.gameReadyRig);
+            actor.facialDetails = addGameReadyFacialDetails(actor.gameReadyRig, actor.styleCode);
+            actor.seatVisualOffset = new THREE.Vector3();
+            actor.seatFootAnchors = null;
+            actor.seatReleaseUntil = 0;
+            actor.standUntil = 0;
+            actor.standPelvisFloorY = null;
+            // Preserve the walk-calibrated rest scale while every imported action runs.
+            captureGameReadyAvatarScale(actor);
             actor.actions = {};
             actor.proceduralLocomotion = false;
 
             const mixer = new THREE.AnimationMixer(clonedScene);
-            const idleClip = THREE.AnimationClip.findByName(gltf.animations, 'Idle')
-                || findAnimationByTokens(gltf.animations, ['idle'])
-                || gltf.animations?.[0]
-                || null;
-            const walkClip = THREE.AnimationClip.findByName(gltf.animations, 'Walk')
-                || findAnimationByTokens(gltf.animations, ['walk', 'locomotion', 'jog']);
+            const idleClip = actionClips.idle
+                || THREE.AnimationClip.findByName(gltf.animations, 'Idle')
+                || findAnimationByTokens(gltf.animations, ['idle']);
+            const walkClip = (actor.modelKey.startsWith('female-') ? actionClips.walkFemale : null)
+                || actionClips.walk
+                || lockAnimationHorizontalRootMotion(THREE.AnimationClip.findByName(gltf.animations, 'Walk')
+                || findAnimationByTokens(gltf.animations, ['walk', 'locomotion', 'jog'])
+                || ((gltf.animations?.length === 1) ? gltf.animations[0] : null));
             const runClip = THREE.AnimationClip.findByName(gltf.animations, 'Run')
                 || findAnimationByTokens(gltf.animations, ['run', 'sprint']);
+            const backwardClip = actionClips.backward || null;
+            const turnLeftClip = actionClips.turnLeft || null;
             actor.proceduralLocomotion = !walkClip && !runClip && !!actor.gameReadyRig;
+            if (actor.proceduralLocomotion) applyGameReadyRestPose(actor.gameReadyRig);
 
             if (idleClip) {
                 const idleAction = mixer.clipAction(idleClip, clonedScene);
@@ -7666,8 +9408,55 @@
                 runAction.setEffectiveWeight(0);
                 actor.actions.run = runAction;
             }
+            if (backwardClip) {
+                const backwardAction = mixer.clipAction(backwardClip, clonedScene);
+                backwardAction.enabled = true;
+                backwardAction.play();
+                backwardAction.setEffectiveWeight(0);
+                actor.actions.backward = backwardAction;
+            }
+            if (turnLeftClip) {
+                const turnLeftAction = mixer.clipAction(turnLeftClip, clonedScene);
+                turnLeftAction.enabled = true;
+                turnLeftAction.play();
+                turnLeftAction.setEffectiveWeight(0);
+                actor.actions.turnLeft = turnLeftAction;
+            }
+            if (actionClips.sit) {
+                const sitAction = mixer.clipAction(actionClips.sit, clonedScene);
+                sitAction.setLoop(THREE.LoopOnce, 1);
+                sitAction.clampWhenFinished = true;
+                sitAction.play().setEffectiveWeight(0);
+                actor.actions.sit = sitAction;
+
+                // Prefer the dedicated Sit To Stand clip. Retain a reverse-sit
+                // fallback so existing caches still have a continuous exit pose.
+                const standClip = actionClips.stand || actionClips.sit.clone();
+                const standUsesReverse = !actionClips.stand;
+                if (standUsesReverse) standClip.name = `${actionClips.sit.name || 'Sit'}_reverse`;
+                const standAction = mixer.clipAction(standClip, clonedScene);
+                standAction.setLoop(THREE.LoopOnce, 1);
+                standAction.clampWhenFinished = true;
+                standAction.setEffectiveWeight(0);
+                actor.actions.stand = standAction;
+                actor.standUsesReverse = standUsesReverse;
+
+                // Dedicated sit-down action by playing the stand clip in reverse
+                if (actionClips.stand) {
+                    const isVisitorOrTenant = actor.isRemotePlayer
+                        && ['guest', 'member', 'registered_visitor', 'tenant'].includes(actor.role);
+                    const sitDownClip = (isVisitorOrTenant ? actionClips.sit : actionClips.stand).clone();
+                    sitDownClip.name = `${actionClips.stand.name || 'Stand'}_sitDown`;
+                    const sitDownAction = mixer.clipAction(sitDownClip, clonedScene);
+                    sitDownAction.setLoop(THREE.LoopOnce, 1);
+                    sitDownAction.clampWhenFinished = true;
+                    sitDownAction.setEffectiveWeight(0);
+                    actor.actions.sitDown = sitDownAction;
+                }
+            }
 
             actor.mixer = actor.proceduralLocomotion ? null : (Object.keys(actor.actions).length ? mixer : null);
+            actor.activeMotion = actor.actions.idle ? 'idle' : (actor.actions.walk ? 'walk' : '');
             actor.ready = true;
             actor.mesh.userData.avatarLoading = false;
         }
@@ -7708,10 +9497,10 @@
             };
 
             const initialModelKey = actor.modelKey;
-            ensureGameReadyAvatarModel(initialModelKey)
-                .then((gltf) => {
+            Promise.all([ensureGameReadyAvatarModel(initialModelKey), ensureGameReadyAvatarActionClips()])
+                .then(([gltf, actionClips]) => {
                     if (actor.modelKey !== initialModelKey) return;
-                    attachGameReadyAvatarModel(actor, nickname, gltf);
+                    attachGameReadyAvatarModel(actor, nickname, gltf, actionClips);
                 })
                 .catch(() => {
                     label.remove();
@@ -8034,6 +9823,7 @@
                 label: label,
                 targetPos: new THREE.Vector3(),
                 targetRot: 0,
+                motionMode: 'idle',
                 motionPhase: Math.random() * Math.PI * 2,
                 idlePhase: Math.random() * Math.PI * 2,
                 rig: {
@@ -8071,8 +9861,15 @@
             actor.isRemotePlayer = true;
             actor.hasReceivedPose = false;
             actor.remoteMoving = false;
+            actor.remoteStandAnchor = null;
+            actor.remoteStandDestination = null;
+            actor.remoteStandRejectedDestination = null;
+            actor.remoteSeatStandHold = null;
             actor.remoteSpeed = 0;
             actor.lastPoseReceivedAt = 0;
+            actor.lastPoseUpdatedAt = 0;
+            actor.lastPoseRevision = null;
+            actor.lastRemoteMovingAt = 0;
             actor.mesh.visible = false;
             actor.label.style.display = 'none';
             actor.mesh.traverse((obj) => {
@@ -8081,22 +9878,121 @@
             return actor;
         }
 
+        function applyRemoteSeatStandAnchor(actor, previousMotion, previousSeatAnchor, nextMotion, hasSeatAnchor) {
+            const visitorSeatActor = actor.isRemotePlayer
+                && ['guest', 'member', 'registered_visitor', 'tenant'].includes(actor.role);
+            if (hasSeatAnchor || nextMotion === 'sit') {
+                actor.remoteStandAnchor = null;
+                actor.remoteStandDestination = null;
+                actor.remoteStandRejectedDestination = null;
+                actor.remoteSeatStandHold = null;
+                if (hasSeatAnchor && previousMotion !== 'sit' && actor.hasReceivedPose
+                    && visitorSeatActor) {
+                    actor.remoteSeatApproach = {
+                        from: actor.mesh.position.clone(),
+                        to: actor.targetPos.clone(),
+                        startedAt: null
+                    };
+                }
+                return false;
+            }
+            actor.remoteSeatApproach = null;
+
+            if (!actor.remoteStandAnchor && (previousMotion === 'sit' || previousSeatAnchor)) {
+                const anchor = previousSeatAnchor || actor.mesh?.position || actor.targetPos;
+                if (anchor) actor.remoteStandAnchor = { x: anchor.x, y: anchor.y, z: anchor.z };
+            }
+
+            if (nextMotion === 'walk' || nextMotion === 'backward') {
+                actor.remoteStandAnchor = null;
+                actor.remoteStandDestination = null;
+                actor.remoteStandRejectedDestination = null;
+                actor.remoteSeatStandHold = null;
+                return false;
+            }
+
+            if (!actor.remoteStandAnchor && visitorSeatActor && actor.remoteSeatStandHold) {
+                actor.targetPos.set(
+                    actor.remoteSeatStandHold.x,
+                    actor.remoteSeatStandHold.y,
+                    actor.remoteSeatStandHold.z
+                );
+                actor.remoteMoving = false;
+                actor.remoteSpeed = 0;
+                return true;
+            }
+
+            if (!actor.remoteStandAnchor) return false;
+            const requestedDestination = {
+                x: actor.targetPos.x,
+                y: actor.targetPos.y,
+                z: actor.targetPos.z
+            };
+            if (visitorSeatActor) {
+                const anchor = actor.remoteStandAnchor;
+                const horizontalGap = Math.hypot(
+                    requestedDestination.x - anchor.x,
+                    requestedDestination.z - anchor.z
+                );
+                const maxStandClearance = MALL_BENCH_STAND_CLEARANCE + 0.35;
+                if (horizontalGap > maxStandClearance) {
+                    const yaw = Number.isFinite(actor.targetRot)
+                        ? actor.targetRot
+                        : (Number(actor.mesh?.rotation?.y) || 0);
+                    actor.remoteStandDestination = {
+                        x: anchor.x + Math.sin(yaw) * MALL_BENCH_STAND_CLEARANCE,
+                        y: anchor.y,
+                        z: anchor.z + Math.cos(yaw) * MALL_BENCH_STAND_CLEARANCE
+                    };
+                    actor.remoteStandRejectedDestination = {
+                        x: requestedDestination.x,
+                        y: requestedDestination.y,
+                        z: requestedDestination.z,
+                        horizontalGapM: Number(horizontalGap.toFixed(3)),
+                        maxAllowedM: Number(maxStandClearance.toFixed(2))
+                    };
+                } else {
+                    actor.remoteStandDestination = requestedDestination;
+                    actor.remoteStandRejectedDestination = null;
+                }
+                actor.remoteSeatStandHold = { ...actor.remoteStandDestination };
+            } else {
+                actor.remoteStandDestination = requestedDestination;
+            }
+            actor.targetPos.x = actor.remoteStandAnchor.x;
+            actor.targetPos.y = actor.remoteStandAnchor.y;
+            actor.targetPos.z = actor.remoteStandAnchor.z;
+            actor.remoteMoving = false;
+            actor.remoteSpeed = 0;
+            return true;
+        }
+
         function updateRemoteAvatarStyle(actor, styleCode) {
             if (!actor || actor.styleCode === styleCode) return;
+            const previousAppearance = parseAvatarStyleCode(actor.styleCode);
             actor.styleCode = styleCode;
             const appearance = parseAvatarStyleCode(styleCode);
             const nextModelKey = getGameReadyAvatarModelKey(styleCode);
-            if (actor.modelKey !== nextModelKey) {
+            const hairStyleChanged = previousAppearance.hairStyle !== appearance.hairStyle;
+            if (actor.modelKey !== nextModelKey || hairStyleChanged) {
                 actor.modelKey = nextModelKey;
-                // Leave the current model visible until its replacement is ready.
-                ensureGameReadyAvatarModel(nextModelKey)
-                    .then((gltf) => attachGameReadyAvatarModel(actor, actor.nickname, gltf))
+                const requestId = (actor.modelRequestId || 0) + 1;
+                actor.modelRequestId = requestId;
+                // A person can make multiple choices while a GLB is loading. Only
+                // attach the latest request and apply its final style at that point.
+                Promise.all([ensureGameReadyAvatarModel(nextModelKey), ensureGameReadyAvatarActionClips()])
+                    .then(([gltf, actionClips]) => {
+                        if (actor.modelRequestId !== requestId || actor.modelKey !== nextModelKey) return;
+                        attachGameReadyAvatarModel(actor, actor.nickname, gltf, actionClips);
+                    })
                     .catch((error) => console.warn("No se pudo cambiar el modelo de avatar:", error));
                 return;
             }
             if (!actor.gltfRoot) return;
             actor.gltfRoot.scale.setScalar(GAME_READY_AVATAR_BASE_SCALE * (appearance.height || 175) / 175);
             applyGameReadyAvatarStyle(actor.gltfRoot, styleCode);
+            actor.facialDetails = addGameReadyFacialDetails(actor.gameReadyRig, styleCode);
+            captureGameReadyAvatarScale(actor);
         }
 
         function updateRemotePlayerIdentity(actor, nickname) {
@@ -8118,6 +10014,7 @@
 
         function applyAvatarPose(actor, movementAmount = 0, nowMs = performance.now()) {
             if (!actor) return;
+            if (remoteSeatTraceEnabled && actor.isRemotePlayer) actor.seatDebugMovementAmount = movementAmount;
 
             if (actor.avatarKind === "gltf") {
                 const moving = movementAmount > 0.0015;
@@ -8127,22 +10024,178 @@
                 actor.lastPoseTime = nowMs;
 
                 if (actor.mixer && !actor.proceduralLocomotion) {
+                    restoreGameReadySeatIkBasePose(actor);
                     actor.mixer.update(deltaSec);
+                    restoreGameReadyAvatarScale(actor);
 
-                    const targetBlend = moving ? 1 : 0;
-                    actor.walkBlend = THREE.MathUtils.lerp(actor.walkBlend || 0, targetBlend, moving ? 0.22 : 0.14);
+                    const visitorSeatBlend = actor.isRemotePlayer
+                        && ['guest', 'member', 'registered_visitor', 'tenant'].includes(actor.role);
+                    let requestedMotion = actor.motionMode === 'sit' ? 'sit'
+                        : moving ? (actor.motionMode === 'backward' ? 'backward' : 'walk')
+                        : actor.motionMode === 'turnLeft' ? 'turnLeft' : 'idle';
+                    const needsSitDown = actor.activeMotion !== 'sit'
+                        && actor.activeMotion !== 'sitDown'
+                        && requestedMotion === 'sit'
+                        && !!actor.actions.sitDown;
+                    const needsStandUp = (actor.activeMotion === 'sit' || actor.activeMotion === 'sitDown')
+                        && requestedMotion !== 'sit'
+                        && !!actor.actions.stand;
+                    if (requestedMotion === 'sit') {
+                        actor.standUntil = 0;
+                        if (needsSitDown) {
+                            requestedMotion = 'sitDown';
+                        } else if (actor.sitDownUntil && nowMs < actor.sitDownUntil) {
+                            requestedMotion = 'sitDown';
+                        } else {
+                            actor.sitDownUntil = 0;
+                        }
+                    } else {
+                        actor.sitDownUntil = 0;
+                        if (actor.standUntil && nowMs < actor.standUntil) requestedMotion = 'stand';
+                    }
+                    const holdVisitorStandPose = visitorSeatBlend
+                        && actor.activeMotion === 'stand'
+                        && actor.standUntil
+                        && nowMs >= actor.standUntil
+                        && requestedMotion === 'idle';
+                    if (holdVisitorStandPose) requestedMotion = 'stand';
+                    const nextMotion = needsStandUp
+                        ? 'stand'
+                        : (needsSitDown
+                        ? 'sitDown'
+                        : (actor.actions[requestedMotion]
+                        ? requestedMotion
+                        : (moving && actor.actions.walk ? 'walk' : (actor.actions.idle ? 'idle' : requestedMotion))));
+                    if (nextMotion !== actor.activeMotion && actor.actions[nextMotion]) {
+                        const previousAction = actor.actions[actor.activeMotion];
+                        const nextAction = actor.actions[nextMotion];
+                        const enteringSeat = nextMotion === 'sit' || nextMotion === 'sitDown';
+                        const sittingDown = nextMotion === 'sitDown';
+                        const standingUp = nextMotion === 'stand';
+                        const leavingSeat = (actor.activeMotion === 'sit' || actor.activeMotion === 'sitDown') && standingUp;
+                        const visitorSeatedPose = visitorSeatBlend
+                            && (nextMotion === 'sit' || sittingDown);
+                        if (enteringSeat && !actor.seatFootAnchors && !visitorSeatedPose) {
+                            actor.seatFootAnchors = captureGameReadyFootAnchors(actor);
+                        }
+                        if (leavingSeat) {
+                            if (actor.isRemotePlayer
+                                && ['guest', 'member', 'registered_visitor', 'tenant'].includes(actor.role)
+                                && actor.gameReadyRig?.upperLegL && actor.gameReadyRig?.upperLegR) {
+                                actor.gltfRoot.updateWorldMatrix(true, true);
+                                actor.standPelvisFloorY = (
+                                    actor.gameReadyRig.upperLegL.getWorldPosition(new THREE.Vector3()).y
+                                    + actor.gameReadyRig.upperLegR.getWorldPosition(new THREE.Vector3()).y
+                                ) * 0.5;
+                            }
+                            // Keep the same local shoe anchors used throughout the
+                            // whole seated pose. Re-sampling after the mixer advances
+                            // would bless its first stand-frame slide as the new base.
+                            if (!actor.seatFootAnchors) actor.seatFootAnchors = captureGameReadyFootAnchors(actor);
+                            const standSeconds = nextAction.getClip().duration;
+                            actor.standUntil = nowMs + standSeconds * 1000;
+                            // A visitor's authored stand clip already ends at its full-height pose.
+                            // Do not add a post-clip settle that can move the avatar toward a
+                            // separate camera-clearance point after the original motion is done.
+                            actor.seatReleaseUntil = visitorSeatBlend
+                                ? actor.standUntil
+                                : actor.standUntil + GAME_READY_AVATAR_STAND_SETTLE_SECONDS * 1000;
+                        }
+                        nextAction.reset().setEffectiveWeight(1).play();
+                        if (sittingDown) {
+                            if (visitorSeatBlend) {
+                                nextAction.timeScale = 1;
+                                actor.sitDownUntil = nowMs + GAME_READY_VISITOR_SIT_BLEND_SECONDS * 1000;
+                                actor.seatFootAnchors = null;
+                                actor.seatVisualOffset.set(0, 0, 0);
+                                previousAction?.crossFadeTo(nextAction, GAME_READY_VISITOR_SIT_BLEND_SECONDS, false);
+                            } else {
+                                const sitDownDuration = nextAction.getClip().duration;
+                                // The stand clip reaches full standing extension around 1.70s.
+                                // The remaining frames (1.70s - 2.30s) are idle settling and weight shifts.
+                                // Playing in reverse from 1.70s eliminates the avatar swaying backward/forward before sitting.
+                                const sitDownStart = Math.min(sitDownDuration, 1.70);
+                                nextAction.timeScale = -1.2;
+                                nextAction.time = sitDownStart;
+                                actor.sitDownUntil = nowMs + (sitDownStart / 1.2) * 1000;
+                                previousAction?.stop();
+                                actor.mixer.update(0);
+                                restoreGameReadyAvatarScale(actor);
+                                actor.seatFootAnchors = captureGameReadyFootAnchors(actor);
+                            }
+                        } else if (standingUp) {
+                            nextAction.timeScale = actor.standUsesReverse ? -1 : 1;
+                            if (actor.standUsesReverse) {
+                                nextAction.time = Math.max(0, nextAction.getClip().duration - 1 / 60);
+                            }
+                            // Sit To Stand begins on the same seated frame. Blending
+                            // the clips briefly moves the root twice, so hand over
+                            // directly and let the authored stand action do the motion.
+                            previousAction?.stop();
+                            // Apply the first standing pose before root anchoring so
+                            // there is no intermediate seated frame that can slide.
+                            actor.mixer.update(0);
+                            restoreGameReadyAvatarScale(actor);
+                        } else if (previousAction) {
+                            nextAction.timeScale = 1;
+                            const fadeSeconds = (enteringSeat || leavingSeat)
+                                ? GAME_READY_AVATAR_SEAT_TRANSITION_SECONDS
+                                : 0.16;
+                            previousAction.crossFadeTo(nextAction, fadeSeconds, false);
+                        }
+                        actor.activeMotion = nextMotion;
+                    }
 
-                    if (actor.actions.idle) actor.actions.idle.setEffectiveWeight(1 - actor.walkBlend);
-
-                    const locomotionAction = actor.actions.walk || actor.actions.run || null;
-                    if (locomotionAction) {
-                        locomotionAction.setEffectiveWeight(actor.walkBlend);
+                    const locomotionAction = actor.actions[nextMotion];
+                    if (locomotionAction && (nextMotion === 'walk' || nextMotion === 'backward')) {
                         locomotionAction.timeScale = THREE.MathUtils.clamp(0.78 + movementAmount * 34, 0.78, 1.22);
                     }
 
+                    const isSettlingAfterStand = actor.seatReleaseUntil && nowMs < actor.seatReleaseUntil;
+                    if (nextMotion === 'idle' && !isSettlingAfterStand) {
+                        applyGameReadyRelaxedIdleArms(actor);
+                    } else {
+                        actor.relaxedIdleArmBase = null;
+                    }
+
                     if (actor.gltfRoot) {
-                        const idleBob = moving ? Math.abs(Math.sin((actor.motionPhase || 0))) * 0.012 : Math.sin((actor.idlePhase || 0) + nowMs * 0.0018) * 0.006;
-                        actor.gltfRoot.position.y = actor.gltfBaseY + idleBob;
+                        updateGameReadySeatRoot(actor, nextMotion, nowMs);
+                        const visitorStandClipFinished = visitorSeatBlend
+                            && nextMotion === 'stand'
+                            && actor.standUntil
+                            && nowMs >= actor.standUntil;
+                        if (actor.isRemotePlayer && actor.remoteStandAnchor
+                            && (nextMotion === 'idle' || visitorStandClipFinished)
+                            && actor.seatFootAnchors && actor.seatReleaseUntil
+                            && nowMs >= actor.seatReleaseUntil
+                            && ['guest', 'member', 'registered_visitor', 'tenant'].includes(actor.role)) {
+                            const visitorSeatActor = visitorSeatBlend;
+                            // The clip's final full-height frame is the visitor's stand position.
+                            // Transfer the visual root correction without relocating the group to
+                            // the sender's camera-clearance target (which can point at a planter).
+                            const destination = visitorSeatActor
+                                ? null
+                                : (actor.remoteStandDestination || actor.remoteStandAnchor);
+                            commitGameReadySeatRootOffset(actor, destination
+                                ? new THREE.Vector3(destination.x, destination.y, destination.z)
+                                : null);
+                            actor.remoteStandAnchor = null;
+                            if (visitorSeatActor) {
+                                // The standing clip has reached its final full-height pose;
+                                // continuing foot IK after this point reintroduces root drift.
+                                actor.seatFootAnchors = null;
+                                actor.seatIkBasePose = null;
+                                actor.targetPos.copy(actor.mesh.position);
+                                actor.remoteSeatStandHold = {
+                                    x: actor.mesh.position.x,
+                                    y: actor.mesh.position.y,
+                                    z: actor.mesh.position.z
+                                };
+                            } else if (destination) {
+                                actor.targetPos.set(destination.x, destination.y, destination.z);
+                            }
+                            actor.remoteStandDestination = null;
+                        }
                     }
 
                     if (moving) actor.motionPhase = (actor.motionPhase || 0) + Math.max(0.03, movementAmount * 9.5);
@@ -8294,18 +10347,91 @@
             rig.footR.rotation.x = moving ? Math.max(0, legSwingR) * -0.22 : -0.01;
         }
 
+        // Non-player actors are created by later mall modules. Expose the shared
+        // avatar contract instead of duplicating model loading or animation logic.
+        window.createGameReadyAvatar = createGameReadyAvatar;
+        window.createProceduralAvatar = createProceduralAvatar;
+        window.applyAvatarPose = applyAvatarPose;
+        window.commitGameReadySeatRootOffset = commitGameReadySeatRootOffset;
+        window.updateAvatarLabelPosition = updateAvatarLabelPosition;
+
         function syncPlayers(state) {
             const activeIds = new Set();
             Object.entries(state || {}).forEach(([id, presences]) => {
-                if (id === myPresenceId) return;
+if (id === myPresenceId) return;
                 activeIds.add(id);
-                const presence = presences?.[presences.length - 1] || {};
+                const presence = (presences || []).reduce((latest, candidate) => {
+                    const latestRevision = Number(latest?.poseRevision);
+                    const candidateRevision = Number(candidate?.poseRevision);
+                    const hasLatestRevision = Number.isInteger(latestRevision) && latestRevision >= 0;
+                    const hasCandidateRevision = Number.isInteger(candidateRevision) && candidateRevision >= 0;
+                    if (hasCandidateRevision && !hasLatestRevision) return candidate;
+                    if (!hasCandidateRevision && hasLatestRevision) return latest;
+                    if (hasCandidateRevision && candidateRevision !== latestRevision) {
+                        return candidateRevision > latestRevision ? candidate : latest;
+                    }
+                    const latestAt = Number(latest?.poseUpdatedAt) || 0;
+                    const candidateAt = Number(candidate?.poseUpdatedAt) || 0;
+                    return candidateAt >= latestAt ? candidate : latest;
+                }, {});
                 let remoteStyle = "1";
                 if (presence.style) remoteStyle = presence.style;
                 const displayName = String(presence.nickname || id);
-                if (!otherPlayers[id]) otherPlayers[id] = createProceduralAvatar(displayName, remoteStyle);
+                if (!otherPlayers[id]) otherPlayers[id] = createAvatar(id, displayName, remoteStyle);
                 else updateRemoteAvatarStyle(otherPlayers[id], remoteStyle);
-                updateRemotePlayerIdentity(otherPlayers[id], displayName);
+                const actor = otherPlayers[id];
+                actor.role = presence.role || actor.role;
+                updateRemotePlayerIdentity(actor, displayName);
+                const hasInitialPose = [presence.x, presence.y, presence.z, presence.r]
+                    .every((value) => Number.isFinite(value));
+                if (hasInitialPose && acceptRemotePose(actor, presence)) {
+                    const previousMotion = actor.motionMode;
+                    const previousSeatAnchor = actor.seatedWorldAnchor;
+                    const hasSeatAnchor = presence.motion === 'sit'
+                        && [presence.seatX, presence.seatY, presence.seatZ].every(Number.isFinite);
+                    const remoteGroundY = hasSeatAnchor
+                        ? presence.seatY
+                        : Number.isFinite(presence.avatarY)
+                            ? presence.avatarY
+                            : presence.y - PLAYER_EYE_HEIGHT + AVATAR_FLOOR_OFFSET;
+                    if (hasSeatAnchor) {
+                        actor.seatedWorldAnchor = actor.seatedWorldAnchor || new THREE.Vector3();
+                        actor.seatedWorldAnchor.set(presence.seatX, remoteGroundY, presence.seatZ);
+                        actor.targetPos.copy(actor.seatedWorldAnchor);
+                    } else {
+                        actor.seatedWorldAnchor = null;
+                        actor.targetPos.set(presence.x, remoteGroundY, presence.z);
+                    }
+                    actor.targetRot = presence.r;
+                    const receivedAt = performance.now();
+                    if (presence.moving) actor.lastRemoteMovingAt = receivedAt;
+                    actor.remoteMoving = Boolean(presence.moving)
+                        || receivedAt - (actor.lastRemoteMovingAt || 0) < 350;
+                    actor.remoteSpeed = Number.isFinite(presence.speed) ? Math.max(0, presence.speed) : 0;
+                    actor.motionMode = ['idle', 'walk', 'backward', 'turnLeft', 'turnRight', 'sit'].includes(presence.motion)
+                        ? presence.motion
+                        : (actor.remoteMoving ? 'walk' : 'idle');
+                    applyRemoteSeatStandAnchor(
+                        actor,
+                        previousMotion,
+                        previousSeatAnchor,
+                        actor.motionMode,
+                        hasSeatAnchor
+                    );
+                    if (actor.motionMode === 'sit') {
+                        actor.remoteMoving = false;
+                        actor.remoteSeatTraceArmed = true;
+                        actor.remoteTraceFrozen = false;
+                    }
+                    if (previousMotion !== actor.motionMode) actor.remoteSeatTraceJumpSeen = false;
+                    if (!actor.hasReceivedPose) {
+                        actor.mesh.position.copy(actor.targetPos);
+                        actor.mesh.rotation.y = actor.targetRot;
+                    }
+                    actor.hasReceivedPose = true;
+                    actor.mesh.visible = true;
+                    actor.lastPoseReceivedAt = receivedAt;
+                }
             });
             Object.keys(otherPlayers).forEach((id) => {
                 if (!activeIds.has(id)) removePlayer(id);
@@ -8320,8 +10446,9 @@
                 delete otherPlayers[id];
             }
         }
-
-        function updateOtherPlayers(nowMs = performance.now(), updateLabels = true) {
+function updateOtherPlayers(nowMs = performance.now(), updateLabels = true) {
+            remoteSeatTraceFrame += 1;
+            publishRemoteSeatTraceStatus();
             Object.values(otherPlayers).forEach(p => {
                 if (p.mesh) {
                     if (!p.hasReceivedPose) {
@@ -8330,15 +10457,34 @@
                         return;
                     }
                     const prevPos = p.mesh.position.clone();
-                    if (p.escalatorState) {
+                    if (p.remoteTraceFrozen) {
+                        traceRemoteSeatPosition(p, 'frozen-after-breakpoint', prevPos);
+                        return;
+                    }
+                    if (p.motionMode === 'sit') {
+                        p.remoteMoving = false;
+                        if (p.remoteSeatApproach) {
+                            const approach = p.remoteSeatApproach;
+                            if (approach.startedAt === null) approach.startedAt = nowMs;
+                            const progress = THREE.MathUtils.clamp(
+                                (nowMs - approach.startedAt) / (GAME_READY_VISITOR_SIT_BLEND_SECONDS * 1000), 0, 1
+                            );
+                            p.mesh.position.lerpVectors(approach.from, approach.to, progress);
+                            if (progress >= 1) p.remoteSeatApproach = null;
+                        } else {
+                            p.mesh.position.copy(p.seatedWorldAnchor || p.targetPos);
+                        }
+                    } else if (p.escalatorState) {
                         p.mesh.position.lerp(p.targetPos, 0.1);
                     } else if (!p.remoteMoving) {
                         p.mesh.position.copy(p.targetPos);
                     } else {
                         p.mesh.position.x = THREE.MathUtils.lerp(p.mesh.position.x, p.targetPos.x, 0.1);
                         p.mesh.position.z = THREE.MathUtils.lerp(p.mesh.position.z, p.targetPos.z, 0.1);
-                        p.mesh.position.y = p.targetPos.y;
+p.mesh.position.y = p.targetPos.y;
                     }
+                    if (guardRemoteSeatDisplacement(p, 'render-frame', prevPos)) return;
+                    traceRemoteSeatPosition(p, 'render-frame', prevPos);
                     let targetRot = p.targetRot; // El valor ya viene corregido desde el emisor
                     let rotDiff = targetRot - p.mesh.rotation.y;
                     while (rotDiff < -Math.PI) rotDiff += Math.PI * 2;
@@ -8350,6 +10496,21 @@
                         ? Math.max(stepDistance, THREE.MathUtils.clamp((p.remoteSpeed || 0) / 60, 0.002, 0.08))
                         : 0;
                     applyAvatarPose(p, poseMovement, nowMs);
+                    if (remoteSeatTraceEnabled && ['guest', 'member', 'registered_visitor', 'tenant'].includes(p.role)) {
+                        const head = p.gameReadyRig?.head;
+                        if (head) {
+                            if (p.seatDebugLastMotion !== p.activeMotion) {
+                                p.seatDebugMaxHeadFrameStep = 0;
+                                p.seatDebugLastMotion = p.activeMotion;
+                            }
+                            const currentHead = head.getWorldPosition(new THREE.Vector3());
+                            const step = p.seatDebugPreviousHead
+                                ? currentHead.distanceTo(p.seatDebugPreviousHead) : 0;
+                            p.seatDebugHeadFrameStep = step;
+                            p.seatDebugMaxHeadFrameStep = Math.max(p.seatDebugMaxHeadFrameStep || 0, step);
+                            p.seatDebugPreviousHead = currentHead;
+                        }
+                    }
                     p.mesh.visible = true;
                     if (updateLabels) updateAvatarLabelPosition(p, 2.15);
                 }

@@ -1,4 +1,4 @@
-﻿        // --- VARIABLES GLOBALES DE PUBLICIDAD ---
+        // --- VARIABLES GLOBALES DE PUBLICIDAD ---
         let lastAdUpdate = Date.now();
         let adIndex = 0;
 
@@ -131,7 +131,10 @@
             runFrameStep('axis-reference', updateAxisReference);
             runFrameStep('gps-display', updateGPSDisplay);
 
-            runFrameStep('controls-update', () => controls.update());
+            runFrameStep('controls-update', () => {
+                controls.update();
+                window.keepMallSeatedCameraAnchored?.();
+            });
             runFrameStep('analytics-attention', () => window.mallAnalytics?.updateAttention(nowMs));
             runFrameStep('member-pedometer', () => window.updateMemberPedometer?.(nowMs));
             runFrameStep('promotion-collectibles', () => window.updateMallPromotionCollectibles?.(nowMs));
@@ -143,17 +146,56 @@
         }
 
         // --- SISTEMA DE NPCs (MULTITUD ARTIFICIAL CHILENA) ---
-        const CHILEAN_NAMES = [
-            "Mateo González", "Agustín Muñoz", "Benjamín Rojas", "Vicente Díaz", "Santiago Pérez",
-            "Matías Soto", "Joaquín Contreras", "Maximiliano Silva", "Nicolás Martínez", "Sebastián Sepúlveda",
-            "Sofía Morales", "Isabella Rodríguez", "Emilia López", "Martina Fuentes", "Lucía Hernández",
-            "Francisca Olave", "Catalina Tapia", "Valentina Carrasco", "Florencia Vera", "Isidora Castro",
-            "Lucas Herrera", "Felipe Medina", "Diego Castro", "Javier Muñoz", "Gabriel Palma",
-            "Paz Romero", "Antonella Silva", "Maite Araya", "Josefa Reyes", "Ignacia Pizarro",
-            "Daniela Soto", "Carolina Rojas", "Andrés Martínez", "Cristóbal Valenzuela", "Camila Bravo",
-            "Rodrigo Espinoza", "Bastián Tapia", "Javiera Torres", "Renato Vera", "Micaela Lagos",
-            "Tomás Castro", "Bárbara Peña", "Emanuel Vargas", "Julieta Miranda", "Pascal Cáceres"
-        ];
+        const NPC_PEOPLE = [
+            ["Mateo González", "male"], ["Agustín Muñoz", "male"], ["Benjamín Rojas", "male"],
+            ["Vicente Díaz", "male"], ["Santiago Pérez", "male"], ["Matías Soto", "male"],
+            ["Joaquín Contreras", "male"], ["Maximiliano Silva", "male"], ["Nicolás Martínez", "male"],
+            ["Sebastián Sepúlveda", "male"], ["Sofía Morales", "female"], ["Isabella Rodríguez", "female"],
+            ["Emilia López", "female"], ["Martina Fuentes", "female"], ["Lucía Hernández", "female"],
+            ["Francisca Olave", "female"], ["Catalina Tapia", "female"], ["Valentina Carrasco", "female"],
+            ["Florencia Vera", "female"], ["Isidora Castro", "female"], ["Lucas Herrera", "male"],
+            ["Felipe Medina", "male"], ["Diego Castro", "male"], ["Javier Muñoz", "male"],
+            ["Gabriel Palma", "male"], ["Paz Romero", "female"], ["Antonella Silva", "female"],
+            ["Maite Araya", "female"], ["Josefa Reyes", "female"], ["Ignacia Pizarro", "female"],
+            ["Daniela Soto", "female"], ["Carolina Rojas", "female"], ["Andrés Martínez", "male"],
+            ["Cristóbal Valenzuela", "male"], ["Camila Bravo", "female"], ["Rodrigo Espinoza", "male"],
+            ["Bastián Tapia", "male"], ["Javiera Torres", "female"], ["Renato Vera", "male"],
+            ["Micaela Lagos", "female"], ["Tomás Castro", "male"], ["Bárbara Peña", "female"],
+            ["Emanuel Vargas", "male"], ["Julieta Miranda", "female"], ["Pascal Cáceres", "female"]
+        ].map(([name, body]) => Object.freeze({ name, body }));
+        const CHILEAN_NAMES = NPC_PEOPLE.map(person => person.name);
+
+        function getNPCIdentity(index) {
+            const person = NPC_PEOPLE[index % NPC_PEOPLE.length];
+            const outfits = person.body === "female"
+                ? ["casual", "elegant", "sport"]
+                : ["casual", "elegant", "work"];
+            const skinTones = ["fair", "light", "olive", "latino", "asian", "medium", "deep", "rich"];
+            const hairColors = ["brown", "black", "auburn", "blonde"];
+            const hairStyles = person.body === "female"
+                ? ["bob01", "long01", "ponytail01", "braid01", "afro01"]
+                : ["short01", "short02", "short03", "short04", "afro01"];
+            const eyeColors = ["brown", "hazel", "green", "blue"];
+            const ages = ["young", "adult", "senior"];
+            const heights = person.body === "female" ? [160, 165, 170, 175] : [170, 175, 180, 185];
+            const variant = Math.floor(index / NPC_PEOPLE.length);
+            const seed = index + variant * 13;
+            const appearance = {
+                body: person.body,
+                outfit: outfits[seed % outfits.length],
+                skinTone: skinTones[(seed * 3 + 1) % skinTones.length],
+                hairColor: hairColors[(seed * 5 + 2) % hairColors.length],
+                hairStyle: hairStyles[(seed * 9 + 4) % hairStyles.length],
+                eyeColor: eyeColors[(seed * 7 + 1) % eyeColors.length],
+                age: ages[(seed * 11 + 2) % ages.length],
+                height: heights[(seed * 7 + 3) % heights.length]
+            };
+            return {
+                name: variant ? `${person.name} ${variant + 1}` : person.name,
+                gender: person.body,
+                style: `av2.${appearance.body}.${appearance.outfit}.${appearance.skinTone}.${appearance.hairColor}.${appearance.height}.${appearance.eyeColor}.${appearance.age}.${appearance.hairStyle}`
+            };
+        }
 
         const npcs = [];
         const NPC_COUNT = window.mallPerformanceProfile?.npcCount ?? (IS_COARSE_POINTER ? 30 : 40);
@@ -186,6 +228,23 @@
         const NPC_NAV_WAYPOINT_REACHED_DISTANCE = 0.95;
         const NPC_DISCREET_SPAWN_MIN_CAMERA_DISTANCE = 28;
         const NPC_DISCREET_SPAWN_ENDPOINTS = [-104, -92, 92, 104];
+        const NPC_SEAT_DISCOVERY_DISTANCE = 2.5;
+        const NPC_SEAT_APPROACH_DISTANCE = 0.1;
+        const NPC_SEAT_MIN_MS = 5000;
+        const NPC_SEAT_MAX_MS = 12000;
+        const NPC_SEAT_DECISION_MIN_MS = 3000;
+        const NPC_SEAT_DECISION_MAX_MS = 8000;
+        const NPC_SEAT_DECISION_CHANCE = 0.24;
+        const NPC_SEATED_ROOT_LIFT = 0.36;
+        const NPC_POST_STAND_STABILIZE_MS = 1200;
+
+        function setNPCSeatedVisualHeight(npc, seated) {
+            if (!npc || npc.avatarKind !== 'gltf') return;
+            // Seat posture changes must not wipe the live correction that pins the
+            // avatar's feet to the floor during the sitting/standing clip.
+            npc.gltfBaseY = -0.02;
+            if (npc.gltfRoot) npc.gltfRoot.position.y = npc.gltfBaseY + (npc.seatVisualOffset?.y || 0);
+        }
         // Dos accesos laterales por brazo. Cada punto representa el centro del
         // conjunto de puertas y conserva su vector de avance hacia el mall.
         const NPC_LATERAL_ENTRIES = [
@@ -243,7 +302,179 @@
             if (isNPCOnUpperFloor(meshY) && !isSupportedUpperFloorPosition(x, z)) return false;
             const escalatorSlope = getEscalatorSlopeAtPosition(x, z);
             if (escalatorSlope && escalatorSlope.id !== options.allowedEscalatorId) return false;
-            return !checkCollision(x, meshY + 1.2, z, options);
+            return !checkCollision(x, meshY + 1.2, z, {
+                ...options,
+                bodyMinY: meshY,
+                bodyMaxY: meshY + DYNAMIC_ACTOR_COLLISION_HEIGHT
+            });
+        }
+
+        function releaseNPCSeat(npc, npcIndex) {
+            if (npc.seatTarget) window.releaseMallBenchSeat?.(npc.seatTarget, `npc:${npcIndex}`);
+            npc.seatTarget = null;
+        }
+
+        const NPC_POSITION_TRACE_LIMIT = 900;
+        const npcPositionTraceEnabled = new URLSearchParams(window.location.search).get('seatTrace') === '1';
+        window.mallNpcPositionTrace = [];
+
+        function traceNPCPosition(npc, npcIndex, source, before, now) {
+            if (!npcPositionTraceEnabled || !npc?.mesh || !before) return;
+            const after = npc.mesh.position;
+            const distance = Math.hypot(after.x - before.x, after.z - before.z);
+            if (distance < 0.04 && source !== 'stand-root-commit' && source !== 'safety-rollback') return;
+            const trace = window.mallNpcPositionTrace;
+            trace.push({
+                at: now,
+                npcIndex,
+                source,
+                state: npc.state,
+                motion: npc.motionMode,
+                distance: Number(distance.toFixed(4)),
+                before: { x: Number(before.x.toFixed(3)), z: Number(before.z.toFixed(3)) },
+                after: { x: Number(after.x.toFixed(3)), z: Number(after.z.toFixed(3)) },
+                target: { x: Number(npc.target?.x?.toFixed(3) || 0), z: Number(npc.target?.z?.toFixed(3) || 0) },
+                lastSafe: { x: Number(npc.lastSafePosition?.x?.toFixed(3) || 0), z: Number(npc.lastSafePosition?.z?.toFixed(3) || 0) },
+                bench: npc.seatTarget?.benchId || npc.departingSeatColliderId || null,
+                visualOffset: { x: Number(npc.seatVisualOffset?.x?.toFixed(3) || 0), z: Number(npc.seatVisualOffset?.z?.toFixed(3) || 0) }
+            });
+            if (trace.length > NPC_POSITION_TRACE_LIMIT) trace.splice(0, trace.length - NPC_POSITION_TRACE_LIMIT);
+        }
+
+        function beginNPCSeatApproach(npc, npcIndex, now) {
+            if (typeof window.findMallBenchSeat !== 'function') return false;
+            if (Math.abs(npc.target.y - npc.mesh.position.y) > 1) return false;
+            if (now < (npc.nextSeatDecisionAt || 0)) return false;
+            npc.nextSeatDecisionAt = now + NPC_SEAT_DECISION_MIN_MS
+                + Math.random() * (NPC_SEAT_DECISION_MAX_MS - NPC_SEAT_DECISION_MIN_MS);
+            const seat = window.findMallBenchSeat(npc.mesh.position, NPC_SEAT_DISCOVERY_DISTANCE, {
+                floorY: npc.mesh.position.y,
+                owner: `npc:${npcIndex}`
+            });
+            if (!seat || Math.random() > NPC_SEAT_DECISION_CHANCE) return false;
+            if (!window.reserveMallBenchSeat?.(seat, `npc:${npcIndex}`, NPC_SEAT_MAX_MS + 14000)) return false;
+
+            npc.seatTarget = seat;
+            npc.state = 'approaching-seat';
+            npc.motionMode = 'walk';
+            npc.intermediateTarget = null;
+            npc.intermediateEscalatorId = null;
+            npc.avoidanceTarget = null;
+            clearNPCNavigationRoute(npc);
+            return true;
+        }
+
+        function updateNPCSeatState(npc, npcIndex, now, motionNowMs, moveStep) {
+            if (npc.state === 'post-stand') {
+                npc.motionMode = 'idle';
+                if (npc.seatStandAnchor) {
+                    npc.mesh.position.x = npc.seatStandAnchor.x;
+                    npc.mesh.position.z = npc.seatStandAnchor.z;
+                }
+                if (now < (npc.postStandUntil || 0)) return true;
+
+                const departingColliderId = npc.seatTarget?.benchId || '';
+                releaseNPCSeat(npc, npcIndex);
+                npc.state = 'walking';
+                npc.seatStandAnchor = null;
+                npc.postStandUntil = 0;
+                npc.departingSeatColliderId = departingColliderId;
+                npc.departingSeatColliderUntil = now + 2400;
+                npc.nextSeatDecisionAt = now + NPC_SEAT_DECISION_MIN_MS;
+                const next = findNovelNPCPosition(npc, npc.mesh.position, isNPCOnUpperFloor(npc.mesh.position.y) ? 5.4 : 0, `npc:${npcIndex}`);
+                if (next) {
+                    npc.target.set(next.x, getAvatarGroundY(next.y), next.z);
+                    rememberNPCDestination(npc, npc.target, now);
+                } else {
+                    npc.state = 'looking';
+                    npc.timer = now + 1200;
+                }
+                return true;
+            }
+
+            if (npc.state === 'standing-up') {
+                npc.motionMode = 'idle';
+                if (npc.seatStandAnchor) {
+                    npc.mesh.position.x = npc.seatStandAnchor.x;
+                    npc.mesh.position.z = npc.seatStandAnchor.z;
+                }
+                if (!npc.seatStandStarted || !npc.standUntil || motionNowMs < npc.standUntil) {
+                    npc.seatStandStarted = true;
+                    return true;
+                }
+
+                // The visual root owns the foot correction. Never bake it into the
+                // navigation group here: a malformed or accumulated animation root
+                // offset would otherwise relocate the NPC several metres at once.
+                // Keep the physics origin at the original seat anchor until actual
+                // walking begins.
+                traceNPCPosition(npc, npcIndex, 'stand-root-lock', npc.mesh.position.clone(), now);
+                npc.seatStandAnchor = npc.mesh.position.clone();
+                npc.state = 'post-stand';
+                npc.motionMode = 'idle';
+                npc.seatStandStarted = false;
+                npc.postStandUntil = now + NPC_POST_STAND_STABILIZE_MS;
+                return true;
+            }
+
+            if (npc.state === 'seated') {
+                npc.motionMode = 'sit';
+                if (now <= npc.timer) return true;
+
+                npc.state = 'standing-up';
+                npc.motionMode = 'idle';
+                npc.seatStandAnchor = npc.mesh.position.clone();
+                npc.seatStandStarted = false;
+                setNPCSeatedVisualHeight(npc, false);
+                return true;
+            }
+
+            if (npc.state !== 'approaching-seat' || !npc.seatTarget) {
+                return beginNPCSeatApproach(npc, npcIndex, now);
+            }
+
+            const seat = npc.seatTarget;
+            const deltaX = seat.position.x - npc.mesh.position.x;
+            const deltaZ = seat.position.z - npc.mesh.position.z;
+            const distance = Math.hypot(deltaX, deltaZ);
+            if (distance <= NPC_SEAT_APPROACH_DISTANCE) {
+                npc.mesh.position.x = seat.position.x;
+                npc.mesh.position.z = seat.position.z;
+                npc.mesh.rotation.y = seat.yaw;
+                npc.state = 'seated';
+                npc.motionMode = 'sit';
+                setNPCSeatedVisualHeight(npc, true);
+                npc.timer = now + NPC_SEAT_MIN_MS + Math.random() * (NPC_SEAT_MAX_MS - NPC_SEAT_MIN_MS);
+                return true;
+            }
+
+            const direction = new THREE.Vector3(deltaX, 0, deltaZ).normalize();
+            const step = Math.min(moveStep, distance);
+            const nextX = npc.mesh.position.x + direction.x * step;
+            const nextZ = npc.mesh.position.z + direction.z * step;
+            if (!canNPCOccupyPosition(nextX, npc.mesh.position.y, nextZ, {
+                ignoreActorId: `npc:${npcIndex}`,
+                includeActors: false,
+                collisionRadius: DYNAMIC_ACTOR_COLLISION_RADIUS * 0.78,
+                ignoredColliderOwnerIds: [seat.benchId]
+            })) {
+                releaseNPCSeat(npc, npcIndex);
+                npc.state = 'walking';
+                npc.motionMode = 'idle';
+                npc.nextSeatDecisionAt = now + NPC_SEAT_DECISION_MIN_MS;
+                return false;
+            }
+
+            npc.mesh.position.x = nextX;
+            npc.mesh.position.z = nextZ;
+            const targetYaw = Math.atan2(direction.x, direction.z);
+            const yawDelta = Math.atan2(
+                Math.sin(targetYaw - npc.mesh.rotation.y),
+                Math.cos(targetYaw - npc.mesh.rotation.y)
+            );
+            npc.mesh.rotation.y += yawDelta * 0.22;
+            npc.motionMode = 'walk';
+            return true;
         }
 
         function isNPCNavigationSegmentWalkable(from, to, meshY) {
@@ -536,6 +767,7 @@
             }
 
             const position = fallback || findDiscreetNPCSpawnPosition(NPC_GROUND_FLOOR_Y, ignoreActorId);
+            if (!position) return null;
             const inwardTarget = {
                 x: position.x + entry.inwardX * 15,
                 z: position.z + entry.inwardZ * 15,
@@ -544,7 +776,7 @@
             return { position, inwardTarget, entry };
         }
 
-        function findWalkableNPCPosition(y, ignoreActorId = null, attempts = 18) {
+        function findWalkableNPCPosition(y, ignoreActorId = null, attempts = 48) {
             for (let attempt = 0; attempt < attempts; attempt++) {
                 const candidate = getValidNPCPosition(y);
                 const candidateY = getAvatarGroundY(candidate.y);
@@ -565,7 +797,8 @@
                 ignoreActorId,
                 collisionRadius: DYNAMIC_ACTOR_COLLISION_RADIUS * 0.8
             }));
-            const [x, z] = fallback || fallbackPositions[0];
+            if (!fallback) return null;
+            const [x, z] = fallback;
             return { x, z, y: floorY };
         }
 
@@ -573,6 +806,7 @@
             let fallback = null;
             for (let attempt = 0; attempt < 10; attempt++) {
                 const candidate = findWalkableNPCPosition(y, ignoreActorId, 10);
+                if (!candidate) continue;
                 fallback = candidate;
                 const dx = candidate.x - origin.x;
                 const dz = candidate.z - origin.z;
@@ -623,6 +857,7 @@
             let directionFallback = null;
             for (let attempt = 0; attempt < 28; attempt++) {
                 const candidate = findDistantNPCPosition(origin, y, ignoreActorId, 9);
+                if (!candidate) continue;
                 const target = new THREE.Vector3(candidate.x, getAvatarGroundY(candidate.y), candidate.z);
                 const wasRecentlyVisited = isRememberedNPCDestination(npc, target, Date.now());
                 const headingCompatibility = getNPCHeadingCompatibility(npc, origin, target);
@@ -713,31 +948,38 @@
             if (!needsFloorChange) {
                 const floorY = isNPCOnUpperFloor(npc.mesh.position.y) ? NPC_UPPER_FLOOR_Y : NPC_GROUND_FLOOR_Y;
                 const next = findNovelNPCPosition(npc, npc.mesh.position, floorY, `npc:${npcIndex}`);
-                npc.target.set(next.x, getAvatarGroundY(next.y), next.z);
-                rememberNPCDestination(npc, npc.target, now);
+                if (next) {
+                    npc.target.set(next.x, getAvatarGroundY(next.y), next.z);
+                    rememberNPCDestination(npc, npc.target, now);
+                } else {
+                    npc.state = 'looking';
+                    npc.timer = now + 1200;
+                }
             }
         }
 
         function initNPCs() {
             for (let i = 0; i < NPC_COUNT; i++) {
-                const name = buildNpcDisplayName(i);
-                const style = buildRandomAvatarStyle();
-                // Los NPC usan el mismo avatar visible de los visitantes, pero no
-                // el contenedor de presencia remota (playerId, nickname, style).
-                const npcAvatar = createProceduralAvatar(name, style);
+                const identity = getNPCIdentity(i);
+                const { name, style } = identity;
+                // Comparten rig y acciones Mixamo con los visitantes, sin entrar
+                // al canal de presencia multijugador.
+                const npcAvatar = createGameReadyAvatar(name, style);
 
                 const startFloor = NPC_GROUND_FLOOR_Y;
                 const entrySpawn = findLateralNPCEntrySpawnPosition(i, `npc:${i}`);
+                if (!entrySpawn) {
+                    npcAvatar.mesh.visible = false;
+                    if (npcAvatar.label) npcAvatar.label.style.display = 'none';
+                    continue;
+                }
                 const pos = entrySpawn.position;
                 const initialPosition = new THREE.Vector3(pos.x, getAvatarGroundY(pos.y), pos.z);
                 const initialTarget = entrySpawn.inwardTarget;
                 npcAvatar.mesh.position.copy(initialPosition);
                 npcAvatar.mesh.rotation.y = Math.atan2(entrySpawn.entry.inwardX, entrySpawn.entry.inwardZ);
                 
-                npcs.push({
-                    mesh: npcAvatar.mesh,
-                    label: npcAvatar.label,
-                    rig: npcAvatar.rig,
+                Object.assign(npcAvatar, {
                     target: new THREE.Vector3(initialTarget.x, getAvatarGroundY(initialTarget.y), initialTarget.z),
                     intermediateTarget: null,
                     intermediateEscalatorId: null,
@@ -745,6 +987,8 @@
                     // detector por proximidad podia capturar el descanso opuesto.
                     escalatorRide: null,
                     escalatorExitUntil: 0,
+                    seatTarget: null,
+                    nextSeatDecisionAt: Date.now() + NPC_SEAT_DECISION_MIN_MS + Math.random() * NPC_SEAT_DECISION_MAX_MS,
                     navigationRoute: [],
                     navigationGoal: null,
                     avoidanceTarget: null,
@@ -754,8 +998,7 @@
                     timer: 0,
                     speed: NPC_MIN_WALK_SPEED + Math.random() * (NPC_MAX_WALK_SPEED - NPC_MIN_WALK_SPEED),
                     name: name,
-                    motionPhase: npcAvatar.motionPhase,
-                    idlePhase: npcAvatar.idlePhase,
+                    gender: identity.gender,
                     lastSafePosition: initialPosition.clone(),
                     lastProgressPosition: initialPosition.clone(),
                     lastProgressAt: Date.now(),
@@ -776,12 +1019,165 @@
                     lastRouteRebuildAt: 0,
                     entryId: entrySpawn.entry.id
                 });
+                npcs.push(npcAvatar);
             }
+        }
+
+        window.isMallSeatStandGpsReady = function() {
+            const readyAvatar = npcs.some((npc) => npc?.gltfRoot && npc?.actions?.sit && npc?.actions?.stand);
+            if (!readyAvatar || typeof window.findMallBenchSeat !== 'function') return false;
+            const floors = [NPC_GROUND_FLOOR_Y, NPC_UPPER_FLOOR_Y];
+            return floors.some((floorY) => window.findMallBenchSeat(camera.position, Infinity, {
+                floorY,
+                requireAvailable: false
+            }));
+        };
+
+        window.getMallSeatStandGpsReadiness = function() {
+            return npcs.map((npc, index) => ({
+                index,
+                avatarKind: npc.avatarKind,
+                ready: Boolean(npc.ready),
+                hasRoot: Boolean(npc.gltfRoot),
+                actions: Object.keys(npc.actions || {}),
+                loading: Boolean(npc.mesh?.userData?.avatarLoading)
+            }));
+        };
+
+        window.runMallSeatStandGpsSimulation = function() {
+            const npcIndex = npcs.findIndex((npc) => npc?.gltfRoot && npc?.actions?.sit && npc?.actions?.stand);
+            if (npcIndex < 0) return Promise.reject(new Error('Todavía no hay un avatar NPC listo para la simulación.'));
+            const npc = npcs[npcIndex];
+            const owner = `npc:${npcIndex}`;
+            // The diagnostic runs in an isolated local test session. Release NPC
+            // reservations first so it can always claim one physical bench seat.
+            npcs.forEach((occupant, index) => {
+                if (occupant?.seatTarget) releaseNPCSeat(occupant, index);
+            });
+            const floorOptions = camera.position.y > 3
+                ? [NPC_UPPER_FLOOR_Y, NPC_GROUND_FLOOR_Y]
+                : [NPC_GROUND_FLOOR_Y, NPC_UPPER_FLOOR_Y];
+            let seat = null;
+            let floorY = floorOptions[0];
+            for (const candidateFloor of floorOptions) {
+                seat = window.findMallBenchSeat?.(camera.position, Infinity, {
+                    floorY: candidateFloor,
+                    owner,
+                    requireAvailable: true
+                });
+                if (seat) {
+                    floorY = candidateFloor;
+                    break;
+                }
+            }
+            if (!seat) return Promise.reject(new Error('No hay una banca libre para la simulación GPS.'));
+
+            if (!window.reserveMallBenchSeat?.(seat, owner, 30000)) {
+                return Promise.reject(new Error('No se pudo reservar la banca de prueba.'));
+            }
+
+            npc.mesh.position.set(seat.position.x, getAvatarGroundY(floorY), seat.position.z);
+            npc.mesh.rotation.y = seat.yaw;
+            npc.seatTarget = seat;
+            npc.state = 'seated';
+            npc.motionMode = 'sit';
+            npc.intermediateTarget = null;
+            npc.intermediateEscalatorId = null;
+            npc.avoidanceTarget = null;
+            clearNPCNavigationRoute(npc);
+            setNPCSeatedVisualHeight(npc, true);
+            const sitDurationMs = Math.max(800, (npc.actions.sit.getClip().duration || 1) * 1000);
+            npc.timer = Date.now() + sitDurationMs + 350;
+
+            return new Promise((resolve, reject) => {
+                const gps = {
+                    active: true,
+                    startedAt: performance.now(),
+                    seatId: seat.id,
+                    reference: null,
+                    sawStand: false,
+                    frames: [],
+                    maxDrift: {},
+                    maxVerticalDrift: {},
+                    maxRotationDrift: {},
+                    maxAnchorError: {},
+                    maxFrameStep: {},
+                    resolve
+                };
+                npc.shoeGps = gps;
+                window.mallActiveShoeGpsActor = npc;
+                setTimeout(() => {
+                    if (!gps.active) return;
+                    gps.active = false;
+                    reject(new Error(`La simulación GPS excedió el tiempo límite después de ${gps.frames.length} fotogramas.`));
+                }, sitDurationMs + 12000);
+
+                const entryOverlay = document.getElementById('login-overlay');
+                if (entryOverlay && window.getComputedStyle(entryOverlay).display !== 'none') {
+                    // On the local GPS diagnostic route the mall render loop is
+                    // paused until visitor entry. Drive this one NPC through the
+                    // exact pose/state functions without creating a remote session.
+                    const stepMs = 1000 / 60;
+                    gps.simulationStartMs = performance.now();
+                    gps.simulationWallStart = Date.now();
+                    gps.simulationFrame = 0;
+                    while (gps.active && gps.simulationFrame < 1800) {
+                        const nowMs = gps.simulationStartMs + gps.simulationFrame * stepMs;
+                        const wallNow = gps.simulationWallStart + gps.simulationFrame * stepMs;
+                        gps.simulationFrame += 1;
+                        updateNPCSeatState(npc, npcIndex, wallNow, nowMs, 0);
+                        window.applyAvatarPose?.(npc, 0, nowMs);
+                    }
+                    if (gps.active) {
+                        gps.active = false;
+                        reject(new Error(`La simulación GPS superó 1800 cuadros (${gps.frames.length} medidos).`));
+                    }
+                }
+            });
+        };
+
+        window.getMallSeatStandGpsTrace = function() {
+            return window.mallLastShoeGpsTrace || null;
+        };
+
+        if (new URLSearchParams(window.location.search).get('seatGps') === '1') {
+            const gpsStatus = document.createElement('pre');
+            gpsStatus.id = 'mall-seat-gps-status';
+            gpsStatus.style.cssText = 'position:fixed;left:12px;top:12px;z-index:100000;max-width:520px;padding:10px;background:#111;color:#f1d48f;font:12px monospace;white-space:pre-wrap;pointer-events:none';
+            gpsStatus.textContent = 'GPS zapatos: esperando avatar animado...';
+            document.body.appendChild(gpsStatus);
+            const startedWaitingAt = Date.now();
+            const readinessTimer = setInterval(() => {
+                if (Date.now() - startedWaitingAt > 120000) {
+                    clearInterval(readinessTimer);
+                    gpsStatus.textContent = 'GPS zapatos: tiempo de espera agotado.';
+                    return;
+                }
+                if (!window.isMallSeatStandGpsReady()) return;
+                clearInterval(readinessTimer);
+                gpsStatus.textContent = 'GPS zapatos: simulando sentarse y levantarse...';
+                window.runMallSeatStandGpsSimulation()
+                    .then((report) => {
+                        gpsStatus.textContent = [
+                            `GPS zapatos: ${report.frameCount} frames`,
+                            `Deslizamiento 3D: izq. ${report.maxDrift.left.toFixed(4)} m / der. ${report.maxDrift.right.toFixed(4)} m`,
+                            `Error de anclaje: izq. ${report.maxAnchorError.left.toFixed(4)} m / der. ${report.maxAnchorError.right.toFixed(4)} m`,
+                            `Elevación: izq. ${report.maxVerticalDrift.left.toFixed(4)} m / der. ${report.maxVerticalDrift.right.toFixed(4)} m`,
+                            `Giro de zapatos: izq. ${report.maxRotationDriftRadians.left.toFixed(4)} rad / der. ${report.maxRotationDriftRadians.right.toFixed(4)} rad`,
+                            `Máximo salto entre cuadros: ${Math.max(report.maxFrameStep.left, report.maxFrameStep.right).toFixed(4)} m`,
+                            `Fases: ${Object.entries(report.motionFrameCounts).map(([motion, count]) => `${motion} ${count}`).join(', ')}`
+                        ].join('\n');
+                    })
+                    .catch((error) => {
+                        gpsStatus.textContent = `GPS zapatos: error: ${error.message}`;
+                    });
+            }, 250);
         }
 
         function updateNPCs(nowMs = performance.now(), updateLabels = true, frameIndex = 0) {
             const now = Date.now();
             npcs.forEach((npc, npcIndex) => {
+                if (npc.collisionDisabled) return;
                 const prevPos = npc.mesh.position.clone();
                 const npcDistToCam = camera.position.distanceTo(npc.mesh.position);
                 const isFarNpc = npcDistToCam > FAR_NPC_SIM_DISTANCE;
@@ -797,6 +1193,18 @@
                 npc.lastMotionUpdateAt = nowMs;
                 const moveStep = npc.speed * elapsedMotionSeconds;
                 let onEscalator = false;
+
+                if (window.mallFeatureFlags?.benchSeatingEnabled === true
+                    && updateNPCSeatState(npc, npcIndex, now, nowMs, moveStep)) {
+                    traceNPCPosition(npc, npcIndex, 'seat-state', prevPos, now);
+                    const seatMovementAmount = npc.motionMode === 'walk'
+                        ? prevPos.distanceTo(npc.mesh.position)
+                        : 0;
+                    applyAvatarPose(npc, seatMovementAmount, nowMs);
+                    npc.mesh.visible = true;
+                    if (updateLabels) updateAvatarLabelPosition(npc, 2.2, AVATAR_LABEL_NPC_FAR_DISTANCE);
+                    return;
+                }
 
                 // --- APARTADO AUTOMÁTICO DE NPCS ---
                 // Si el NPC está demasiado cerca de un jugador (local o remoto), se corre/se hace a un lado
@@ -1053,7 +1461,10 @@
                             ignoreActorId: `npc:${npcIndex}`,
                             includeActors: false,
                             allowedEscalatorId: npc.intermediateEscalatorId,
-                            collisionRadius: DYNAMIC_ACTOR_COLLISION_RADIUS * 0.82
+                            collisionRadius: DYNAMIC_ACTOR_COLLISION_RADIUS * 0.82,
+                            ignoredColliderOwnerIds: now < (npc.departingSeatColliderUntil || 0)
+                                ? [npc.departingSeatColliderId]
+                                : []
                         });
                         const clearsAllActors = clearsStaticGeometry && canNPCOccupyPosition(
                             nextX,
@@ -1062,7 +1473,10 @@
                             {
                                 ignoreActorId: `npc:${npcIndex}`,
                                 allowedEscalatorId: npc.intermediateEscalatorId,
-                                collisionRadius: DYNAMIC_ACTOR_COLLISION_RADIUS * 0.82
+                                collisionRadius: DYNAMIC_ACTOR_COLLISION_RADIUS * 0.82,
+                                ignoredColliderOwnerIds: now < (npc.departingSeatColliderUntil || 0)
+                                    ? [npc.departingSeatColliderId]
+                                    : []
                             }
                         );
                         if (clearsAllActors) {
@@ -1115,8 +1529,13 @@
                         const changeFloor = Math.random() > 0.85;
                         const nextY = changeFloor ? (npc.mesh.position.y > 3 ? 0 : 5.4) : npc.mesh.position.y;
                         const novelPos = findNovelNPCPosition(npc, npc.mesh.position, nextY, `npc:${npcIndex}`);
-                        npc.target.set(novelPos.x, getAvatarGroundY(novelPos.y), novelPos.z);
-                        rememberNPCDestination(npc, npc.target, now);
+                        if (novelPos) {
+                            npc.target.set(novelPos.x, getAvatarGroundY(novelPos.y), novelPos.z);
+                            rememberNPCDestination(npc, npc.target, now);
+                        } else {
+                            npc.state = 'looking';
+                            npc.timer = now + 1200;
+                        }
                     }
                 }
 
@@ -1163,15 +1582,31 @@
                         {
                             ignoreActorId: `npc:${npcIndex}`,
                             includeActors: false,
-                            collisionRadius: DYNAMIC_ACTOR_COLLISION_RADIUS * 0.8
+                            collisionRadius: DYNAMIC_ACTOR_COLLISION_RADIUS * 0.8,
+                            bodyMinY: groundY,
+                            bodyMaxY: groundY + DYNAMIC_ACTOR_COLLISION_HEIGHT,
+                            // The movement pass already grants this short exemption so
+                            // an avatar can step out of the bench volume. Apply the same
+                            // rule to the final safety pass; otherwise it restores the
+                            // pre-seat lastSafePosition and appears to teleport metres.
+                            ignoredColliderOwnerIds: now < (npc.departingSeatColliderUntil || 0)
+                                ? [npc.departingSeatColliderId]
+                                : []
                         }
                     );
 
                     if (!hasFloorSupport || occupiesStaticObstacle) {
+                        const beforeSafetyRollback = npc.mesh.position.clone();
                         if (npc.lastSafePosition) {
                             npc.mesh.position.copy(npc.lastSafePosition);
                         } else {
                             const safe = findDiscreetNPCSpawnPosition(floorY, `npc:${npcIndex}`);
+                            if (!safe) {
+                                npc.mesh.visible = false;
+                                npc.collisionDisabled = true;
+                                if (npc.label) npc.label.style.display = 'none';
+                                return;
+                            }
                             npc.mesh.position.set(safe.x, getAvatarGroundY(safe.y), safe.z);
                         }
                         npc.intermediateTarget = null;
@@ -1180,6 +1615,7 @@
                         npc.avoidanceTarget = null;
                         npc.state = 'looking';
                         npc.timer = now;
+                        traceNPCPosition(npc, npcIndex, 'safety-rollback', beforeSafetyRollback, now);
                     } else {
                         // El apoyo debe ser exacto: una interpolación vertical deja pies visibles bajo la losa.
                         npc.mesh.position.y = groundY;
@@ -1187,6 +1623,7 @@
                         npc.lastSafePosition.copy(npc.mesh.position);
                     }
                 }
+                traceNPCPosition(npc, npcIndex, 'frame-end', prevPos, now);
             });
         }
 

@@ -34,6 +34,20 @@ assert.match(requiredAdmin, /getVerifiedTenantSessionUser\(\{\s*forceAdminRefres
 assert.match(requiredAdmin, /userHasAdminAccess\(currentUserProfile,\s*sessionUser\)/);
 assert.match(requiredAdmin, /resetPrivilegedClientState\(\)/);
 
+const seatMonitor = section(
+    uiSource,
+    'async function setRemoteSeatTraceEnabled',
+    'function traceRemoteSeatPosition'
+);
+assert.match(uiSource, /let remoteSeatTraceEnabled\s*=\s*false/);
+assert.doesNotMatch(uiSource, /new URLSearchParams\(window\.location\.search\)\.get\(['"]remoteSeatTrace['"]\)/);
+assert.match(seatMonitor, /requireAuthoritativeAdminAccess\(\{\s*showAlert:\s*false\s*\}\)/);
+assert.match(seatMonitor, /mallCanUseAdminTools/);
+assert.match(seatMonitor, /mountRemoteSeatTracePanel\(\)/);
+const adminMonitorToggle = fs.readFileSync(path.join(projectRoot, 'index.html'), 'utf8');
+assert.match(adminMonitorToggle, /id="admin-toggle-seat-motion-monitor"[^>]+data-mall-tool="seat-motion-monitor"/);
+assert.match(adminMonitorToggle, /id="admin-seat-motion-monitor-status"/);
+
 const tenantPanelEntry = section(
     uiSource,
     'window.openTenantAdminFromMenu = async function',

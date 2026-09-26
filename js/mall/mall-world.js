@@ -343,9 +343,30 @@
         const ESCALATOR_FLAT_LEN = 4;
         const ESCALATOR_RIDE_Y_BOTTOM = 0.1;
         const ESCALATOR_RIDE_Y_TOP = 5.4;
-        // Calibrated to the eye line of the Blender avatar, not its chest.
-        const PLAYER_EYE_HEIGHT = 1.7;
         const AVATAR_FLOOR_OFFSET = 0.115;
+        // The camera follows the same 175 cm reference used to scale the avatar rig.
+        const PLAYER_HEIGHT_REFERENCE_CM = 175;
+        const PLAYER_EYE_HEIGHT_AT_REFERENCE = 2.15;
+        let PLAYER_EYE_HEIGHT = PLAYER_EYE_HEIGHT_AT_REFERENCE;
+
+        function getPlayerEyeHeightForAvatarHeight(avatarHeight = PLAYER_HEIGHT_REFERENCE_CM) {
+            const height = Number(avatarHeight);
+            const safeHeight = Number.isFinite(height)
+                ? Math.max(155, Math.min(190, height))
+                : PLAYER_HEIGHT_REFERENCE_CM;
+            return PLAYER_EYE_HEIGHT_AT_REFERENCE * safeHeight / PLAYER_HEIGHT_REFERENCE_CM;
+        }
+
+        window.setPlayerAvatarEyeHeight = function(avatarHeight, { force = false } = {}) {
+            const nextEyeHeight = getPlayerEyeHeightForAvatarHeight(avatarHeight);
+            if (!force && Math.abs(nextEyeHeight - PLAYER_EYE_HEIGHT) < 0.0001) return PLAYER_EYE_HEIGHT;
+            PLAYER_EYE_HEIGHT = nextEyeHeight;
+            window.dispatchEvent(new CustomEvent('mall:avatar-eye-height-changed', {
+                detail: { avatarHeight, eyeHeight: PLAYER_EYE_HEIGHT }
+            }));
+            return PLAYER_EYE_HEIGHT;
+        };
+
         const getAvatarGroundY = (floorY) => floorY + AVATAR_FLOOR_OFFSET;
 
         const boutiqueSlidingDoors = [];
@@ -655,7 +676,7 @@
                     }
                     window.setMallShadowMode?.(planter, { cast: true, receive: true });
                     detailedInterior.add(planter);
-                    registerObjectColliderFromBounds(planter, { paddingX: 0.06, paddingZ: 0.06 });
+                    registerObjectColliderFromBounds(planter);
                 };
 
                 const createDisplayIsland = (x, z, widthScale = 1, depthScale = 1) => {
@@ -667,7 +688,7 @@
                     addDetail(1.2 * widthScale, 0.18, 1.2 * depthScale, x, 1.22, z, railGlassMat, island);
                     window.setMallShadowMode?.(island, { cast: true, receive: true });
                     detailedInterior.add(island);
-                    registerObjectColliderFromBounds(island, { paddingX: 0.08, paddingZ: 0.08 });
+                    registerObjectColliderFromBounds(island);
                 };
 
                 const createWallShelves = (x, z, length, rotationY = 0) => {
@@ -686,7 +707,7 @@
                     }
                     window.setMallShadowMode?.(shelf, { cast: true, receive: true });
                     detailedInterior.add(shelf);
-                    registerObjectColliderFromBounds(shelf, { paddingX: 0.06, paddingZ: 0.06 });
+                    registerObjectColliderFromBounds(shelf);
                 };
 
                 const createCashier = (x, z, rotationY = 0) => {
@@ -700,7 +721,7 @@
                     addDetail(1.2, 0.08, 0.95, 0, 1.18, 0.2, displayMat, cashier);
                     window.setMallShadowMode?.(cashier, { cast: true, receive: true });
                     detailedInterior.add(cashier);
-                    registerObjectColliderFromBounds(cashier, { paddingX: 0.08, paddingZ: 0.08 });
+                    registerObjectColliderFromBounds(cashier);
                 };
 
                 const createUpperLounge = (x, z) => {
@@ -711,7 +732,7 @@
                     addDetail(0.9, 0.32, 0.9, x, anchorSlabTopY + 0.18, z + 1.45, darkWoodMat, lounge);
                     window.setMallShadowMode?.(lounge, { cast: true, receive: true });
                     detailedInterior.add(lounge);
-                    registerObjectColliderFromBounds(lounge, { paddingX: 0.08, paddingZ: 0.08 });
+                    registerObjectColliderFromBounds(lounge);
                 };
 
                 const createPerimeterGlass = (x, z, widthSize, depthSize, y) => {
@@ -3220,6 +3241,7 @@
         // URBANISMO INTERIOR: Maceteros con árboles estilizados
         function createPlanter(x, z) {
             const gr = new THREE.Group(); gr.position.set(x, 0, z);
+            const planterId = `planter:${x.toFixed(2)}:${z.toFixed(2)}`;
             
             // Macetero de Diseño (Base Mármol Negro + Borde Oro)
             const marbleMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.1, metalness: 0.5 });
@@ -3272,11 +3294,23 @@
                 // Variación de escala para romper la simetría
                 blob.scale.set(1 + Math.random()*0.2, 0.7 + Math.random()*0.3, 1 + Math.random()*0.2);
                 gr.add(blob);
+                const leafRadius = f.s * Math.max(blob.scale.x, blob.scale.z);
+                const leafHalfHeight = f.s * blob.scale.y;
+                registerCircularCollider(
+                    x + f.p[0],
+                    z + f.p[2],
+                    leafRadius,
+                    gr.position.y + f.p[1] - leafHalfHeight,
+                    gr.position.y + f.p[1] + leafHalfHeight,
+                    `${planterId}:foliage:${idx}`
+                );
             });
 
             window.setMallShadowMode?.(gr, { cast: true, receive: true });
             scene.add(gr);
-            registerCollider(x, z, 2.5, 2.5, 0, 4);
+            registerCircularCollider(x, z, 1.25, gr.position.y, gr.position.y + 1.075, `${planterId}:pot`);
+            registerCircularCollider(x, z, 0.18, gr.position.y + 0.8, gr.position.y + 4.0, `${planterId}:trunk`);
+            registerOrientedCollider(x + 0.15, z + 0.15, 0.5, 0.12, 0, gr.position.y + 2.7, gr.position.y + 3.7, `${planterId}:branch`);
         }
         function createBench(x, z, rot) {
             const gr = new THREE.Group(); gr.position.set(x, 0.1, z); gr.rotation.y = rot;
@@ -3285,6 +3319,25 @@
             gr.userData.mallEditableId = benchId;
             const base = new THREE.Mesh(new THREE.BoxGeometry(4, 0.2, 1.5), darkMat); base.position.y = 0.1; gr.add(base);
             const seat = new THREE.Mesh(new THREE.BoxGeometry(4.2, 0.4, 1.7), new THREE.MeshStandardMaterial({ color: 0x242424, roughness: 0.48, metalness: 0.06 })); seat.position.y = 0.4; gr.add(seat);
+            [-1.15, 0, 1.15].forEach((seatX, seatIndex) => {
+                [-1, 1].forEach((side) => {
+                    const footAnchor = new THREE.Group();
+                    footAnchor.name = `${benchId}:seat:${seatIndex}:${side}`;
+                    // The seated Mixamo pose keeps its feet ahead of the hips.
+                    // Keep the root just outside the cushion, not 1.38 m away.
+                    footAnchor.position.set(seatX, 0, side * 0.42);
+                    footAnchor.rotation.y = side > 0 ? 0 : Math.PI;
+                    footAnchor.userData.sittableBench = {
+                        footAnchor: true,
+                        benchId,
+                        benchCenterNode: gr,
+                        benchType: 'linear',
+                        halfLength: 0.6,
+                        halfDepth: 0.45
+                    };
+                    gr.add(footAnchor);
+                });
+            });
             window.setMallShadowMode?.(gr, { cast: true, receive: true });
             scene.add(gr);
                 window.registerMallEditableObject?.(gr, {
@@ -3294,7 +3347,11 @@
                     label: `Banca (${x.toFixed(1)}, ${z.toFixed(1)})`,
                 areaCode: 'mall-ground'
             });
-            registerRotatedSolidFootprint(x, z, 4.4, 1.9, rot, 0, 2.6, benchId);
+            const benchCollider = registerRotatedSolidFootprint(x, z, 4.2, 1.7, rot, 0.1, 0.7, benchId);
+            // Keep a meaningful body buffer around the visual seat. The smaller
+            // legacy margin let the walking camera overlap the timber before the
+            // collision check could stop it.
+            benchCollider.contactRadius = 0.32;
         }
 
         // FUENTE CENTRAL
@@ -4634,7 +4691,7 @@
                 });
                 sh.add(shelf);
                 registerBoutiqueFurniture(shelf, 'estanteria');
-                registerObjectColliderFromBounds(shelf, { paddingX: 0.06, paddingZ: 0.06 });
+                registerObjectColliderFromBounds(shelf);
             };
 
             const addCenterIsland = (x, z, width, depth, height, glassCap = false) => {
@@ -4654,7 +4711,7 @@
                 }
                 sh.add(island);
                 registerBoutiqueFurniture(island, 'isla-central');
-                registerObjectColliderFromBounds(island, { paddingX: 0.08, paddingZ: 0.08 });
+                registerObjectColliderFromBounds(island);
             };
 
             const addCashDesk = (x, z) => {
@@ -4669,7 +4726,7 @@
                 cw(0.78, 0.14, 0.48, 0.85, 0.78, 0.12, softFabricMat, desk);
                 sh.add(desk);
                 registerBoutiqueFurniture(desk, 'mostrador');
-                registerObjectColliderFromBounds(desk, { paddingX: 0.08, paddingZ: 0.08 });
+                registerObjectColliderFromBounds(desk);
             };
 
             const addFrontVitrine = (x, z) => {
@@ -4686,7 +4743,7 @@
                 addProductCluster(vitrine, 1.0, 0.45, 0.92, 3);
                 sh.add(vitrine);
                 registerBoutiqueFurniture(vitrine, 'vitrina');
-                registerObjectColliderFromBounds(vitrine, { paddingX: 0.08, paddingZ: 0.08 });
+                registerObjectColliderFromBounds(vitrine);
             };
             const addWindowDisplay = (x) => {
                 if (intersectsBoutiqueEntry(x, 7.25, 2.15, 0.95)) return;
@@ -4707,7 +4764,7 @@
                 display.add(pedestal);
                 sh.add(display);
                 registerBoutiqueFurniture(display, 'exhibidor');
-                registerObjectColliderFromBounds(display, { paddingX: 0.08, paddingZ: 0.08 });
+                registerObjectColliderFromBounds(display);
             };
 
             const addBoutiqueCeilingFeature = () => {
@@ -5631,7 +5688,7 @@
                     });
                     interior.add(unit);
                     if (!sh.userData.dynamicInteriorCollisionBuilt) {
-                        registerObjectColliderFromBounds(unit, { paddingX: 0.06, paddingZ: 0.06 });
+                        registerObjectColliderFromBounds(unit);
                     }
                 };
 
@@ -5965,6 +6022,68 @@
             { x: 11.8, z: -11.8 }
         ];
 
+        function addPublicCommonsSeating(commons) {
+            // The Blender asset contains four circular timber benches. These anchors
+            // mark where the visitor's feet must already be before sitting; they do
+            // not move the visitor onto the mesh.
+            PUBLIC_COMMONS_LOUNGE_LOCATIONS.forEach(({ x, z }) => {
+                const radius = 1.74;
+                [
+                    { x: radius, z: 0, yaw: Math.PI / 2 },
+                    { x: -radius, z: 0, yaw: -Math.PI / 2 },
+                    { x: 0, z: radius, yaw: 0 },
+                    { x: 0, z: -radius, yaw: Math.PI }
+                ].forEach((seat, index) => {
+                    const anchor = new THREE.Group();
+                    anchor.name = `seat:public-commons:${x}:${z}:${index}`;
+                    const outward = new THREE.Vector3(seat.x, 0, seat.z).normalize();
+                    // Keep the feet just outside the physical bench. The sitting clip
+                    // brings the hips back over the timber seat without a world-space snap.
+                    anchor.position.set(x, 0, z).addScaledVector(outward, 2.25);
+                    anchor.rotation.y = seat.yaw;
+                    anchor.userData.sittableBench = {
+                        footAnchor: true,
+                        benchId: `bench:public-commons:${x}:${z}:${index}`,
+                        benchCenter: new THREE.Vector3(x + seat.x, 0, z + seat.z),
+                        benchType: 'circular',
+                        halfLength: 0.68,
+                        halfDepth: 0.48
+                    };
+                    commons.add(anchor);
+                });
+            });
+        }
+
+        function registerPublicCommonsColliders() {
+            PUBLIC_COMMONS_LOUNGE_LOCATIONS.forEach(({ x, z }) => {
+                // The planter remains solid. Bench segments are independent so a
+                // player can stand immediately in front of a seat without entering it.
+                registerCircularCollider(x, z, 1.32, 0, 2.4, `planter:public-commons:${x}:${z}`);
+                const radius = 1.74;
+                [
+                    { x: radius, z: 0, rotation: Math.PI / 2 },
+                    { x: -radius, z: 0, rotation: Math.PI / 2 },
+                    { x: 0, z: radius, rotation: 0 },
+                    { x: 0, z: -radius, rotation: 0 }
+                ].forEach((seat, index) => {
+                    const ownerId = `bench:public-commons:${x}:${z}:${index}`;
+                    const benchCollider = registerOrientedCollider(
+                        x + seat.x,
+                        z + seat.z,
+                        1.46,
+                        0.7,
+                        seat.rotation,
+                        0,
+                        0.78,
+                        ownerId
+                    );
+                    // Circular bench segments need the same body buffer as the
+                    // linear benches so their collision feels consistent.
+                    benchCollider.contactRadius = 0.32;
+                });
+            });
+        }
+
         function loadPublicCommonsModel() {
             if (!THREE.GLTFLoader || window.mallPublicCommons?.status === 'loading' || window.mallPublicCommons?.status === 'ready') return;
 
@@ -5983,10 +6102,9 @@
                         child.frustumCulled = true;
                         window.setMallShadowMode?.(child, { cast: true, receive: true });
                     });
+                    addPublicCommonsSeating(commons);
                     scene.add(commons);
-                    PUBLIC_COMMONS_LOUNGE_LOCATIONS.forEach(({ x, z }) => {
-                        registerCircularCollider(x, z, 2.7, 0, 2.4);
-                    });
+                    registerPublicCommonsColliders();
                     window.mallPublicCommons = {
                         status: 'ready',
                         assetUrl: PUBLIC_COMMONS_ASSET_URL,
@@ -6057,6 +6175,24 @@
             counterTop.position.set(0, 0.96, 0.62);
             module.add(counterTop);
 
+            // Reception wings close the desk from the sides so the attendant's
+            // resting bench remains a staff area, while the front stays open to
+            // welcome visitors from the mall aisle.
+            [-1, 1].forEach((side) => {
+                const sideWing = new THREE.Mesh(new THREE.BoxGeometry(0.16, 1.78, 1.76), shellMat);
+                sideWing.name = `Panel lateral de privacidad ${side < 0 ? 'izquierdo' : 'derecho'}`;
+                sideWing.position.set(side * 1.43, 0.89, -0.1);
+                module.add(sideWing);
+
+                const sideWingInset = new THREE.Mesh(new THREE.BoxGeometry(0.025, 1.38, 1.4), counterMat);
+                sideWingInset.position.set(side * 1.515, 0.92, -0.1);
+                module.add(sideWingInset);
+
+                const sideWingTrim = new THREE.Mesh(new THREE.BoxGeometry(0.035, 1.56, 0.055), goldTrimMat);
+                sideWingTrim.position.set(side * 1.53, 0.96, 0.54);
+                module.add(sideWingTrim);
+            });
+
             // Keep the information sign above the assistant's head while preserving its support frame.
             const canopy = new THREE.Mesh(new THREE.BoxGeometry(2.95, 0.12, 0.58), shellMat);
             canopy.position.set(0, 3.11, 0);
@@ -6081,6 +6217,20 @@
             const lowerTrim = new THREE.Mesh(new THREE.BoxGeometry(2.68, 0.06, 0.08), goldTrimMat);
             lowerTrim.position.set(0, 2.36, 0.11);
             module.add(lowerTrim);
+
+            // The animated attendant is attached after the shared avatar runtime is ready.
+            // Keep a simple bench here so the seated pose has a physical place behind the desk.
+            const attendantBench = new THREE.Group();
+            attendantBench.name = 'Banca del asistente de informaciones';
+            const benchSeat = new THREE.Mesh(new THREE.BoxGeometry(1.34, 0.12, 0.42), counterTopMat);
+            benchSeat.position.set(0, 0.48, -0.36);
+            attendantBench.add(benchSeat);
+            [-0.5, 0.5].forEach((legX) => {
+                const leg = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.44, 0.1), shellMat);
+                leg.position.set(legX, 0.23, -0.36);
+                attendantBench.add(leg);
+            });
+            module.add(attendantBench);
 
 const assistant = new THREE.Group();
 assistant.name = 'Asistente virtual de informaciones';
@@ -6142,6 +6292,8 @@ nose.position.set(0, 1.96, 0.235);
 assistantFallback.add(nose);
 assistant.add(assistantFallback);
 module.add(assistant);
+            window.mallInformationAssistantAnchor = assistant;
+            window.mallInformationAssistantFallback = assistantFallback;
 
             assistant.traverse((child) => {
                 child.userData = {

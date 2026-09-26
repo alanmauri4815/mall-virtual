@@ -44,6 +44,7 @@
 
     function updateInterface() {
         const autoButton = document.getElementById('mobile-auto-forward-btn');
+        const sitButton = document.getElementById('mobile-sit-btn');
         const sensitivityInput = document.getElementById('mobile-look-sensitivity');
         const leftHandedInput = document.getElementById('mobile-left-handed');
         document.body.classList.toggle('mobile-controls-left-handed', state.leftHanded);
@@ -52,6 +53,18 @@
             autoButton.setAttribute('aria-pressed', String(state.autoForward));
             autoButton.title = state.autoForward ? 'Detener avance' : 'Avance automático';
             autoButton.setAttribute('aria-label', autoButton.title);
+        }
+        if (sitButton) {
+            const seated = Boolean(globalScope.mallMotionSeated);
+            const parking = Boolean(globalScope.mallSeatAutoparking);
+            const seatingEnabled = globalScope.mallFeatureFlags?.benchSeatingEnabled === true;
+            sitButton.classList.toggle('is-active', seated);
+            sitButton.disabled = parking || (!seatingEnabled && !seated);
+            sitButton.setAttribute('aria-pressed', String(seated));
+            sitButton.title = seated
+                ? 'Levantarse'
+                : seatingEnabled ? 'Sentarse' : 'Sentarse (temporalmente desactivado)';
+            sitButton.setAttribute('aria-label', sitButton.title);
         }
         if (sensitivityInput) sensitivityInput.value = String(state.sensitivity);
         if (leftHandedInput) leftHandedInput.checked = state.leftHanded;
@@ -218,6 +231,12 @@
         canvas.addEventListener('pointercancel', handlePointerEnd, { passive: false });
 
         document.getElementById('mobile-auto-forward-btn')?.addEventListener('click', toggleAutoForward);
+        document.getElementById('mobile-sit-btn')?.addEventListener('click', (event) => {
+            event.stopPropagation();
+            if (globalScope.mallFeatureFlags?.benchSeatingEnabled !== true && !globalScope.mallMotionSeated) return;
+            globalScope.toggleMallSeatedPosture?.();
+            setTimeout(updateInterface, 0);
+        });
         const settingsButton = document.getElementById('mobile-settings-btn');
         const settingsPanel = document.getElementById('mobile-control-settings');
         settingsButton?.addEventListener('click', toggleSettings);
@@ -252,6 +271,8 @@
         isAutoForwardActive: () => state.autoForward,
         setAutoForward,
         stopAutoForward: () => setAutoForward(false),
+        refreshSeatControl: updateInterface,
         resetZoom
     });
+    globalScope.updateMallSeatControl = updateInterface;
 })(window);

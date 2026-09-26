@@ -72,6 +72,9 @@
 
     window.mallContext = context;
     window.mallContextRegistry = configuredMalls;
+    // Temporary safety pause while bench seating is being validated.
+    // Flip this back to true to restore visitor and NPC sitting without removing its implementation.
+    window.mallFeatureFlags = Object.freeze({ benchSeatingEnabled: false });
     document.documentElement.dataset.mallSlug = context.slug;
     document.documentElement.dataset.mallContextReady = 'true';
     document.querySelectorAll('[data-mall-context-name]').forEach((element) => {

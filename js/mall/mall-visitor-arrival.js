@@ -1,6 +1,8 @@
         // Llegada guiada para visitantes que no eligieron una preferencia de acceso.
         (() => {
-            const ENTRY_EYE_Y = 1.8;
+            const getEntryEyeY = () => (typeof PLAYER_EYE_HEIGHT === 'number'
+                ? PLAYER_EYE_HEIGHT + 0.1
+                : 1.95);
             const ENTRY_SPEED = 3.8;
             const ESCALATOR_SPEED = 1.85;
             const LOOK_AHEAD = 7.5;
@@ -61,7 +63,7 @@
             async function runLateralArrival(sequence) {
                 const entry = lateralEntrances[Math.floor(Math.random() * lateralEntrances.length)];
                 const inward = entry.inward.clone();
-                const start = entry.position.clone().setY(ENTRY_EYE_Y);
+                const start = entry.position.clone().setY(getEntryEyeY());
                 const vestibule = start.clone().addScaledVector(inward, 7.5);
                 const releasePoint = start.clone().addScaledVector(inward, 16.5);
 

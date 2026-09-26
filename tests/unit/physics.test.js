@@ -75,4 +75,67 @@ function loadPhysics(overrides = {}) {
     );
 }
 
+{
+    const physics = loadPhysics({
+        camera: { position: { x: 0.8, y: 1.7, z: 0 } }
+    });
+    physics.registerCollider(0, 0, 2, 2, 0, 3, 'planter');
+
+    const escapeOptions = {
+        ignoreActorId: '__local__',
+        bodyMinY: 0.06,
+        bodyMaxY: 2.34,
+        allowStaticCollisionEscape: true
+    };
+    assert.equal(physics.checkCollision(0.9, 1.7, 0, escapeOptions), false,
+        'A visitor already inside a planter may move out when penetration decreases.');
+    assert.equal(physics.checkCollision(0.7, 1.7, 0, escapeOptions), true,
+        'Collision recovery must still block a step deeper into the planter.');
+    assert.equal(physics.checkCollision(0.9, 1.7, 0), true,
+        'Ordinary callers must keep the existing collision behavior.');
+}
+
+{
+    const physics = loadPhysics({
+        camera: { position: { x: 0.8, y: 1.7, z: 0 } }
+    });
+    physics.registerCollider(0, 0, 2, 2, 0, 3, 'planter');
+    physics.registerCollider(2.2, 0, 1, 1, 0, 3, 'nearby-kiosk');
+
+    assert.equal(physics.checkCollision(1.5, 1.7, 0, {
+        ignoreActorId: '__local__',
+        bodyMinY: 0.06,
+        bodyMaxY: 2.34,
+        allowStaticCollisionEscape: true
+    }), true, 'Recovery must not let the visitor escape into a different obstacle.');
+}
+
+{
+    const physics = loadPhysics();
+    physics.registerCollider(0, 0, 4, 2, 0.1, 0.7, 'bench');
+    const bench = physics.colliders[0];
+
+    assert.equal(physics.isPointInsideCollider(0, 1, 0, bench, 0.4, 0.11, 2.2), true,
+        'A body must collide with the bench across its full vertical span.');
+    assert.equal(physics.isPointInsideCollider(0, 1, 0, bench, 0.4, 0.71, 2.2), false,
+        'A body above the bench volume must not be blocked by its height.');
+    assert.equal(physics.isPointInsideCollider(2.3, 1, 1.3, bench, 0.4), false,
+        'The rounded corner must not expand beyond the actor circle.');
+}
+
+{
+    const physics = loadPhysics();
+    const shelf = {
+        shape: 'oriented-box', x: 0, z: 0,
+        halfW: 2, halfD: 0.5, rotation: Math.PI / 4,
+        minY: 0, maxY: 2, enabled: true
+    };
+    physics.colliders.push(shelf);
+
+    assert.equal(physics.isPointInsideCollider(1.6, 1, 1.6, shelf), false,
+        'A rotated collider must not block the empty corners of its axis-aligned bounds.');
+    assert.equal(physics.isPointInsideCollider(0.353553, 1, -0.353553, shelf), true,
+        'A point in the rotated shelf volume must remain blocked.');
+}
+
 console.log('physics.test.js: OK');

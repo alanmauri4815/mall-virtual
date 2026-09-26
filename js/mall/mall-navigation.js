@@ -1,5 +1,13 @@
-﻿        // --- SISTEMA DE NAVEGACIÓN REFORZADO (TECLADO + JOYSTICK) ---
+        // --- SISTEMA DE NAVEGACIÓN REFORZADO (TECLADO + JOYSTICK) ---
         const keys = { ArrowUp: false, ArrowDown: false, ArrowLeft: false, ArrowRight: false, KeyW: false, KeyS: false, KeyA: false, KeyD: false, ControlLeft: false, ControlRight: false };
+        window.getMallMotionIntent = function() {
+            if (window.mallMotionSeated) return 'sit';
+            if (keys.KeyS || keys.ArrowDown) return 'backward';
+            if (keys.ArrowLeft) return 'turnLeft';
+            if (keys.ArrowRight) return 'turnRight';
+            if (keys.KeyW || keys.ArrowUp || keys.KeyA || keys.KeyD) return 'walk';
+            return 'idle';
+        };
         const canvasContainer = document.getElementById('canvas-container');
         const shouldPreserveTextFocus = () => {
             const active = document.activeElement;
@@ -35,6 +43,13 @@
         };
         const handleMovementKeyDown = (e) => {
             if (shouldPreserveTextFocus()) return;
+
+            if (e.code === 'KeyC' && !e.repeat && !e.defaultPrevented
+                && (window.mallFeatureFlags?.benchSeatingEnabled === true || window.mallMotionSeated)) {
+                e.preventDefault();
+                window.toggleMallSeatedPosture?.();
+                return;
+            }
 
             const normalizedCode = normalizeMovementCode(e);
             if (e.key === 'Escape') closeControlsMenu();
@@ -110,6 +125,7 @@
         let joystickDir = { x: 0, y: 0 };
         let joystickTouchId = null;
         let joystickPointerId = null;
+        let lastSyncedWalkEyeHeight = null;
         const joyZone = document.getElementById('joystick-zone');
         const joyKnob = document.getElementById('joystick-knob');
         window.mallMobileControls?.bind();
@@ -282,7 +298,37 @@
             return 1 - Math.exp(-responsiveness * deltaSec);
         }
 
+        function syncWalkCameraEyeHeight({ levelView = false } = {}) {
+            if (!isWalking || currentEscalatorState) return;
+
+            const groundY = camera.position.y > 3.0 ? 5.4 : 0.1;
+            const eyeY = groundY + PLAYER_EYE_HEIGHT;
+            const heightDelta = eyeY - camera.position.y;
+            const isNewEyeLine = levelView && lastSyncedWalkEyeHeight !== eyeY;
+            if (Math.abs(heightDelta) <= 0.001 && !isNewEyeLine) return;
+
+            camera.position.y = eyeY;
+            if (isNewEyeLine) {
+                // A new walking session must begin looking straight ahead, at eye level.
+                controls.target.y = eyeY;
+            } else {
+                controls.target.y += heightDelta;
+            }
+            lastSyncedWalkEyeHeight = eyeY;
+            controls.update();
+        }
+
+        window.addEventListener('mall:avatar-eye-height-changed', () => {
+            if (window.mallMotionSeated || window.mallSeatAutoparking) return;
+            lastSyncedWalkEyeHeight = null;
+            syncWalkCameraEyeHeight({ levelView: true });
+        });
+
         function updateKeyboardNavigation(deltaSec = 1 / BASE_FRAME_RATE) {
+            if (window.mallMotionSeated || window.mallSeatAutoparking) {
+                window.resetMallNavigationInputs();
+                return;
+            }
             deltaSec = THREE.MathUtils.clamp(deltaSec || (1 / BASE_FRAME_RATE), MIN_NAV_DELTA, MAX_NAV_DELTA);
             const teleportHold = window.mallTeleportHoldPose;
             if (teleportHold && window.mallTeleportHoldUntil && Date.now() < window.mallTeleportHoldUntil) {
@@ -319,6 +365,8 @@
                 currentPitchVelocity = 0;
                 return;
             }
+            // Apply configuration changes even while the player is standing still.
+            syncWalkCameraEyeHeight({ levelView: true });
             if (window.mallMovementLockedUntil && Date.now() < window.mallMovementLockedUntil) {
                 Object.keys(keys).forEach((key) => { keys[key] = false; });
                 joystickActive = false;
@@ -446,9 +494,16 @@
                 const nx = camera.position.x + moveAccumX;
                 const ny = camera.position.y;
                 const nz = camera.position.z + moveAccumZ;
+                const bodyMinY = ny - PLAYER_EYE_HEIGHT + 0.06;
+                const bodyMaxY = bodyMinY + 2.28;
 
                 // Colisión eje X (deslizamiento)
-                if (!checkCollision(nx, ny, camera.position.z, { ignoreActorId: '__local__' })) {
+                if (!checkCollision(nx, ny, camera.position.z, {
+                    ignoreActorId: '__local__',
+                    bodyMinY,
+                    bodyMaxY,
+                    allowStaticCollisionEscape: window.mallCanRecoverLocalCollision?.() === true
+                })) {
                     camera.position.x = nx;
                     controls.target.x += moveAccumX;
                 } else {
@@ -456,7 +511,12 @@
                     window.mallMobileControls?.stopAutoForward();
                 }
                 // Colisión eje Z (deslizamiento)
-                if (!checkCollision(camera.position.x, ny, nz, { ignoreActorId: '__local__' })) {
+                if (!checkCollision(camera.position.x, ny, nz, {
+                    ignoreActorId: '__local__',
+                    bodyMinY,
+                    bodyMaxY,
+                    allowStaticCollisionEscape: window.mallCanRecoverLocalCollision?.() === true
+                })) {
                     camera.position.z = nz;
                     controls.target.z += moveAccumZ;
                 } else {
@@ -520,10 +580,7 @@
 
             // BLOQUEO DE ALTURA (SOLO FUERA DE ESCALERAS)
             if (isWalking && !onEscalator) {
-                const prevFloorY = camera.position.y;
-                const groundY = camera.position.y > 3.0 ? 5.4 : 0.1;
-                camera.position.y = groundY + PLAYER_EYE_HEIGHT;
-                controls.target.y += (camera.position.y - prevFloorY);
+                syncWalkCameraEyeHeight();
             }
         }
 

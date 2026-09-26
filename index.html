@@ -16,9 +16,9 @@
     <script src="assets/vendor/three/GLTFLoader.r128.js" defer></script>
     <script src="assets/vendor/three/SkeletonUtils.r128.js" defer></script>
     <script src="assets/vendor/sb-client/client-v2.min.js" defer></script>
-    <script src="js/mall/mall-context.js?v=20260910-test-mall-context-v3" defer></script>
+    <script src="js/mall/mall-context.js?v=20260926-temporary-bench-seating-pause-v4" defer></script>
     <script src="js/mall/mall-boot.js?v=20260911-avatar-customizer-v2" defer></script>
-    <link rel="stylesheet" href="css/mall.css?v=20260925-store-contact-contrast-v2">
+    <link rel="stylesheet" href="css/mall.css?v=20260926-staging-bench-seating-v1">
 </head>
 
 <body>
@@ -163,12 +163,34 @@
         </div>
         <section id="avatar-customizer-modal" class="avatar-customizer-modal" hidden aria-label="Personaliza tu avatar">
             <header><h2>Tu avatar</h2><button type="button" data-mall-action="closeAvatarCustomizer" aria-label="Cerrar">×</button></header>
-            <div class="avatar-selection">
+            <div class="avatar-customizer-layout">
+                <div class="avatar-mirror" aria-label="Vista previa del avatar">
+                    <canvas id="avatar-mirror-canvas" role="img" aria-label="Vista previa 3D del avatar que se actualiza con tus opciones"></canvas>
+                    <span>Vista previa en vivo</span>
+                </div>
+                <div id="avatar-selection" class="avatar-selection">
                 <div class="avatar-choice-row"><span>Presentación</span><div><button type="button" class="avatar-opt" data-avatar-kind="body" data-avatar-value="male" onclick="selectAvatarBody('male', this)">Hombre</button><button type="button" class="avatar-opt" data-avatar-kind="body" data-avatar-value="female" onclick="selectAvatarBody('female', this)">Mujer</button></div></div>
-                <div class="avatar-choice-row"><span>Tono de piel</span><div><button type="button" class="avatar-opt avatar-swatch avatar-swatch--fair" data-avatar-kind="skinTone" data-avatar-value="fair" onclick="selectAvatarTrait('skinTone', 'fair')" aria-label="Tono claro"></button><button type="button" class="avatar-opt avatar-swatch avatar-swatch--light" data-avatar-kind="skinTone" data-avatar-value="light" onclick="selectAvatarTrait('skinTone', 'light')" aria-label="Tono medio claro"></button><button type="button" class="avatar-opt avatar-swatch avatar-swatch--medium" data-avatar-kind="skinTone" data-avatar-value="medium" onclick="selectAvatarTrait('skinTone', 'medium')" aria-label="Tono medio"></button><button type="button" class="avatar-opt avatar-swatch avatar-swatch--deep" data-avatar-kind="skinTone" data-avatar-value="deep" onclick="selectAvatarTrait('skinTone', 'deep')" aria-label="Tono oscuro"></button></div></div>
-                <div class="avatar-choice-row"><span>Pelo</span><div><button type="button" class="avatar-opt" data-avatar-kind="hairColor" data-avatar-value="black" onclick="selectAvatarTrait('hairColor', 'black')">Negro</button><button type="button" class="avatar-opt" data-avatar-kind="hairColor" data-avatar-value="brown" onclick="selectAvatarTrait('hairColor', 'brown')">Castaño</button><button type="button" class="avatar-opt" data-avatar-kind="hairColor" data-avatar-value="blonde" onclick="selectAvatarTrait('hairColor', 'blonde')">Rubio</button><button type="button" class="avatar-opt" data-avatar-kind="hairColor" data-avatar-value="auburn" onclick="selectAvatarTrait('hairColor', 'auburn')">Cobrizo</button></div></div>
-                <div class="avatar-choice-row"><span>Altura</span><div><button type="button" class="avatar-opt" data-avatar-kind="height" data-avatar-value="155" onclick="selectAvatarTrait('height', '155')">155</button><button type="button" class="avatar-opt" data-avatar-kind="height" data-avatar-value="160" onclick="selectAvatarTrait('height', '160')">160</button><button type="button" class="avatar-opt" data-avatar-kind="height" data-avatar-value="165" onclick="selectAvatarTrait('height', '165')">165</button><button type="button" class="avatar-opt" data-avatar-kind="height" data-avatar-value="170" onclick="selectAvatarTrait('height', '170')">170</button><button type="button" class="avatar-opt" data-avatar-kind="height" data-avatar-value="175" onclick="selectAvatarTrait('height', '175')">175</button><button type="button" class="avatar-opt" data-avatar-kind="height" data-avatar-value="180" onclick="selectAvatarTrait('height', '180')">180</button><button type="button" class="avatar-opt" data-avatar-kind="height" data-avatar-value="185" onclick="selectAvatarTrait('height', '185')">185</button><button type="button" class="avatar-opt" data-avatar-kind="height" data-avatar-value="190" onclick="selectAvatarTrait('height', '190')">190</button></div></div>
-                <div class="avatar-choice-row"><span>Vestimenta</span><div><button type="button" class="avatar-opt" data-avatar-kind="outfit" data-avatar-value="formal" onclick="selectAvatarOutfit('formal', this)">Formal</button><button type="button" class="avatar-opt" data-avatar-kind="outfit" data-avatar-value="casual" onclick="selectAvatarOutfit('casual', this)">Casual</button><button type="button" class="avatar-opt" data-avatar-kind="outfit" data-avatar-value="sport" onclick="selectAvatarOutfit('sport', this)">Deportiva</button></div></div>
+                <div class="avatar-choice-row"><span>Tono de piel</span><div>
+                    <button type="button" class="avatar-opt avatar-swatch avatar-swatch--fair" data-avatar-kind="skinTone" data-avatar-value="fair" onclick="selectAvatarTrait('skinTone', 'fair')" aria-label="Piel muy clara" title="Piel muy clara"></button><button type="button" class="avatar-opt avatar-swatch avatar-swatch--light" data-avatar-kind="skinTone" data-avatar-value="light" onclick="selectAvatarTrait('skinTone', 'light')" aria-label="Piel clara" title="Piel clara"></button><button type="button" class="avatar-opt avatar-swatch avatar-swatch--olive" data-avatar-kind="skinTone" data-avatar-value="olive" onclick="selectAvatarTrait('skinTone', 'olive')" aria-label="Piel oliva" title="Piel oliva"></button><button type="button" class="avatar-opt avatar-swatch avatar-swatch--latino" data-avatar-kind="skinTone" data-avatar-value="latino" onclick="selectAvatarTrait('skinTone', 'latino')" aria-label="Piel latina" title="Piel latina"></button><button type="button" class="avatar-opt avatar-swatch avatar-swatch--asian" data-avatar-kind="skinTone" data-avatar-value="asian" onclick="selectAvatarTrait('skinTone', 'asian')" aria-label="Piel asiática" title="Piel asiática"></button><button type="button" class="avatar-opt avatar-swatch avatar-swatch--medium" data-avatar-kind="skinTone" data-avatar-value="medium" onclick="selectAvatarTrait('skinTone', 'medium')" aria-label="Piel media" title="Piel media"></button><button type="button" class="avatar-opt avatar-swatch avatar-swatch--deep" data-avatar-kind="skinTone" data-avatar-value="deep" onclick="selectAvatarTrait('skinTone', 'deep')" aria-label="Piel oscura" title="Piel oscura"></button><button type="button" class="avatar-opt avatar-swatch avatar-swatch--rich" data-avatar-kind="skinTone" data-avatar-value="rich" onclick="selectAvatarTrait('skinTone', 'rich')" aria-label="Piel muy oscura" title="Piel muy oscura"></button>
+                </div></div>
+                <div class="avatar-choice-row"><span>Peinado</span><div>
+                    <button type="button" class="avatar-opt" data-avatar-kind="hairStyle" data-avatar-hair-for="male" data-avatar-value="short01" onclick="selectAvatarTrait('hairStyle', 'short01')">Corto 1</button><button type="button" class="avatar-opt" data-avatar-kind="hairStyle" data-avatar-hair-for="male" data-avatar-value="short02" onclick="selectAvatarTrait('hairStyle', 'short02')">Corto 2</button><button type="button" class="avatar-opt" data-avatar-kind="hairStyle" data-avatar-hair-for="male" data-avatar-value="short03" onclick="selectAvatarTrait('hairStyle', 'short03')">Corto 3</button><button type="button" class="avatar-opt" data-avatar-kind="hairStyle" data-avatar-hair-for="male" data-avatar-value="short04" onclick="selectAvatarTrait('hairStyle', 'short04')">Corto 4</button><button type="button" class="avatar-opt" data-avatar-kind="hairStyle" data-avatar-hair-for="female" data-avatar-value="bob01" onclick="selectAvatarTrait('hairStyle', 'bob01')">Bob</button><button type="button" class="avatar-opt" data-avatar-kind="hairStyle" data-avatar-hair-for="female" data-avatar-value="long01" onclick="selectAvatarTrait('hairStyle', 'long01')">Largo</button><button type="button" class="avatar-opt" data-avatar-kind="hairStyle" data-avatar-hair-for="female" data-avatar-value="ponytail01" onclick="selectAvatarTrait('hairStyle', 'ponytail01')">Coleta</button><button type="button" class="avatar-opt" data-avatar-kind="hairStyle" data-avatar-hair-for="female" data-avatar-value="braid01" onclick="selectAvatarTrait('hairStyle', 'braid01')">Trenza</button><button type="button" class="avatar-opt" data-avatar-kind="hairStyle" data-avatar-hair-for="all" data-avatar-value="afro01" onclick="selectAvatarTrait('hairStyle', 'afro01')">Afro</button>
+                </div></div>
+                <div class="avatar-choice-row"><span>Color de pelo</span><div>
+                    <button type="button" class="avatar-opt avatar-swatch avatar-swatch--hair-black" data-avatar-kind="hairColor" data-avatar-value="black" onclick="selectAvatarTrait('hairColor', 'black')" aria-label="Pelo negro" title="Pelo negro"></button><button type="button" class="avatar-opt avatar-swatch avatar-swatch--hair-brown" data-avatar-kind="hairColor" data-avatar-value="brown" onclick="selectAvatarTrait('hairColor', 'brown')" aria-label="Pelo castaño" title="Pelo castaño"></button><button type="button" class="avatar-opt avatar-swatch avatar-swatch--hair-blonde" data-avatar-kind="hairColor" data-avatar-value="blonde" onclick="selectAvatarTrait('hairColor', 'blonde')" aria-label="Pelo rubio" title="Pelo rubio"></button><button type="button" class="avatar-opt avatar-swatch avatar-swatch--hair-auburn" data-avatar-kind="hairColor" data-avatar-value="auburn" onclick="selectAvatarTrait('hairColor', 'auburn')" aria-label="Pelo cobrizo" title="Pelo cobrizo"></button>
+                </div></div>
+                <div class="avatar-choice-row"><span>Ojos</span><div>
+                    <button type="button" class="avatar-opt avatar-swatch avatar-swatch--eye-brown" data-avatar-kind="eyeColor" data-avatar-value="brown" onclick="selectAvatarTrait('eyeColor', 'brown')" aria-label="Ojos cafés" title="Ojos cafés"></button><button type="button" class="avatar-opt avatar-swatch avatar-swatch--eye-hazel" data-avatar-kind="eyeColor" data-avatar-value="hazel" onclick="selectAvatarTrait('eyeColor', 'hazel')" aria-label="Ojos avellana" title="Ojos avellana"></button><button type="button" class="avatar-opt avatar-swatch avatar-swatch--eye-green" data-avatar-kind="eyeColor" data-avatar-value="green" onclick="selectAvatarTrait('eyeColor', 'green')" aria-label="Ojos verdes" title="Ojos verdes"></button><button type="button" class="avatar-opt avatar-swatch avatar-swatch--eye-blue" data-avatar-kind="eyeColor" data-avatar-value="blue" onclick="selectAvatarTrait('eyeColor', 'blue')" aria-label="Ojos azules" title="Ojos azules"></button>
+                </div></div>
+                <div class="avatar-choice-row"><span>Edad</span><div><button type="button" class="avatar-opt" data-avatar-kind="age" data-avatar-value="young" onclick="selectAvatarTrait('age', 'young')">Joven</button><button type="button" class="avatar-opt" data-avatar-kind="age" data-avatar-value="adult" onclick="selectAvatarTrait('age', 'adult')">Adulto</button><button type="button" class="avatar-opt" data-avatar-kind="age" data-avatar-value="senior" onclick="selectAvatarTrait('age', 'senior')">Mayor</button></div></div>
+                <div class="avatar-choice-row"><span>Altura</span><div><button type="button" class="avatar-opt" data-avatar-kind="height" data-avatar-value="155" onclick="selectAvatarTrait('height', '155')">155 cm</button><button type="button" class="avatar-opt" data-avatar-kind="height" data-avatar-value="160" onclick="selectAvatarTrait('height', '160')">160 cm</button><button type="button" class="avatar-opt" data-avatar-kind="height" data-avatar-value="165" onclick="selectAvatarTrait('height', '165')">165 cm</button><button type="button" class="avatar-opt" data-avatar-kind="height" data-avatar-value="170" onclick="selectAvatarTrait('height', '170')">170 cm</button><button type="button" class="avatar-opt" data-avatar-kind="height" data-avatar-value="175" onclick="selectAvatarTrait('height', '175')">175 cm</button><button type="button" class="avatar-opt" data-avatar-kind="height" data-avatar-value="180" onclick="selectAvatarTrait('height', '180')">180 cm</button><button type="button" class="avatar-opt" data-avatar-kind="height" data-avatar-value="185" onclick="selectAvatarTrait('height', '185')">185 cm</button><button type="button" class="avatar-opt" data-avatar-kind="height" data-avatar-value="190" onclick="selectAvatarTrait('height', '190')">190 cm</button></div></div>
+                <div class="avatar-choice-row"><span>Vestimenta</span><div><button type="button" class="avatar-opt" data-avatar-kind="outfit" data-avatar-value="elegant" onclick="selectAvatarOutfit('elegant', this)">Elegante</button><button type="button" class="avatar-opt" data-avatar-kind="outfit" data-avatar-value="casual" onclick="selectAvatarOutfit('casual', this)">Casual</button><button type="button" class="avatar-opt" data-avatar-kind="outfit" data-avatar-value="work" onclick="selectAvatarOutfit('work', this)">Trabajo</button><button type="button" class="avatar-opt" data-avatar-kind="outfit" data-avatar-value="sport" onclick="selectAvatarOutfit('sport', this)">Deportiva</button></div></div>
+                </div>
+            </div>
+            <div class="avatar-customizer-actions">
+                <button type="button" class="avatar-customizer-cancel" onclick="useStandardAvatar()">Restablecer</button>
+                <button type="button" class="avatar-customizer-cancel" onclick="closeAvatarCustomizer()">Cancelar</button>
+                <button type="button" class="avatar-customizer-apply" onclick="applyAvatarCustomizer()">Aplicar</button>
             </div>
         </section>
         <nav id="guest-account-actions" class="guest-account-actions" aria-label="Acceso de visitante" hidden>
@@ -674,6 +696,10 @@
                         <label class="admin-tool-label">
                             <input type="checkbox" id="admin-toggle-gps" class="admin-tool-checkbox" data-mall-change="toggleAdminTool" data-mall-tool="gps"> Mostrar Coordenadas Exactas (GPS)
                         </label>
+                        <label class="admin-tool-label">
+                            <input type="checkbox" id="admin-toggle-seat-motion-monitor" class="admin-tool-checkbox" data-mall-change="toggleAdminTool" data-mall-tool="seat-motion-monitor"> Activar monitor de movimiento y código de avatares remotos
+                        </label>
+                        <p id="admin-seat-motion-monitor-status" class="admin-help-copy" aria-live="polite">Desactivado. Sólo la cuenta administradora puede abrir este monitor.</p>
                         <div class="admin-hotspot-panel">
                             <div class="admin-hotspot-title">Desplazamiento Rápido</div>
                             <select id="admin-hotspot-select">
@@ -1442,26 +1468,26 @@
     </div>
 
 <!-- Mall Modules -->
-    <script src="js/mall/mall-physics.js?v=20260905-oriented-collider-v1" defer></script>
+    <script src="js/mall/mall-physics.js?v=20260926-exact-collision-volume-v1" defer></script>
     <script src="js/mall/mall-furniture.js?v=20260805-physical-space-audit" defer></script>
     <script src="js/mall/mall-constants.js?v=20260911-avatar-eye-height-v1" defer></script>
-<script src="js/mall/mall-object-editor.js?v=20260908-storage-cache-control-v1" defer></script>
-<script src="js/mall/mall-world.js?v=20260912-blender-neon-public-gallery-v1" defer></script>
+    <script src="js/mall/mall-object-editor.js?v=20260908-storage-cache-control-v1" defer></script>
+    <script src="js/mall/mall-world.js?v=20260926-exact-collision-volume-v1" defer></script>
     <script src="js/mall/mall-structural-audit.js?v=20260906-admin-only-v1" defer></script>
     <script src="js/mall/mall-maze-game.js?v=20260905-maze-validation-v1" defer></script>
-    <script src="js/mall/mall-visitor-arrival.js?v=20260821-single-entry-collision-v1" defer></script>
-    <script src="js/mall/mall-mobile-controls.js?v=20260808-mobile-settings-close-local" defer></script>
-    <script src="js/mall/mall-navigation.js?v=20260907-navigation-ready-v1" defer></script>
+    <script src="js/mall/mall-visitor-arrival.js?v=20260926-staging-visitor-arrival-v1" defer></script>
+    <script src="js/mall/mall-mobile-controls.js?v=20260926-temporary-bench-seating-pause-v38" defer></script>
+    <script src="js/mall/mall-navigation.js?v=20260926-temporary-bench-seating-pause-v2" defer></script>
     <script src="js/mall/mall-multiplayer.js?v=20260905-maze-validation-v1" defer></script>
     <script src="js/mall/commerce/product-capacity.js?v=20260809-tdd-product-capacity-local" defer></script>
     <script src="js/mall/mall-stores.js?v=20260908-storage-cache-control-v1" defer></script>
     <script src="js/mall/mall-interaction.js?v=20260820-editor-selection-fix" defer></script>
     <script src="js/mall/security/url-safety.js?v=20260815-store-contact-links" defer></script>
     <script src="js/mall/mall-catalog-themes.js?v=20260830-catalog-color-themes" defer></script>
-<script src="js/mall/mall-ui.js?v=20260912-mall-persona-v2" defer></script>
+    <script src="js/mall/mall-ui.js?v=20260926-temporary-bench-seating-pause-v144" defer></script>
     <script src="js/mall/mall-analytics.js?v=20260726-presence-avatar-local" defer></script>
-    <script src="js/mall/mall-store-assistant.js?v=20260830-mall-information-assistant" defer></script>
-    <script src="js/mall/mall-npc.js?v=20260905-maze-timer-hook-v1" defer></script>
+    <script src="js/mall/mall-store-assistant.js?v=20260926-staging-information-avatar-v1" defer></script>
+    <script src="js/mall/mall-npc.js?v=20260926-temporary-bench-seating-pause-v1" defer></script>
     <script src="js/mall/mall-main.js?v=20260924-catalog-open-reliability-v2" defer></script>
 </body>
 

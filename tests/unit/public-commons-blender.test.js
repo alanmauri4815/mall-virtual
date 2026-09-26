@@ -16,7 +16,11 @@ assert.match(world, /function schedulePublicCommonsModel\(\)/);
 assert.match(world, /window\.requestIdleCallback/);
 assert.match(world, /window\.setTimeout\(loadWhenIdle, 1200\)/);
 assert.match(world, /isLowEndMobile/);
-assert.match(world, /registerCircularCollider\(x, z, 2\.7, 0, 2\.4\)/);
+assert.match(world, /function registerPublicCommonsColliders\(\)/);
+assert.match(world, /registerCircularCollider\(x, z, 1\.32, 0, 2\.4/);
+assert.match(world, /registerOrientedCollider\(/);
+assert.match(world, /benchCollider\.contactRadius = 0\.32;/);
+assert.match(world, /footAnchor: true/);
 assert.match(world, /schedulePublicCommonsModel\(\);/);
 
 console.log('Blender public commons are deferred, lightweight, and physically registered after loading.');

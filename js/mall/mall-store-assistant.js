@@ -40,7 +40,10 @@
     let assistantBusy = false;
     let lastAttendantStreamAt = 0;
     let mallAssistantSettings = { ...DEFAULT_MALL_SETTINGS };
+    let mallInformationAttendant = null;
     const attendantStreamProbe = typeof THREE !== 'undefined' ? new THREE.Vector3() : null;
+    const MALL_INFORMATION_AVATAR_STYLE = 'av2.female.formal.light.brown.165';
+    const MALL_INFORMATION_WAKE_DISTANCE = 5.8;
 
     window.mallStoreAttendantTargets = window.mallStoreAttendantTargets || [];
 
@@ -197,8 +200,13 @@
 
     function createAttendant(code, store, settings) {
         const group = getGroupForStore(code);
-        if (!group || typeof createProceduralAvatar !== 'function' || typeof THREE === 'undefined') return null;
-        const actor = createProceduralAvatar(`${settings.assistant_name} · ${store.name || code}`, 'female-formal');
+        if (!group || typeof THREE === 'undefined') return null;
+        const createAvatar = window.createGameReadyAvatar || window.createProceduralAvatar;
+        if (typeof createAvatar !== 'function') return null;
+        const actor = createAvatar(
+            `${settings.assistant_name} · ${store.name || code}`,
+            MALL_INFORMATION_AVATAR_STYLE
+        );
         const localPosition = resolveAttendantLocalPosition(group, code);
         const worldPosition = group.localToWorld(localPosition.clone());
         const worldForwardPoint = group.localToWorld(new THREE.Vector3(localPosition.x, 0, localPosition.z + 1));
@@ -210,6 +218,7 @@
         actor.attendantLastFacingAt = performance.now();
         actor.mesh.visible = true;
         actor.isStoreAttendant = true;
+        actor.motionMode = 'idle';
         actor.storeCode = code;
         actor.storeGroup = group;
         actor.label.classList.add('store-attendant-label');
@@ -223,6 +232,51 @@
         window.mallStoreAttendantTargets.push(actor.mesh);
         attendantsByCode.set(code, actor);
         return actor;
+    }
+
+    function ensureMallInformationAttendant() {
+        if (mallInformationAttendant?.mesh) return mallInformationAttendant;
+        const anchor = window.mallInformationAssistantAnchor;
+        if (!anchor || typeof THREE === 'undefined' || typeof window.createGameReadyAvatar !== 'function') return null;
+
+        const actor = window.createGameReadyAvatar(
+            mallAssistantSettings.assistant_name || DEFAULT_MALL_SETTINGS.assistant_name,
+            MALL_INFORMATION_AVATAR_STYLE
+        );
+        const worldPosition = anchor.getWorldPosition(new THREE.Vector3());
+        const worldQuaternion = anchor.getWorldQuaternion(new THREE.Quaternion());
+        const floorOffset = typeof AVATAR_FLOOR_OFFSET === 'number' ? AVATAR_FLOOR_OFFSET : 0.05;
+        actor.mesh.position.set(worldPosition.x, worldPosition.y + floorOffset, worldPosition.z);
+        actor.mesh.quaternion.copy(worldQuaternion);
+        actor.mesh.visible = true;
+        actor.mesh.userData.isMallInformationAssistant = true;
+        actor.mesh.userData.assistantScope = 'mall';
+        actor.motionMode = 'sit';
+        actor.isMallInformationAttendant = true;
+        actor.label.style.display = 'none';
+
+        if (window.mallInformationAssistantFallback) {
+            window.mallInformationAssistantFallback.visible = false;
+        }
+        mallInformationAttendant = actor;
+        window.mallInformationAttendant = actor;
+        return actor;
+    }
+
+    function updateMallInformationAttendant(nowMs) {
+        const actor = ensureMallInformationAttendant();
+        if (!actor?.mesh || typeof camera === 'undefined') return;
+
+        const dx = camera.position.x - actor.mesh.position.x;
+        const dz = camera.position.z - actor.mesh.position.z;
+        const visitorIsNearby = (dx * dx) + (dz * dz) <= MALL_INFORMATION_WAKE_DISTANCE ** 2
+            && Math.abs(camera.position.y - actor.mesh.position.y) <= 4.2;
+        actor.motionMode = visitorIsNearby ? 'idle' : 'sit';
+        if (typeof window.applyAvatarPose === 'function') window.applyAvatarPose(actor, 0, nowMs);
+
+        // The physical desk remains the interaction target; the attendant itself
+        // should not add a second floating nameplate over the information sign.
+        actor.label.style.display = 'none';
     }
 
     async function loadEnabledSettings() {
@@ -929,6 +983,7 @@
 
     window.updateStoreAttendants = function (nowMs, updateLabels) {
         streamConstrainedDeviceAttendants(nowMs);
+        updateMallInformationAttendant(nowMs);
         attendantsByCode.forEach((actor) => {
             const maxRenderDistance = (typeof IS_COARSE_POINTER !== 'undefined' && IS_COARSE_POINTER) ? 30 : 55;
             const cameraDistance = typeof camera !== 'undefined' ? camera.position.distanceTo(actor.mesh.position) : 0;
@@ -937,7 +992,7 @@
                 actor.label.style.display = 'none';
                 return;
             }
-            if (typeof applyAvatarPose === 'function') applyAvatarPose(actor, 0, nowMs);
+            if (typeof window.applyAvatarPose === 'function') window.applyAvatarPose(actor, 0, nowMs);
             const localCamera = actor.storeGroup && typeof camera !== 'undefined'
                 ? actor.storeGroup.worldToLocal(camera.position.clone())
                 : null;
@@ -948,12 +1003,12 @@
                 && localCamera.y >= 0.35
                 && localCamera.y <= 5.4;
             updateAttendantFacing(actor, visitorInsideStore, nowMs);
-            if (!updateLabels || typeof updateAvatarLabelPosition !== 'function') return;
+            if (!updateLabels || typeof window.updateAvatarLabelPosition !== 'function') return;
             if (!visitorInsideStore) {
                 actor.label.style.display = 'none';
                 return;
             }
-            updateAvatarLabelPosition(actor, 2.2, 24);
+            window.updateAvatarLabelPosition(actor, 2.2, 24);
         });
     };
 
@@ -988,6 +1043,7 @@
 
     async function initialize(attempt = 0) {
         await loadMallAssistantSettings();
+        ensureMallInformationAttendant();
         if (!Array.isArray(window.supabaseStoresCache) || !window.supabaseStoresCache.length) {
             if (attempt < 20) setTimeout(() => initialize(attempt + 1), 500);
             return;
