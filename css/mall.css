@@ -6972,3 +6972,756 @@
             line-height: 1.5;
             white-space: pre-wrap;
         }
+
+
+        .product-detail-actions {
+            margin-top: 22px;
+            padding-top: 18px;
+            border-top: 1px solid var(--catalog-soft-line, rgba(197, 160, 89, 0.25));
+        }
+
+        .product-detail-buy {
+            appearance: none;
+            border: 1px solid var(--catalog-heading, #c5a059);
+            border-radius: 7px;
+            background: var(--catalog-heading, #c5a059);
+            color: var(--catalog-control-text, #080808);
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            padding: 11px 22px;
+            text-transform: uppercase;
+        }
+
+        .product-detail-buy:disabled {
+            cursor: not-allowed;
+            opacity: 0.45;
+        }
+
+        .product-detail-payment-note {
+            color: var(--catalog-body, #bdbdbd);
+            font-size: 11px;
+            line-height: 1.5;
+            margin: 10px 0 0;
+        }
+
+        #purchase-modal {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 10120;
+            width: min(760px, calc(100vw - 28px));
+            max-height: min(92vh, 900px);
+            overflow-y: auto;
+            padding: 24px;
+            border: 1px solid rgba(197, 160, 89, 0.65);
+            border-radius: 14px;
+            background: rgba(12, 12, 12, 0.99);
+            box-shadow: 0 30px 100px rgba(0, 0, 0, 0.78);
+            color: #f4f0e8;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .purchase-close {
+            position: absolute;
+            top: 13px;
+            right: 15px;
+            border: 0;
+            background: transparent;
+            color: #c5a059;
+            cursor: pointer;
+            font-size: 25px;
+            line-height: 1;
+        }
+
+        .purchase-header {
+            padding-right: 28px;
+        }
+
+        .purchase-kicker,
+        .purchase-summary-label {
+            color: #c5a059;
+            font-size: 10px;
+            letter-spacing: 1.5px;
+            margin: 0 0 7px;
+            text-transform: uppercase;
+        }
+
+        .purchase-header h2 {
+            color: #f4f0e8;
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 30px;
+            font-weight: 400;
+            margin: 0;
+        }
+
+        .purchase-store-name {
+            color: #aaa;
+            font-size: 12px;
+            margin: 5px 0 0;
+        }
+
+        .purchase-product-summary {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: 15px;
+            margin-top: 18px;
+            padding: 14px;
+            border: 1px solid rgba(197, 160, 89, 0.24);
+            border-radius: 9px;
+            background: rgba(197, 160, 89, 0.07);
+        }
+
+        .purchase-product-summary strong {
+            color: #fff;
+            display: block;
+            font-size: 14px;
+        }
+
+        .purchase-payment-notice {
+            display: grid;
+            gap: 3px;
+            margin-top: 13px;
+            padding: 12px 14px;
+            border-left: 3px solid #7fcf8d;
+            border-radius: 5px;
+            background: rgba(127, 207, 141, 0.09);
+            color: #d8eadb;
+            font-size: 12px;
+            line-height: 1.45;
+        }
+
+        .purchase-payment-notice strong {
+            color: #8fe09f;
+            letter-spacing: 0.7px;
+            text-transform: uppercase;
+        }
+
+        .purchase-shipping-section,
+        .purchase-form {
+            margin-top: 20px;
+            padding-top: 18px;
+            border-top: 1px solid #282828;
+        }
+
+        .purchase-shipping-section h3,
+        .purchase-form h3 {
+            color: #c5a059;
+            font-size: 13px;
+            letter-spacing: 1px;
+            margin: 0 0 10px;
+            text-transform: uppercase;
+        }
+
+        .purchase-shipping-table-wrap {
+            max-height: 175px;
+            overflow: auto;
+            border: 1px solid #292929;
+            border-radius: 7px;
+        }
+
+        .purchase-shipping-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+        }
+
+        .purchase-shipping-table th,
+        .purchase-shipping-table td {
+            padding: 8px 10px;
+            border-bottom: 1px solid #242424;
+            text-align: left;
+        }
+
+        .purchase-shipping-table th:last-child,
+        .purchase-shipping-table td:last-child {
+            text-align: right;
+        }
+
+        .purchase-shipping-table th {
+            color: #c5a059;
+            font-size: 10px;
+            letter-spacing: 0.8px;
+            text-transform: uppercase;
+        }
+
+        .purchase-shipping-table td:last-child {
+            color: #f0d28d;
+            font-weight: 700;
+        }
+
+        .purchase-muted {
+            color: #888;
+            font-size: 12px;
+            margin: 0;
+            padding: 13px;
+        }
+
+        .purchase-form-heading {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .purchase-form-heading p {
+            color: #888;
+            font-size: 11px;
+            margin: 0;
+        }
+
+        .purchase-form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 13px;
+            margin-top: 12px;
+        }
+
+        .purchase-form-grid label {
+            color: #aaa;
+            display: block;
+            font-size: 10px;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+
+        .purchase-form-grid input,
+        .purchase-form-grid select,
+        .purchase-form-grid textarea {
+            box-sizing: border-box;
+            width: 100%;
+            margin-top: 5px;
+            padding: 10px;
+            border: 1px solid #3a3a3a;
+            border-radius: 6px;
+            outline: none;
+            background: #070707;
+            color: #fff;
+            font: inherit;
+            font-size: 13px;
+            text-transform: none;
+        }
+
+        .purchase-form-grid input:focus,
+        .purchase-form-grid select:focus,
+        .purchase-form-grid textarea:focus {
+            border-color: #c5a059;
+            box-shadow: 0 0 0 2px rgba(197, 160, 89, 0.12);
+        }
+
+        .purchase-form-grid select:disabled {
+            cursor: not-allowed;
+            opacity: 0.55;
+        }
+
+        .purchase-form-wide {
+            grid-column: 1 / -1;
+        }
+
+        .purchase-shipping-summary {
+            margin-top: 14px;
+            padding: 10px 12px;
+            border: 1px solid rgba(197, 160, 89, 0.28);
+            border-radius: 6px;
+            color: #f0d28d;
+            font-size: 12px;
+            line-height: 1.4;
+        }
+
+        .purchase-submit {
+            width: 100%;
+            margin-top: 14px;
+            padding: 12px 16px;
+            border: 1px solid #c5a059;
+            border-radius: 7px;
+            background: #c5a059;
+            color: #080808;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        .purchase-submit:disabled {
+            cursor: not-allowed;
+            opacity: 0.45;
+        }
+
+        .purchase-status,
+        .tenant-shipping-status {
+            min-height: 18px;
+            color: #888;
+            font-size: 11px;
+            line-height: 1.45;
+            margin: 10px 0 0;
+        }
+
+        .purchase-status[data-kind="error"],
+        .tenant-shipping-status[data-kind="error"] {
+            color: #ff9585;
+        }
+
+        .purchase-status[data-kind="warning"],
+        .tenant-shipping-status[data-kind="warning"] {
+            color: #f0d28d;
+        }
+
+        .purchase-status[data-kind="success"],
+        .tenant-shipping-status[data-kind="success"] {
+            color: #8fe09f;
+        }
+
+        .purchase-receipt {
+            margin-top: 14px;
+            padding: 15px;
+            border: 1px solid rgba(197, 160, 89, 0.5);
+            border-radius: 8px;
+            background: rgba(197, 160, 89, 0.07);
+        }
+
+        .purchase-receipt h3 {
+            color: #f0d28d;
+            font-size: 13px;
+            letter-spacing: 0.8px;
+            margin: 0 0 6px;
+            text-transform: uppercase;
+        }
+
+        .purchase-receipt-reference,
+        .purchase-receipt-note {
+            color: #aaa;
+            font-size: 11px;
+            line-height: 1.5;
+            margin: 0;
+        }
+
+        .purchase-receipt-reference strong {
+            color: #f4f0e8;
+            letter-spacing: 0.5px;
+        }
+
+        .purchase-receipt-totals {
+            display: grid;
+            gap: 7px;
+            margin: 12px 0;
+        }
+
+        .purchase-receipt-totals > div {
+            align-items: baseline;
+            display: flex;
+            gap: 14px;
+            justify-content: space-between;
+        }
+
+        .purchase-receipt-totals dt {
+            color: #c7c0b2;
+            font-size: 12px;
+        }
+
+        .purchase-receipt-totals dd {
+            color: #f4f0e8;
+            font-size: 12px;
+            font-weight: 600;
+            margin: 0;
+            text-align: right;
+        }
+
+        .purchase-receipt-totals .purchase-receipt-total {
+            border-top: 1px solid rgba(197, 160, 89, 0.32);
+            margin-top: 2px;
+            padding-top: 9px;
+        }
+
+        .purchase-receipt-total dt,
+        .purchase-receipt-total dd {
+            color: #f0d28d;
+            font-size: 14px;
+            font-weight: 700;
+        }
+
+        .tenant-shipping-section,
+        .tenant-orders-section {
+            margin: 15px 0 25px;
+            padding: 18px;
+            border: 1px solid rgba(197, 160, 89, 0.22);
+            border-radius: 9px;
+            background: rgba(197, 160, 89, 0.045);
+        }
+
+        .tenant-shipping-heading,
+        .tenant-orders-heading,
+        .tenant-shipping-footer {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 14px;
+        }
+
+        .tenant-shipping-heading p,
+        .tenant-orders-heading p {
+            color: #888;
+            font-size: 11px;
+            line-height: 1.45;
+            margin: -7px 0 0;
+        }
+
+        .tenant-shipping-payment-note {
+            flex: 0 0 auto;
+            padding: 5px 8px;
+            border: 1px solid rgba(127, 207, 141, 0.35);
+            border-radius: 999px;
+            color: #8fe09f;
+            font-size: 9px;
+            letter-spacing: 0.8px;
+            text-transform: uppercase;
+            white-space: nowrap;
+        }
+
+        .tenant-shipping-form {
+            display: grid;
+            grid-template-columns: 1fr 0.7fr auto;
+            align-items: end;
+            gap: 10px;
+            margin-top: 13px;
+        }
+
+        .tenant-shipping-form label,
+        .tenant-shipping-row label,
+        .tenant-order-card-footer label {
+            color: #999;
+            display: block;
+            font-size: 10px;
+            letter-spacing: 0.6px;
+            text-transform: uppercase;
+        }
+
+        .tenant-shipping-add,
+        .tenant-shipping-save,
+        .tenant-shipping-remove {
+            border: 1px solid rgba(197, 160, 89, 0.5);
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 10px;
+            padding: 10px 12px;
+            text-transform: uppercase;
+        }
+
+        .tenant-shipping-add,
+        .tenant-shipping-save {
+            background: #c5a059;
+            color: #090909;
+        }
+
+        .tenant-shipping-remove {
+            align-self: end;
+            background: transparent;
+            border-color: rgba(255, 149, 133, 0.3);
+            color: #ff9585;
+        }
+
+        .tenant-shipping-rate-list {
+            display: grid;
+            gap: 8px;
+            margin-top: 15px;
+        }
+
+        .tenant-shipping-row {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 0.5fr auto;
+            align-items: end;
+            gap: 10px;
+            padding: 10px;
+            border: 1px solid #292929;
+            border-radius: 7px;
+            background: rgba(0, 0, 0, 0.2);
+        }
+
+        .tenant-shipping-row .tenant-admin-input {
+            margin-top: 4px;
+        }
+
+        .tenant-shipping-footer {
+            align-items: center;
+            margin-top: 12px;
+        }
+
+        .tenant-orders-heading .tenant-section-title {
+            margin-bottom: 12px;
+        }
+
+        #tenant-orders-count {
+            display: inline-block;
+            min-width: 20px;
+            padding: 2px 7px;
+            border-radius: 999px;
+            background: rgba(197, 160, 89, 0.2);
+            color: #fff;
+            font-size: 10px;
+            letter-spacing: 0;
+            text-align: center;
+        }
+
+        .tenant-orders-list {
+            display: grid;
+            gap: 10px;
+            margin-top: 15px;
+            max-height: 420px;
+            overflow-y: auto;
+        }
+
+        .tenant-order-card {
+            padding: 12px;
+            border: 1px solid #2d2d2d;
+            border-radius: 8px;
+            background: rgba(0, 0, 0, 0.28);
+        }
+
+        .tenant-order-card-header,
+        .tenant-order-card-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+        .tenant-order-card-header strong {
+            color: #f0d28d;
+            font-size: 13px;
+        }
+
+        .tenant-order-card-header time {
+            color: #777;
+            font-size: 10px;
+        }
+
+        .tenant-order-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px 12px;
+            margin-top: 11px;
+        }
+
+        .tenant-order-field {
+            display: grid;
+            gap: 2px;
+        }
+
+        .tenant-order-field span {
+            color: #777;
+            font-size: 9px;
+            letter-spacing: 0.7px;
+            text-transform: uppercase;
+        }
+
+        .tenant-order-field strong {
+            color: #ddd;
+            font-size: 11px;
+            font-weight: 400;
+            line-height: 1.35;
+            overflow-wrap: anywhere;
+        }
+
+        .tenant-order-card-footer {
+            justify-content: flex-end;
+            margin-top: 12px;
+            padding-top: 10px;
+            border-top: 1px solid #292929;
+        }
+
+        .tenant-order-status {
+            min-width: 190px;
+            margin-left: 8px;
+            padding: 7px 8px;
+            border: 1px solid #444;
+            border-radius: 5px;
+            background: #080808;
+            color: #fff;
+            font-size: 11px;
+        }
+
+        @media (max-width: 680px) {
+            #purchase-modal {
+                width: calc(100vw - 18px);
+                max-height: 94vh;
+                padding: 18px;
+            }
+
+            .purchase-product-summary,
+            .purchase-form-grid,
+            .tenant-shipping-form,
+            .tenant-shipping-row,
+            .tenant-order-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .purchase-form-wide {
+                grid-column: auto;
+            }
+
+            .purchase-form-heading,
+            .tenant-shipping-heading,
+            .tenant-orders-heading,
+            .tenant-shipping-footer {
+                display: grid;
+            }
+
+            .tenant-shipping-payment-note {
+                justify-self: start;
+            }
+
+            .tenant-shipping-remove {
+                justify-self: start;
+            }
+        }
+
+        .purchase-payment-options {
+            min-width: 0;
+            margin: 14px 0 0;
+            padding: 12px;
+            border: 1px solid rgba(197, 160, 89, 0.28);
+            border-radius: 6px;
+        }
+
+        .purchase-payment-options legend {
+            padding: 0 6px;
+            color: #f0d28d;
+            font-size: 11px;
+            letter-spacing: 0.6px;
+            text-transform: uppercase;
+        }
+
+        .purchase-payment-method-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .purchase-payment-option {
+            display: inline-flex !important;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 10px;
+            border: 1px solid #393939;
+            border-radius: 6px;
+            background: #0b0b0b;
+            cursor: pointer;
+            color: #eee !important;
+            font-size: 12px !important;
+            letter-spacing: 0 !important;
+            text-transform: none !important;
+        }
+
+        .purchase-payment-option input {
+            width: auto !important;
+            margin: 0 !important;
+            accent-color: #c5a059;
+        }
+
+        .purchase-payment-notice {
+            margin-top: 0;
+        }
+
+        .purchase-bank-details {
+            padding: 12px;
+            border: 1px solid rgba(197, 160, 89, 0.24);
+            border-radius: 6px;
+            background: rgba(197, 160, 89, 0.055);
+            color: #eee;
+        }
+
+        .purchase-bank-details > strong {
+            color: #f0d28d;
+            font-size: 12px;
+            text-transform: uppercase;
+        }
+
+        .purchase-bank-details-grid,
+        .tenant-payment-details-form {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 8px 12px;
+            margin-top: 8px;
+        }
+
+        .purchase-bank-details-item {
+            display: grid;
+            gap: 2px;
+            margin: 0;
+            overflow-wrap: anywhere;
+        }
+
+        .purchase-bank-details-item span {
+            color: #888;
+            font-size: 9px;
+            text-transform: uppercase;
+        }
+
+        .purchase-bank-details-item b {
+            color: #eee;
+            font-size: 12px;
+        }
+
+        .p-payment-methods {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px 12px;
+            margin: 9px 0 0;
+            padding: 8px;
+            border: 1px solid #292929;
+            border-radius: 6px;
+        }
+
+        .p-payment-methods legend {
+            padding: 0 5px;
+            color: #aaa;
+            font-size: 9px;
+            text-transform: uppercase;
+        }
+
+        .p-payment-option {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            color: #ddd;
+            font-size: 10px;
+        }
+
+        .tenant-payment-details-section {
+            margin: 15px 0 25px;
+            padding: 18px;
+            border: 1px solid rgba(197, 160, 89, 0.22);
+            border-radius: 9px;
+            background: rgba(197, 160, 89, 0.045);
+        }
+
+        .tenant-payment-details-section > div:first-child p {
+            margin: -7px 0 0;
+            color: #888;
+            font-size: 11px;
+            line-height: 1.45;
+        }
+
+        .tenant-payment-details-form label {
+            display: block;
+            color: #999;
+            font-size: 10px;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+
+        .tenant-payment-details-form .tenant-admin-input {
+            box-sizing: border-box;
+            width: 100%;
+            margin-top: 4px;
+        }
+
+        @media (max-width: 680px) {
+            .purchase-bank-details-grid,
+            .tenant-payment-details-form {
+                grid-template-columns: 1fr;
+            }
+        }

@@ -156,7 +156,9 @@
                         n: p.name || p.n || "Producto", 
                         p: p.price || p.p || "-", 
                         image_url: p.image_url || p.img || "",
-                        description: p.description || ""
+                        description: p.description || "",
+                        storeId: dbStore.id || storeCode,
+                        storeCode
                     }));
                     
                     return {
@@ -318,7 +320,12 @@
                 n: product.name || product.n || "Producto",
                 p: product.price || product.p || "-",
                 image_url: product.image_url || product.img || "",
-                description: product.description || ""
+                description: product.description || "",
+                paymentMethods: Array.isArray(product.payment_methods)
+                    ? product.payment_methods
+                    : (Array.isArray(product.paymentMethods) ? product.paymentMethods : ['cash_on_delivery']),
+                storeId: product.storeId || data.storeId || data.shopCode || "",
+                storeCode: product.storeCode || data.shopCode || ""
             }));
         }
 
@@ -384,6 +391,10 @@
                         <div id="product-detail-name"></div>
                         <div id="product-detail-price"></div>
                         <p id="product-detail-description"></p>
+                        <div class="product-detail-actions">
+                            <button type="button" id="product-detail-buy" class="product-detail-buy">Comprar</button>
+                            <p class="product-detail-payment-note">Al comprar verás las alternativas de pago habilitadas por este local.</p>
+                        </div>
                     </div>
                 </div>
             `;
@@ -407,6 +418,7 @@
             const name = detail.querySelector('#product-detail-name');
             const price = detail.querySelector('#product-detail-price');
             const description = detail.querySelector('#product-detail-description');
+            const buyButton = detail.querySelector('#product-detail-buy');
 
             if (imageUrl) {
                 image.src = imageUrl;
@@ -420,6 +432,20 @@
             name.textContent = product?.n || 'Producto';
             price.textContent = product?.p || 'Consultar precio';
             description.textContent = product?.description || 'Este producto aún no tiene una descripción publicada.';
+            if (buyButton) {
+                buyButton.disabled = !product?.id || !(product.storeId || currentModalStoreId);
+                buyButton.textContent = product?.id ? 'Comprar' : 'Producto no disponible';
+                buyButton.onclick = () => {
+                    if (!buyButton.disabled) {
+                        window.openPurchaseForm?.({
+                            ...product,
+                            storeId: product.storeId || currentModalStoreId,
+                            storeCode: product.storeCode || currentModalStoreCode,
+                            storeName: document.getElementById('modal-title')?.textContent || ''
+                        });
+                    }
+                };
+            }
             detail.style.display = 'block';
             window.mallAnalytics?.track('product_viewed', {
                 storeCode: currentModalStoreCode,

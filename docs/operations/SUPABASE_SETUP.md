@@ -159,6 +159,18 @@ supabase/telegram_message_webhook_20260603.sql
 
    Antes de ejecutarla, reemplaza los placeholders y no guardes el secreto real en git.
 
+### Avisos de nuevas solicitudes de compra
+
+La misma Edge Function puede avisar al Telegram que ya está conectado al local cuando entra una solicitud:
+
+1. Despliega la versión actualizada de `supabase/functions/telegram-bot/index.ts`.
+2. Configura el trigger de `public.store_orders` / `INSERT` mediante el Dashboard de Supabase o ejecuta `supabase/telegram_store_orders_webhook_20260927.sql` después de reemplazar los placeholders.
+3. Comprueba que el local tenga `telegram_notifications_enabled = true` y un `telegram_chat_id` asociado desde el flujo de conexión del panel.
+
+   La URL debe usar el endpoint actual de Edge Functions: `https://kcfuixvrwbnizspgtmtr.supabase.co/functions/v1/telegram-bot`. No reemplaces el ref del proyecto por el texto literal `<project-ref>`.
+
+El mensaje incluye referencia, producto, cantidades, despacho, total referencial y método indicado. No incluye correo, teléfono ni dirección del comprador: esos datos se revisan en **Solicitudes de compra** dentro del panel del local. Si el local no tiene Telegram conectado, la solicitud igualmente se guarda y queda disponible en ese panel.
+
 7. En el frontend, reemplaza la constante `TELEGRAM_BOT_USERNAME` en [index.html](C:/Users/javii/Downloads/Web Tienda Virtual/index.html:5600) por el username real del bot.
 
 Flujo final:
@@ -167,6 +179,7 @@ Flujo final:
 - abre el bot con su enlace
 - el bot valida el local con `/start`
 - cuando un visitante deja un mensaje, el sistema guarda el registro
+- cuando un visitante envía una solicitud de compra, Supabase dispara un aviso al Telegram conectado del local
 - para disparar avisos automáticos a Telegram, usa un backend seguro o trigger controlado que envie `x-mall-notify-secret`; no expongas ese secreto en JavaScript del navegador
 
 ## Nota actualizada de Telegram - 2026-06-03

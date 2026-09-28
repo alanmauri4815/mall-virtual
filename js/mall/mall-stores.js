@@ -603,11 +603,30 @@
                     price: String(product.price || "").trim(),
                     image_url: String(product.image_url || "").trim(),
                     description: String(product.description || "").trim().slice(0, PRODUCT_DESCRIPTION_MAX_LENGTH),
+                    payment_methods: Array.isArray(product.payment_methods) && product.payment_methods.length
+                        ? [...new Set(product.payment_methods.filter((method) => ['cash_on_delivery', 'bank_transfer', 'deposit_50'].includes(method)))]
+                        : ['cash_on_delivery'],
                     slot_index: slotIndex,
                     sort_order: slotIndex - 1
                     };
                 })
                 .filter(product => product.name);
+
+            if (normalizedProducts.length) {
+                const paymentMethodsColumn = await mallStoresScopeQuery(supabaseClient
+                    .from('store_products')
+                    .select('payment_methods')
+                    .limit(1));
+                if (paymentMethodsColumn.error) {
+                    return {
+                        ok: false,
+                        skipped: false,
+                        error: new Error(/payment_methods|column|schema cache/i.test(paymentMethodsColumn.error.message || '')
+                            ? 'Falta la columna payment_methods. Ejecuta la migración store_payment_options_20260927.sql antes de guardar el inventario.'
+                            : paymentMethodsColumn.error.message)
+                    };
+                }
+            }
 
             // 1. Intentar borrar registros previos (con manejo de errores suave)
             try {

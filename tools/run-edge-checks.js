@@ -3,12 +3,15 @@ const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 
 const root = path.resolve(__dirname, '..');
-const denoExecutable = path.join(
+const localDenoExecutable = path.join(
     root,
     'node_modules',
     'deno',
     process.platform === 'win32' ? 'deno.exe' : 'deno'
 );
+const denoExecutable = process.env.DENO_EXECUTABLE
+    ? path.resolve(process.env.DENO_EXECUTABLE)
+    : localDenoExecutable;
 const functionNames = [
     'admin-create-tenant',
     'member-promotion-email',
@@ -17,7 +20,9 @@ const functionNames = [
 ];
 
 if (!fs.existsSync(denoExecutable)) {
-    throw new Error('Deno is not installed. Run npm install before test:edge.');
+    throw new Error(
+        'Deno is not installed. Run npm install or set DENO_EXECUTABLE to a Deno binary before test:edge.'
+    );
 }
 
 for (const functionName of functionNames) {

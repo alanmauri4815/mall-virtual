@@ -6449,12 +6449,23 @@
                     .order('sort_order', { ascending: true }))
             ]);
 
-            let [byStoreId, byLocalCode] = await queryWithColumns('id, store_id, local_code, name, price, image_url, description, slot_index, sort_order');
-            if ((byStoreId.error && isMissingColumnError(byStoreId.error, 'slot_index')) || (byLocalCode.error && isMissingColumnError(byLocalCode.error, 'slot_index'))) {
-                [byStoreId, byLocalCode] = await queryWithColumns('id, store_id, local_code, name, price, image_url, description, sort_order');
-            }
-            if ((byStoreId.error && isMissingColumnError(byStoreId.error, 'description')) || (byLocalCode.error && isMissingColumnError(byLocalCode.error, 'description'))) {
-                [byStoreId, byLocalCode] = await queryWithColumns('id, store_id, local_code, name, price, image_url, sort_order');
+            const selectVariants = [
+                'id, store_id, local_code, name, price, image_url, description, slot_index, sort_order, payment_methods',
+                'id, store_id, local_code, name, price, image_url, description, slot_index, sort_order',
+                'id, store_id, local_code, name, price, image_url, description, sort_order, payment_methods',
+                'id, store_id, local_code, name, price, image_url, description, sort_order',
+                'id, store_id, local_code, name, price, image_url, sort_order, payment_methods',
+                'id, store_id, local_code, name, price, image_url, sort_order'
+            ];
+            let byStoreId = { data: [], error: null };
+            let byLocalCode = { data: [], error: null };
+            for (const columns of selectVariants) {
+                [byStoreId, byLocalCode] = await queryWithColumns(columns);
+                const errors = [byStoreId.error, byLocalCode.error].filter(Boolean);
+                const onlyMissingOptionalColumns = errors.length && errors.every((error) =>
+                    ['payment_methods', 'slot_index', 'description'].some((column) => isMissingColumnError(error, column))
+                );
+                if (!onlyMissingOptionalColumns) break;
             }
 
             if (!byStoreId.error && (byStoreId.data || []).length > 0) {
@@ -6482,7 +6493,15 @@
                 : (products || []).slice(0, slotCount);
             list.innerHTML = "";
             for (let i = 0; i < slotCount; i++) {
-                const p = normalizedProducts[i] || { name: "", price: "", image_url: "", description: "" };
+                const p = normalizedProducts[i] || { name: "", price: "", image_url: "", description: "", payment_methods: ['cash_on_delivery'] };
+                const selectedPaymentMethods = Array.isArray(p.payment_methods) && p.payment_methods.length
+                    ? p.payment_methods
+                    : ['cash_on_delivery'];
+                const paymentOptions = [
+                    ['cash_on_delivery', 'Contra entrega'],
+                    ['bank_transfer', 'Transferencia'],
+                    ['deposit_50', 'Anticipo 50%']
+                ].map(([value, label]) => `<label class="p-payment-option"><input type="checkbox" class="p-payment-method" value="${value}" ${selectedPaymentMethods.includes(value) ? 'checked' : ''}> ${label}</label>`).join('');
                 const slot = document.createElement('div');
                 slot.className = "p-slot";
                 slot.dataset.slotIndex = String(i + 1);
@@ -6497,6 +6516,7 @@
                         <input type="text" placeholder="URL Foto" value="${escapeHtml(p.image_url || '')}" class="p-image tenant-product-field" style="flex:2;">
                     </div>
                     <textarea placeholder="Descripción del producto (máx. 500 caracteres)" maxlength="${window.PRODUCT_DESCRIPTION_MAX_LENGTH || 500}" class="p-description tenant-product-field tenant-product-description" style="width:100%; min-height:66px; margin-top:6px; resize:vertical; line-height:1.35;">${escapeHtml(p.description || '')}</textarea>
+                    <fieldset class="p-payment-methods"><legend>Medios de pago habilitados para este producto</legend>${paymentOptions}</fieldset>
                     <div style="display:flex; gap:8px; align-items:center; margin-top:7px;">
                         <input type="file" accept="image/*" class="p-file" hidden aria-hidden="true" tabindex="-1">
                         <button type="button" class="p-upload-btn" style="background:rgba(197,160,89,0.10); border:1px solid rgba(197,160,89,0.25); color:#c5a059; padding:6px 10px; border-radius:5px; cursor:pointer; font-size:9px; text-transform:uppercase;">Subir foto</button>
@@ -6510,10 +6530,15 @@
             }
 
             list.querySelectorAll('.p-slot').forEach((slot) => {
-                ['.p-name', '.p-price', '.p-image', '.p-description'].forEach((selector) => {
+                ['.p-name', '.p-price', '.p-image', '.p-description', '.p-payment-method'].forEach((selector) => {
                     const input = slot.querySelector(selector);
                     if (input) {
                         input.addEventListener('input', () => {
+                            if (typeof window.syncTenantProductDraftsFromDom === 'function') {
+                                window.syncTenantProductDraftsFromDom();
+                            }
+                        });
+                        input.addEventListener('change', () => {
                             if (typeof window.syncTenantProductDraftsFromDom === 'function') {
                                 window.syncTenantProductDraftsFromDom();
                             }
@@ -6535,7 +6560,8 @@
                     name: String(slot.querySelector('.p-name')?.value || '').trim(),
                     price: String(slot.querySelector('.p-price')?.value || '').trim(),
                     image_url: String(slot.querySelector('.p-image')?.value || '').trim(),
-                    description: String(slot.querySelector('.p-description')?.value || '').trim().slice(0, window.PRODUCT_DESCRIPTION_MAX_LENGTH || 500)
+                    description: String(slot.querySelector('.p-description')?.value || '').trim().slice(0, window.PRODUCT_DESCRIPTION_MAX_LENGTH || 500),
+                    payment_methods: Array.from(slot.querySelectorAll('.p-payment-method:checked')).map((input) => input.value)
                 });
             });
             tenantAdminProductDrafts.set(storeCode, drafts);
@@ -6560,7 +6586,7 @@
             if (!drafts?.length) return arrangedProducts;
 
             const base = Array.from({ length: slotCount }, (_, index) => {
-                const product = arrangedProducts[index] || { name: '', price: '', image_url: '', description: '' };
+                const product = arrangedProducts[index] || { name: '', price: '', image_url: '', description: '', payment_methods: ['cash_on_delivery'] };
                 const draft = drafts[index] || {};
                 return {
                     ...product,
@@ -6569,7 +6595,8 @@
                     name: draft.name !== undefined ? draft.name : (product.name || ''),
                     price: draft.price !== undefined ? draft.price : (product.price || ''),
                     image_url: draft.image_url !== undefined ? draft.image_url : (product.image_url || ''),
-                    description: draft.description !== undefined ? draft.description : (product.description || '')
+                    description: draft.description !== undefined ? draft.description : (product.description || ''),
+                    payment_methods: draft.payment_methods !== undefined ? draft.payment_methods : (Array.isArray(product.payment_methods) ? product.payment_methods : ['cash_on_delivery'])
                 };
             });
             return base;
@@ -6601,7 +6628,7 @@
             if (!modal) return;
 
             const marksStoreAsDirty = (target) => target.matches(
-                '.tenant-admin-input, .tenant-telegram-checkbox, .tenant-bot-input, .p-name, .p-price, .p-image, .p-description, #edit-store-logo-file, .p-file'
+                '.tenant-admin-input, .tenant-telegram-checkbox, .tenant-bot-input, .p-name, .p-price, .p-image, .p-description, .p-payment-method, #edit-store-logo-file, .p-file'
             );
             const markFromEvent = (event) => {
                 if (marksStoreAsDirty(event.target)) setTenantAdminDirty(true);
@@ -6757,6 +6784,9 @@
                 !tenantAdminProductsCache.has(storeCode)
             );
             loadStoreMessages(storeCode);
+            window.loadTenantShippingRates?.(myOwnedStore);
+            window.loadTenantPaymentDetails?.(myOwnedStore);
+            window.loadTenantStoreOrders?.(myOwnedStore);
             void window.loadTenantStoreAssistantPanel?.(myOwnedStore);
 
             const requestId = ++tenantAdminOpenRequestId;
@@ -6789,6 +6819,9 @@
                 };
                 renderTenantStoreSelector();
                 populateTenantAdminForm(myOwnedStore);
+                window.loadTenantShippingRates?.(myOwnedStore);
+                window.loadTenantPaymentDetails?.(myOwnedStore);
+                window.loadTenantStoreOrders?.(myOwnedStore);
                 void window.loadTenantStoreAssistantPanel?.(myOwnedStore);
 
                 const latestStoreCode = getStoreCode(myOwnedStore);
@@ -6849,7 +6882,8 @@
                 const p = slot.querySelector('.p-price').value;
                 const img = slot.querySelector('.p-image')?.value || "";
                 const description = slot.querySelector('.p-description')?.value || "";
-                if(n) data.products.push({ n: n, p: p, image_url: img, description: description, slot_index: Number(slot.dataset.slotIndex) || index + 1 });
+                const paymentMethods = Array.from(slot.querySelectorAll('.p-payment-method:checked')).map((input) => input.value);
+                if(n) data.products.push({ n: n, p: p, image_url: img, description: description, payment_methods: paymentMethods, slot_index: Number(slot.dataset.slotIndex) || index + 1 });
             });
             
             openModal(data);
@@ -6860,6 +6894,13 @@
             const access = await verifyTenantStoreAccess(myOwnedStore);
             if (!access.allowed) {
                 alert("Tu sesión no tiene autorización para modificar este local.");
+                return;
+            }
+            const productWithoutPaymentMethod = Array.from(document.querySelectorAll('.p-slot'))
+                .find((slot) => String(slot.querySelector('.p-name')?.value || '').trim()
+                    && !slot.querySelector('.p-payment-method:checked'));
+            if (productWithoutPaymentMethod) {
+                alert(`Selecciona al menos un medio de pago para el producto "${String(productWithoutPaymentMethod.querySelector('.p-name')?.value || '').trim()}".`);
                 return;
             }
             myOwnedStore = { ...myOwnedStore, ...(access.store || {}) };
@@ -6926,6 +6967,7 @@
             
             // 2. Actualizar productos (limpiar y re-insertar)
             const productsToInsert = [];
+            let productMissingPaymentMethod = '';
             const slots = Array.from(document.querySelectorAll('.p-slot')).slice(0, currentTenantProductLimit);
             slots.forEach((slot, index) => {
                 const n = slot.querySelector('.p-name').value;
@@ -6933,6 +6975,11 @@
                 const img = slot.querySelector('.p-image').value;
                 const description = slot.querySelector('.p-description')?.value || "";
                 if(n.trim()) {
+                    const paymentMethods = Array.from(slot.querySelectorAll('.p-payment-method:checked')).map((input) => input.value);
+                    if (!paymentMethods.length) {
+                        productMissingPaymentMethod = n.trim();
+                        return;
+                    }
                     const slotIndex = Number(slot.dataset.slotIndex) || index + 1;
                     productsToInsert.push({
                         local_code: storeCode,
@@ -6940,15 +6987,23 @@
                         price: p,
                         image_url: img,
                         description,
+                        payment_methods: paymentMethods,
                         slot_index: slotIndex,
                         sort_order: slotIndex - 1
                     });
                 }
             });
+            if (productMissingPaymentMethod) {
+                alert(`Selecciona al menos un medio de pago para el producto "${productMissingPaymentMethod}".`);
+                return;
+            }
 
             const productsWrite = await replaceStoreProducts(myOwnedStore, productsToInsert);
             if (!productsWrite.ok) {
-                alert("No pude guardar productos: " + productsWrite.error.message);
+                const paymentMigrationHint = /payment_methods|schema cache/i.test(productsWrite.error?.message || '')
+                    ? '\n\nRevisa que esté aplicada la migración supabase/store_payment_options_20260927.sql.'
+                    : '';
+                alert("No pude guardar productos: " + productsWrite.error.message + paymentMigrationHint);
                 return;
             }
 

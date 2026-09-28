@@ -46,7 +46,7 @@ async function assertPortAvailable() {
 function startFunction(relativePath) {
     const file = path.join(root, relativePath);
     const config = path.join(path.dirname(file), 'deno.json');
-    const denoExecutable = path.join(
+    const denoExecutable = process.env.DENO_EXECUTABLE || path.join(
         root,
         'node_modules',
         'deno',
@@ -176,6 +176,11 @@ async function postJson(body, origin = allowedOrigin, headers = {}) {
         assert.equal((await fetchStatus({ method: 'GET' })).status, 405);
         assert.equal((await postJson({ update_id: 1 })).status, 401);
         assert.equal((await postJson({ action: 'notify_message', payload: {} })).status, 401);
+        assert.equal((await postJson({
+            type: 'INSERT',
+            table: 'store_orders',
+            record: { id: 'test-order', store_id: 'S-107', mall_id: 'test-mall' }
+        })).status, 401);
     });
 
     console.log('Edge Function HTTP integration passed for CORS, methods and unauthenticated requests.');

@@ -60,6 +60,36 @@ function escapeTelegramText(value: string) {
   return String(value || "").replace(/[<>]/g, "");
 }
 
+function telegramValue(value: unknown, fallback: string, maxLength = 180) {
+  const normalized = String(value ?? "")
+    .replace(/[\u0000-\u001f\u007f]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return escapeTelegramText(normalized.slice(0, maxLength)) || fallback;
+}
+
+function parseClpAmount(value: unknown): number | null {
+  const raw = String(value ?? "").trim();
+  if (!raw || /\bUF\b/i.test(raw)) return null;
+  const digits = raw.replace(/[^0-9]/g, "");
+  if (!digits) return null;
+  const amount = Number(digits);
+  return Number.isSafeInteger(amount) && amount > 0 ? amount : null;
+}
+
+function formatClpAmount(value: number) {
+  return `$${Math.round(value).toLocaleString("es-CL")}`;
+}
+
+function paymentMethodLabel(value: unknown) {
+  const labels: Record<string, string> = {
+    cash_on_delivery: "Contra entrega",
+    bank_transfer: "Transferencia",
+    deposit_50: "Anticipo 50%",
+  };
+  return labels[String(value ?? "")] || "Por confirmar con el local";
+}
+
 async function handleNotifyMessage(payload: Record<string, unknown>) {
   const localCode = String(payload.local_code || "").trim();
   const storeId = String(payload.store_id || "").trim();
@@ -115,6 +145,64 @@ async function handleNotifyMessage(payload: Record<string, unknown>) {
   return json({ ok: true });
 }
 
+async function handleStoreOrderInsertWebhook(record: Record<string, unknown>) {
+  const orderId = String(record.id || "").trim();
+  const storeId = String(record.store_id || "").trim();
+  const mallId = String(record.mall_id || "").trim();
+  if (!orderId || !storeId || !mallId) {
+    return json({ ok: false, error: "La solicitud no tiene id, store_id o mall_id." }, 400);
+  }
+  if (record.status !== "pending_store_confirmation") {
+    return json({ ok: true, skipped: true, reason: "La solicitud no está pendiente de confirmación." });
+  }
+
+  const { data: store, error } = await adminClient
+    .from("stores")
+    .select("id, local_code, name, telegram_notifications_enabled, telegram_chat_id")
+    .eq("id", storeId)
+    .eq("mall_id", mallId)
+    .maybeSingle();
+
+  if (error) return json({ ok: false, error: error.message }, 500);
+  if (!store) return json({ ok: false, error: "No encontré el local de la solicitud." }, 404);
+  if (!store.telegram_notifications_enabled || !store.telegram_chat_id) {
+    return json({
+      ok: true,
+      skipped: true,
+      reason: "El local todavía no tiene Telegram conectado.",
+    });
+  }
+
+  const quantity = Math.min(20, Math.max(1, Number(record.quantity) || 1));
+  const unitPrice = parseClpAmount(record.product_price);
+  const shippingCost = Math.max(0, Number(record.shipping_cost) || 0);
+  const productSubtotal = unitPrice === null ? null : unitPrice * quantity;
+  const requestTotal = productSubtotal === null ? null : productSubtotal + shippingCost;
+  const dueNow = Math.max(0, Number(record.payment_amount_due_now) || 0);
+  const balanceDue = Math.max(0, Number(record.payment_balance_due) || 0);
+  const paymentMethod = String(record.payment_method || "cash_on_delivery");
+
+  const lines = [
+    "Nueva solicitud de compra · pendiente de confirmación",
+    `Local: ${telegramValue(store.local_code || store.id, store.id)} - ${telegramValue(store.name, "Sin nombre")}`,
+    `Referencia: ${orderId.slice(0, 8)}`,
+    `Producto: ${telegramValue(record.product_name, "Producto")} × ${quantity}`,
+    `Precio de productos: ${productSubtotal === null ? "por confirmar" : formatClpAmount(productSubtotal)}`,
+    `Despacho (${telegramValue(record.delivery_commune, "comuna por confirmar")}): ${formatClpAmount(shippingCost)}`,
+    `Total referencial: ${requestTotal === null ? "por confirmar con el local" : formatClpAmount(requestTotal)}`,
+    `Método indicado: ${paymentMethodLabel(paymentMethod)}`,
+  ];
+
+  if (paymentMethod !== "cash_on_delivery") {
+    lines.push(`Monto indicado para transferir: ${formatClpAmount(dueNow)}`);
+    if (balanceDue > 0) lines.push(`Saldo pendiente: ${formatClpAmount(balanceDue)}`);
+  }
+  lines.push("Abre Solicitudes de compra en el panel del local para revisar los datos del cliente y la entrega.");
+
+  await sendTelegramMessage(String(store.telegram_chat_id), lines.join("\n"));
+  return json({ ok: true });
+}
+
 function isMessageInsertWebhook(payload: Record<string, unknown>) {
   const eventType = String(payload.type || "").toUpperCase();
   const table = String(payload.table || "");
@@ -122,6 +210,11 @@ function isMessageInsertWebhook(payload: Record<string, unknown>) {
     eventType === "INSERT" &&
     (table === "mall_messages" || table === "contact_messages")
   );
+}
+
+function isStoreOrderInsertWebhook(payload: Record<string, unknown>) {
+  return String(payload.type || "").toUpperCase() === "INSERT" &&
+    String(payload.table || "") === "store_orders";
 }
 
 function normalizeWebhookRecord(record: Record<string, unknown>) {
@@ -279,6 +372,18 @@ Deno.serve(async (request) => {
 
     const record = (body.record || {}) as Record<string, unknown>;
     return handleNotifyMessage(normalizeWebhookRecord(record));
+  }
+
+  if (
+    body &&
+    typeof body === "object" &&
+    isStoreOrderInsertWebhook(body as Record<string, unknown>)
+  ) {
+    const authError = validateInternalNotifySecret(request);
+    if (authError) return authError;
+
+    const record = (body.record || {}) as Record<string, unknown>;
+    return handleStoreOrderInsertWebhook(record);
   }
 
   if (body?.action === "notify_message") {
