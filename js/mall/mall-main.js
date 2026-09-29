@@ -249,6 +249,9 @@
                 }
 
                 openModal(data);
+                window.dispatchEvent(new CustomEvent('mall:catalog-opened', {
+                    detail: { storeCode: data.shopCode, storeName: data.name }
+                }));
 
                 const isCurrentCatalog = () => document.getElementById('store-modal')?.style.display === 'block'
                     && currentModalStoreCode === data.shopCode;

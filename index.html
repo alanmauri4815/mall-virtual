@@ -17,8 +17,8 @@
     <script src="assets/vendor/three/SkeletonUtils.r128.js" defer></script>
     <script src="assets/vendor/sb-client/client-v2.min.js" defer></script>
     <script src="js/mall/mall-context.js?v=20260926-temporary-bench-seating-pause-v4" defer></script>
-    <script src="js/mall/mall-boot.js?v=20260927-store-payment-options-v1" defer></script>
-    <link rel="stylesheet" href="css/mall.css?v=20260927-purchase-receipt-v1">
+    <script src="js/mall/mall-boot.js?v=20260929-guided-tour" defer></script>
+    <link rel="stylesheet" href="css/mall.css?v=20260929-guided-tour">
 </head>
 
 <body>
@@ -49,6 +49,10 @@
                 <h1 class="welcome-headline">Bienvenido al <span data-mall-context-name>Mall Creaciones</span></h1>
                 <p class="welcome-subtitle">Explora, descubre y conversa con los emprendimientos del mall.</p>
                 <button id="guest-entry-button" class="enter-btn welcome-enter-btn" data-mall-action="startMallExperience" data-stop-propagation="true">Entrar al Mall</button>
+                <button type="button" class="guided-tour-trigger" data-mall-action="startMallGuidedExperience" data-stop-propagation="true">
+                    <span class="material-symbols-outlined" aria-hidden="true">explore</span>
+                    <span>Probar recorrido guiado <small>Opcional · 3 minutos</small></span>
+                </button>
                 <p class="welcome-entry-note">No necesitas crear una cuenta para comenzar.</p>
             </section>
         <div id="entry-account-card" class="login-card" hidden>
@@ -116,6 +120,33 @@
         </div>
     </div>
 
+    <section id="mall-tour-preview" class="mall-tour-preview" hidden role="dialog" aria-modal="true" aria-labelledby="mall-tour-preview-title">
+        <div class="mall-tour-preview__panel">
+            <button type="button" class="mall-tour-preview__close" data-mall-action="cancelMallGuidedExperience" aria-label="Cerrar">&times;</button>
+            <span class="mall-tour-preview__eyebrow">Recorrido opcional · 3 min</span>
+            <h2 id="mall-tour-preview-title">Practiquemos el ingreso</h2>
+            <p>Un paseo breve para moverte, abrir la ficha de un local y practicar cómo entrar y pedir ayuda.</p>
+            <div class="mall-tour-route" aria-label="Estacionamiento, paso cebra, entrada y local">
+                <div><span class="material-symbols-outlined" aria-hidden="true">local_parking</span><small>Exterior</small></div>
+                <i aria-hidden="true"></i>
+                <div><span class="material-symbols-outlined" aria-hidden="true">directions_walk</span><small>Paso cebra</small></div>
+                <i aria-hidden="true"></i>
+                <div><span class="material-symbols-outlined" aria-hidden="true">meeting_room</span><small>Entrada</small></div>
+                <i aria-hidden="true"></i>
+                <div><span class="material-symbols-outlined" aria-hidden="true">storefront</span><small>Local</small></div>
+            </div>
+            <p class="mall-tour-preview__hint"><span class="material-symbols-outlined" aria-hidden="true">touch_app</span> Camina con W o el joystick; gira arrastrando la vista.</p>
+            <button type="button" id="mall-tour-preview-voice" class="mall-tour-preview__voice" aria-pressed="false">
+                <span id="mall-tour-preview-voice-icon" class="material-symbols-outlined" aria-hidden="true">volume_up</span>
+                <span id="mall-tour-preview-voice-label">Escuchar bienvenida</span>
+            </button>
+            <div class="mall-tour-preview__actions">
+                <button type="button" data-mall-action="cancelMallGuidedExperience">Ahora no</button>
+                <button type="button" data-mall-action="confirmMallGuidedExperience"><span class="material-symbols-outlined" aria-hidden="true">play_arrow</span>Comenzar</button>
+            </div>
+        </div>
+        <audio id="mall-tour-welcome-audio" preload="none" src="Voz-01.mp3?v=20260929-guided-tour"></audio>
+    </section>
     <!-- Chat Icon (Minimized state) -->
     <div id="chat-minimized-btn" data-mall-action="toggleChat">
         <span class="material-symbols-outlined chat-minimized-icon" aria-hidden="true">chat_bubble</span>
@@ -1527,6 +1558,28 @@
         </p>
     </div>
 
+    <div id="mall-tour-pointer" class="mall-tour-pointer" hidden aria-hidden="true">
+        <span class="mall-tour-pointer__marker"><span class="material-symbols-outlined">north_east</span></span>
+        <span class="mall-tour-pointer__label"></span>
+    </div>
+    <section id="mall-tour-card" class="mall-tour-card" hidden aria-label="Recorrido guiado" aria-live="polite">
+        <div class="mall-tour-card__icon"><span class="material-symbols-outlined" aria-hidden="true">directions_walk</span></div>
+        <div class="mall-tour-card__body">
+            <div class="mall-tour-card__meta"><span id="mall-tour-step-count"></span><span class="mall-tour-card__dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span></div>
+            <strong id="mall-tour-title"></strong>
+            <p id="mall-tour-copy"></p>
+            <div id="mall-tour-hints" class="mall-tour-card__hints" hidden>
+                <span><span class="material-symbols-outlined" aria-hidden="true">support_agent</span>Asistente</span>
+                <span><span class="material-symbols-outlined" aria-hidden="true">mail</span>Mensaje al local</span>
+            </div>
+            <p id="mall-tour-recovery" class="mall-tour-card__recovery" hidden></p>
+            <button id="mall-tour-continue" class="mall-tour-card__continue" type="button" data-mall-action="advanceMallGuidedTour" hidden>Continuar desde dentro</button>
+        </div>
+        <div class="mall-tour-card__actions">
+            <button id="mall-tour-voice" type="button" data-mall-action="toggleMallGuidedVoice" aria-pressed="false" aria-label="Activar voz" title="Activar voz"><span class="material-symbols-outlined" aria-hidden="true">volume_up</span></button>
+            <button type="button" class="mall-tour-card__skip" data-mall-action="skipMallGuidedTour">Saltar</button>
+        </div>
+    </section>
 <!-- Mall Modules -->
     <script src="js/mall/mall-physics.js?v=20260926-exact-collision-volume-v1" defer></script>
     <script src="js/mall/mall-furniture.js?v=20260805-physical-space-audit" defer></script>
@@ -1549,7 +1602,8 @@
     <script src="js/mall/mall-store-assistant.js?v=20260926-staging-information-avatar-v1" defer></script>
     <script src="js/mall/mall-npc.js?v=20260926-temporary-bench-seating-pause-v1" defer></script>
     <script src="js/mall/mall-purchases.js?v=20260927-purchase-receipt-v1" defer></script>
-    <script src="js/mall/mall-main.js?v=20260927-store-payment-options-v1" defer></script>
+    <script src="js/mall/mall-guided-tour.js?v=20260929-guided-tour" defer></script>
+    <script src="js/mall/mall-main.js?v=20260929-guided-tour" defer></script>
 </body>
 
 </html>
