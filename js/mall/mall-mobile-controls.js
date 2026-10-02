@@ -110,7 +110,7 @@
         const offset = controls.target.clone().sub(camera.position);
         const distance = Math.max(offset.length(), 0.01);
         const spherical = new THREE.Spherical().setFromVector3(offset);
-        const scale = state.sensitivity * 0.0038;
+        const scale = state.sensitivity * 0.0019;
         spherical.theta += deltaX * scale;
         spherical.phi = THREE.MathUtils.clamp(
             spherical.phi + deltaY * scale,

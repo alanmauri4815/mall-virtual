@@ -518,7 +518,7 @@
         const controls = new THREE.OrbitControls(camera, renderer.domElement);
         controls.enableDamping = true;
         controls.dampingFactor = IS_COARSE_POINTER ? 0.24 : 0.2;
-        controls.rotateSpeed = IS_COARSE_POINTER ? -0.75 : 1.0;
+        controls.rotateSpeed = IS_COARSE_POINTER ? -0.375 : 1.0;
         controls.minPolarAngle = 0;
         controls.maxPolarAngle = Math.PI / 2 - 0.05;
 
