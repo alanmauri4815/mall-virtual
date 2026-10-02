@@ -2,6 +2,7 @@
         scene.background = new THREE.Color(0xaabbcc);
         const catalogClickTargets = [];
         const MALL_PEDESTRIAN_WALK_SPEED = 0.22 * 60;
+        const MALL_WALK_TRAVEL_SCALE = 0.9;
         const IS_COARSE_POINTER = window.matchMedia('(pointer: coarse)').matches;
         const DEVICE_MEMORY_GB = Number(navigator.deviceMemory) || null;
         const CPU_CORE_COUNT = Number(navigator.hardwareConcurrency) || null;

@@ -996,7 +996,8 @@
                     lastDetourAt: 0,
                     state: 'walking',
                     timer: 0,
-                    speed: NPC_MIN_WALK_SPEED + Math.random() * (NPC_MAX_WALK_SPEED - NPC_MIN_WALK_SPEED),
+                    speed: (NPC_MIN_WALK_SPEED + Math.random() * (NPC_MAX_WALK_SPEED - NPC_MIN_WALK_SPEED))
+                        * MALL_WALK_TRAVEL_SCALE,
                     name: name,
                     gender: identity.gender,
                     lastSafePosition: initialPosition.clone(),
@@ -1200,7 +1201,7 @@
                     const seatMovementAmount = npc.motionMode === 'walk'
                         ? prevPos.distanceTo(npc.mesh.position)
                         : 0;
-                    applyAvatarPose(npc, seatMovementAmount, nowMs);
+                    applyAvatarPose(npc, seatMovementAmount / MALL_WALK_TRAVEL_SCALE, nowMs);
                     npc.mesh.visible = true;
                     if (updateLabels) updateAvatarLabelPosition(npc, 2.2, AVATAR_LABEL_NPC_FAR_DISTANCE);
                     return;
@@ -1359,7 +1360,7 @@
                         npc.mesh.position,
                         activeEscalator.escalator,
                         activeEscalator.progress,
-                        THREE.MathUtils.clamp(moveStep * 4.5, 0.03, 0.3),
+                        THREE.MathUtils.clamp((moveStep / MALL_WALK_TRAVEL_SCALE) * 4.5, 0.03, 0.3),
                         AVATAR_FLOOR_OFFSET,
                         0.45,
                         true
@@ -1556,7 +1557,7 @@
                     npc.lastSuccessfulMoveAt = now;
                     npc.blockedSince = 0;
                 }
-                applyAvatarPose(npc, movedAmount, nowMs);
+                applyAvatarPose(npc, movedAmount / MALL_WALK_TRAVEL_SCALE, nowMs);
                 npc.mesh.visible = true;
 
                 // --- 3. ACTUALIZAR ETIQUETAS ---

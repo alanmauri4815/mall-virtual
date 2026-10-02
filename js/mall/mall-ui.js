@@ -10549,6 +10549,7 @@ p.mesh.position.y = p.targetPos.y;
                     const stepDistance = p.remoteMoving ? prevPos.distanceTo(p.mesh.position) : 0;
                     const poseMovement = p.remoteMoving
                         ? Math.max(stepDistance, THREE.MathUtils.clamp((p.remoteSpeed || 0) / 60, 0.002, 0.08))
+                            / MALL_WALK_TRAVEL_SCALE
                         : 0;
                     applyAvatarPose(p, poseMovement, nowMs);
                     if (remoteSeatTraceEnabled && ['guest', 'member', 'registered_visitor', 'tenant'].includes(p.role)) {

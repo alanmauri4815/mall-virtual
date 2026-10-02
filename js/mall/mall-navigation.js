@@ -273,7 +273,7 @@
         const BASE_FRAME_RATE = 60;
         const MIN_NAV_DELTA = 1 / 120;
         const MAX_NAV_DELTA = 1 / 30;
-        let moveSpeed = MALL_PEDESTRIAN_WALK_SPEED;
+        let moveSpeed = MALL_PEDESTRIAN_WALK_SPEED * MALL_WALK_TRAVEL_SCALE;
         let rotSpeed = 0.035 * BASE_FRAME_RATE;
         let currentMoveVelocityX = 0;
         let currentMoveVelocityZ = 0;
