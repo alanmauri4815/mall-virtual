@@ -1366,8 +1366,7 @@
                     ctx.textAlign = 'center';
                     ctx.textBaseline = 'middle';
                     ctx.fillText(String(text), canvas.width / 2, canvas.height / 2);
-                    const tex = new THREE.CanvasTexture(canvas);
-                    tex.needsUpdate = true;
+                    const tex = window.configureMallColorTexture(new THREE.CanvasTexture(canvas));
                     return new THREE.Mesh(
                         new THREE.PlaneGeometry(0.42, 0.21),
                         new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false })
@@ -1640,10 +1639,7 @@
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             ctx.fillText(String(text || '').toUpperCase(), canvas.width / 2, canvas.height / 2);
-            const texture = new THREE.CanvasTexture(canvas);
-            texture.colorSpace = THREE.SRGBColorSpace;
-            texture.needsUpdate = true;
-            return texture;
+            return window.configureMallColorTexture(new THREE.CanvasTexture(canvas));
         }
 
         function createCorridorAccessDoor(worldX, worldZ, rotationY = 0, variant = 'outer', doorCode = '') {
@@ -1999,8 +1995,7 @@
                     texture.wrapS = THREE.RepeatWrapping;
                     texture.wrapT = THREE.RepeatWrapping;
                     texture.repeat.set(repeatX, repeatY);
-                    if ('SRGBColorSpace' in THREE) texture.colorSpace = THREE.SRGBColorSpace;
-                    texture.needsUpdate = true;
+                    window.configureMallColorTexture(texture);
                     return texture;
                 };
 
@@ -3235,7 +3230,7 @@
             ctx.fillStyle = '#000000'; ctx.font = 'bold 80px "Inter"';
             ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
             ctx.fillText(text, 256, 64);
-            return new THREE.CanvasTexture(canvas);
+            return window.configureMallColorTexture(new THREE.CanvasTexture(canvas));
         }
 
         // URBANISMO INTERIOR: Maceteros con árboles estilizados
@@ -3387,9 +3382,7 @@
             labelCtx.shadowBlur = 18;
             labelCtx.fillText('INSTRUCCIONES', 512, 132);
 
-            const labelTexture = new THREE.CanvasTexture(labelCanvas);
-            labelTexture.colorSpace = THREE.SRGBColorSpace;
-            labelTexture.needsUpdate = true;
+            const labelTexture = window.configureMallColorTexture(new THREE.CanvasTexture(labelCanvas));
             const labelMaterial = new THREE.MeshBasicMaterial({
                 map: labelTexture,
                 transparent: true,
@@ -3535,8 +3528,7 @@
             ctx.textAlign = "center";
             ctx.textBaseline = "middle";
             ctx.fillText(text, canvas.width / 2, canvas.height / 2);
-            const tex = new THREE.CanvasTexture(canvas);
-            tex.needsUpdate = true;
+            const tex = window.configureMallColorTexture(new THREE.CanvasTexture(canvas));
             return tex;
         }
 
@@ -3545,8 +3537,7 @@
             canvas.width = CENTRAL_AD_CANVAS_W;
             canvas.height = CENTRAL_AD_CANVAS_H;
             const ctx = canvas.getContext('2d');
-            const tex = new THREE.CanvasTexture(canvas);
-            tex.needsUpdate = true;
+            const tex = window.configureMallColorTexture(new THREE.CanvasTexture(canvas));
             drawCatalogAdBase(ctx, ad);
 
             if (ad.imageUrl) {
@@ -3758,9 +3749,7 @@
             ctx.fillRect(6, 0, 2, 128);
             ctx.fillRect(120, 0, 2, 128);
 
-            const tex = new THREE.CanvasTexture(canvas);
-            tex.colorSpace = THREE.SRGBColorSpace;
-            tex.encoding = THREE.sRGBEncoding;
+            const tex = window.configureMallColorTexture(new THREE.CanvasTexture(canvas));
             tex.wrapT = tex.wrapS = THREE.RepeatWrapping;
             tex.repeat.set(1, 15);
             return tex;
@@ -5838,8 +5827,7 @@
             ctx.arc(390, 560, 18, 0, Math.PI * 2);
             ctx.fill();
 
-            const tex = new THREE.CanvasTexture(canvas);
-            tex.needsUpdate = true;
+            const tex = window.configureMallColorTexture(new THREE.CanvasTexture(canvas));
             return tex;
         }
         const infoScreenTexture = createInfoTexture();
@@ -5859,8 +5847,7 @@
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             ctx.fillText(text, canvas.width / 2, canvas.height / 2);
-            const tex = new THREE.CanvasTexture(canvas);
-            tex.needsUpdate = true;
+            const tex = window.configureMallColorTexture(new THREE.CanvasTexture(canvas));
             return tex;
         }
 
@@ -5954,9 +5941,7 @@
             ctx.fillStyle = '#d7c495';
             ctx.fillText('BIENVENIDA Y ORIENTACION', canvas.width / 2, 181);
 
-            const texture = new THREE.CanvasTexture(canvas);
-            texture.colorSpace = THREE.SRGBColorSpace;
-            return texture;
+            return window.configureMallColorTexture(new THREE.CanvasTexture(canvas));
         }
 
         const MALL_INFORMATION_ASSISTANT_AVATAR_URL = 'assets/avatars/mall-avatar-v1.glb';
@@ -7380,6 +7365,8 @@ module.add(assistant);
                 mesh.userData?.mallEditableAreaCode
             ].filter(Boolean).join(' ');
 
+            const wallColorPalette = [0xead9c1, 0xdce7dc, 0xe9d6cc, 0xd5e2ea];
+
             const classifySurface = (mesh, material) => {
                 if (!material || material.transparent || material.opacity < 0.99 || material.transmission > 0.01) return null;
                 if (!('roughness' in material)) return null;
@@ -7411,6 +7398,20 @@ module.add(assistant);
                 material.userData = { ...(material.userData || {}), realisticSurfaceFinish: true };
                 material.roughnessMap = getRoughnessTexture(kind);
                 material.roughness = kind === 'metal' ? 0.34 : kind === 'wall' ? 0.72 : 0.78;
+                if (kind === 'wall' && !material.map && material.color) {
+                    const hsl = {};
+                    material.color.getHSL(hsl);
+                    if (hsl.s < 0.22 && hsl.l > 0.58) {
+                        const worldPosition = mesh.getWorldPosition(new THREE.Vector3());
+                        const paletteKey = [
+                            mesh.userData?.mallEditableAreaCode || mesh.name || 'wall',
+                            Math.floor(worldPosition.x / 14),
+                            Math.floor(worldPosition.z / 14)
+                        ].join(':');
+                        const tone = new THREE.Color(wallColorPalette[hashString(paletteKey) % wallColorPalette.length]);
+                        material.color.lerp(tone, 0.72);
+                    }
+                }
                 if (kind === 'metal') material.metalness = clamp(Math.max(material.metalness || 0, 0.58), 0, 0.86);
                 material.needsUpdate = true;
                 mesh.material = material;

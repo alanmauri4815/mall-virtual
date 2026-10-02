@@ -18,10 +18,11 @@
         const MALL_PERFORMANCE_PROFILE = Object.freeze({
             isMobile: IS_COARSE_POINTER,
             isLowEndMobile: IS_LOW_END_MOBILE,
-            pixelRatioCap: IS_LOW_END_MOBILE ? 0.6 : (IS_COARSE_POINTER ? 1.0 : 1.3),
+            pixelRatioCap: IS_LOW_END_MOBILE ? 0.82 : (IS_COARSE_POINTER ? 1.15 : 1.3),
             targetFrameIntervalMs: IS_LOW_END_MOBILE ? (1000 / 24) : 0,
             npcCount: IS_LOW_END_MOBILE ? 4 : (IS_COARSE_POINTER ? 30 : 40),
-            textureScale: IS_LOW_END_MOBILE ? 0.5 : 1
+            textureScale: IS_LOW_END_MOBILE ? 0.65 : 1,
+            textureAnisotropyCap: IS_LOW_END_MOBILE ? 2 : (IS_COARSE_POINTER ? 4 : 8)
         });
         window.mallPerformanceProfile = MALL_PERFORMANCE_PROFILE;
         document.documentElement.classList.toggle('mall-low-end-device', IS_LOW_END_MOBILE);
@@ -69,9 +70,22 @@
             renderer.setPixelRatio(getPreferredPixelRatio());
         };
         // A filmic response preserves the bright roof while retaining contrast in the mall interior.
-        if (THREE.SRGBColorSpace) renderer.outputColorSpace = THREE.SRGBColorSpace;
+        if (THREE.SRGBColorSpace && 'outputColorSpace' in renderer) renderer.outputColorSpace = THREE.SRGBColorSpace;
+        else if (THREE.sRGBEncoding && 'outputEncoding' in renderer) renderer.outputEncoding = THREE.sRGBEncoding;
         renderer.toneMapping = THREE.ACESFilmicToneMapping || THREE.ReinhardToneMapping;
         renderer.toneMappingExposure = 0.94;
+        window.configureMallColorTexture = (texture) => {
+            if (!texture) return texture;
+            if ('colorSpace' in texture && THREE.SRGBColorSpace) texture.colorSpace = THREE.SRGBColorSpace;
+            if ('encoding' in texture && THREE.sRGBEncoding) texture.encoding = THREE.sRGBEncoding;
+            const maxAnisotropy = renderer.capabilities.getMaxAnisotropy?.() || 1;
+            texture.anisotropy = Math.max(1, Math.min(maxAnisotropy, MALL_PERFORMANCE_PROFILE.textureAnisotropyCap));
+            texture.minFilter = THREE.LinearMipmapLinearFilter;
+            texture.magFilter = THREE.LinearFilter;
+            texture.generateMipmaps = true;
+            texture.needsUpdate = true;
+            return texture;
+        };
         renderer.shadowMap.enabled = !IS_LOW_END_MOBILE;
         if (renderer.shadowMap.enabled && THREE.PCFSoftShadowMap) {
             renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -797,6 +811,6 @@
             }
             ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
             ctx.fillText(text, canvas.width / 2, canvas.height / 2);
-            return new THREE.CanvasTexture(canvas);
+            return window.configureMallColorTexture(new THREE.CanvasTexture(canvas));
         }
 
