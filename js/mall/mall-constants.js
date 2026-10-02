@@ -18,11 +18,11 @@
         const MALL_PERFORMANCE_PROFILE = Object.freeze({
             isMobile: IS_COARSE_POINTER,
             isLowEndMobile: IS_LOW_END_MOBILE,
-            pixelRatioCap: IS_LOW_END_MOBILE ? 0.82 : (IS_COARSE_POINTER ? 1.15 : 1.3),
+            pixelRatioCap: IS_LOW_END_MOBILE ? 1 : (IS_COARSE_POINTER ? 1.5 : 1.3),
             targetFrameIntervalMs: IS_LOW_END_MOBILE ? (1000 / 24) : 0,
             npcCount: IS_LOW_END_MOBILE ? 4 : (IS_COARSE_POINTER ? 30 : 40),
-            textureScale: IS_LOW_END_MOBILE ? 0.65 : 1,
-            textureAnisotropyCap: IS_LOW_END_MOBILE ? 2 : (IS_COARSE_POINTER ? 4 : 8)
+            textureScale: IS_LOW_END_MOBILE ? 0.8 : 1,
+            textureAnisotropyCap: IS_LOW_END_MOBILE ? 2 : (IS_COARSE_POINTER ? 6 : 8)
         });
         window.mallPerformanceProfile = MALL_PERFORMANCE_PROFILE;
         document.documentElement.classList.toggle('mall-low-end-device', IS_LOW_END_MOBILE);

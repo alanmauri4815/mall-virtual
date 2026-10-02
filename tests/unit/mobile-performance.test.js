@@ -10,9 +10,9 @@ const assistant = fs.readFileSync(path.join(__dirname, '..', '..', 'js', 'mall',
 
 assert.match(constants, /IS_LOW_END_MOBILE/);
 assert.match(constants, /antialias:\s*!IS_LOW_END_MOBILE/);
-assert.match(constants, /pixelRatioCap:\s*IS_LOW_END_MOBILE\s*\?\s*0\.82\s*:\s*\(IS_COARSE_POINTER\s*\?\s*1\.15/);
-assert.match(constants, /textureScale:\s*IS_LOW_END_MOBILE\s*\?\s*0\.65/);
-assert.match(constants, /textureAnisotropyCap:\s*IS_LOW_END_MOBILE\s*\?\s*2\s*:\s*\(IS_COARSE_POINTER\s*\?\s*4/);
+assert.match(constants, /pixelRatioCap:\s*IS_LOW_END_MOBILE\s*\?\s*1\s*:\s*\(IS_COARSE_POINTER\s*\?\s*1\.5/);
+assert.match(constants, /textureScale:\s*IS_LOW_END_MOBILE\s*\?\s*0\.8/);
+assert.match(constants, /textureAnisotropyCap:\s*IS_LOW_END_MOBILE\s*\?\s*2\s*:\s*\(IS_COARSE_POINTER\s*\?\s*6/);
 assert.match(constants, /renderer\.outputEncoding\s*=\s*THREE\.sRGBEncoding/);
 assert.match(constants, /window\.configureMallColorTexture\s*=\s*\(texture\)/);
 assert.match(constants, /texture\.encoding\s*=\s*THREE\.sRGBEncoding/);
