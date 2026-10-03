@@ -462,6 +462,9 @@
 
     function localMallAnswer(question, settings) {
         const q = normalizeText(question);
+        if (/\b(local|locales|tienda|tiendas|comercio|comercios|directorio|piso|producto|productos|catalogo|venden|vende|ofrecen|ofrece|tienen|tiene|precio|precios|comprar|despacho|envio|envios)\b/.test(q)) {
+            return '';
+        }
         const brief = normalizeSentence(settings.mall_brief || '');
         if (brief && /\b(que es|de que trata|que ofrece|que hay|locales|tiendas|mall|centro comercial|informacion general|horario|ubicacion|como llegar|servicios)\b/.test(q)) {
             return brief;
@@ -477,6 +480,12 @@
             }
         });
         return score > 0 ? best?.answer : '';
+    }
+
+    async function localMallCatalogAnswer(question) {
+        if (typeof window.mallAssistantCatalogSearch !== 'function' || !window.mallCatalogRequests?.getData) return '';
+        const { stores, products } = await window.mallCatalogRequests.getData();
+        return window.mallAssistantCatalogSearch(question, stores, products) || '';
     }
 
     async function invokeAssistant(question, conversation) {
@@ -535,19 +544,37 @@
             ? localMallAnswer(question, settings)
             : localDirectAnswer(question, activeStoreData, settings);
         let forceHandoff = false;
+        let pendingMessage = null;
         if (!answer) {
-            try {
-                const result = await invokeAssistant(question, conversation);
-                answer = result?.answer || '';
-                forceHandoff = !!result?.handoff_required;
-            } catch (error) {
-                console.warn('Asistente remoto no disponible; usando respuesta local:', error);
-                answer = isMallAssistant
-                    ? 'No encontré esa información en la inducción del mall. Puedes dejar un reclamo o sugerencia para que la administración lo revise.'
-                    : 'No encontré esa información en el catálogo. Puedo registrar tus datos para que la persona encargada de la tienda te responda.';
-                forceHandoff = true;
+            pendingMessage = appendMessage(
+                'bot',
+                isMallAssistant
+                    ? 'Estoy consultando los catálogos del mall...'
+                    : 'Estoy revisando el catálogo de este local...'
+            );
+            pendingMessage?.classList.add('is-pending');
+            if (isMallAssistant) {
+                try {
+                    answer = await localMallCatalogAnswer(question);
+                } catch (error) {
+                    console.warn('No pude cargar el catálogo local del mall; consultaré al asistente remoto:', error);
+                }
+            }
+            if (!answer) {
+                try {
+                    const result = await invokeAssistant(question, conversation);
+                    answer = result?.answer || '';
+                    forceHandoff = !!result?.handoff_required;
+                } catch (error) {
+                    console.warn('Asistente remoto no disponible; usando respuesta local:', error);
+                    answer = isMallAssistant
+                        ? 'No encontré esa información en la inducción del mall. Puedes dejar un reclamo o sugerencia para que la administración lo revise.'
+                        : 'No encontré esa información en el catálogo. Puedo registrar tus datos para que la persona encargada de la tienda te responda.';
+                    forceHandoff = true;
+                }
             }
         }
+        pendingMessage?.remove();
         assistantBusy = false;
         document.getElementById('store-assistant-modal').classList.remove('is-busy');
         answer = limitWords(answer, Number(settings.answer_max_words || 80));
@@ -821,10 +848,16 @@
         document.getElementById('admin-mall-assistant-greeting').value = settings.greeting || DEFAULT_MALL_SETTINGS.greeting;
         document.getElementById('admin-mall-assistant-brief').value = settings.mall_brief || '';
         document.getElementById('admin-mall-assistant-faq').value = faqToText(settings.faq);
+        const { data: instructionData, error: instructionError } = await mallAssistantScopeQuery(
+            supabaseClient
+                .from('mall_assistant_instructions')
+                .select('instructions')
+        ).maybeSingle();
+        document.getElementById('admin-mall-assistant-instructions').value = instructionData?.instructions || '';
         mallAssistantSettings = settings;
         settingsByCode.set(MALL_ASSISTANT_CODE, mallAssistantSettings);
-        if (error) {
-            setMallAssistantStatus('Falta ejecutar supabase/mall_information_assistant_20260830.sql para guardar esta configuración.', 'warning');
+        if (error || instructionError) {
+            setMallAssistantStatus('Falta aplicar supabase/mall_assistant_private_instructions_20261003.sql para editar las instrucciones privadas.', 'warning');
         } else {
             setMallAssistantStatus(settings.enabled ? 'El asistente del mall está activo.' : 'El asistente del mall está desactivado.', 'ok');
         }
@@ -856,6 +889,19 @@
             .single();
         if (error) {
             setMallAssistantStatus(`No se pudo guardar: ${error.message}`, 'warning');
+            return;
+        }
+        const instructionPayload = mallAssistantScopePayload({
+            instructions: document.getElementById('admin-mall-assistant-instructions').value.trim().slice(0, 3000),
+            updated_at: new Date().toISOString()
+        });
+        const { error: instructionError } = await supabaseClient
+            .from('mall_assistant_instructions')
+            .upsert(instructionPayload, { onConflict: 'mall_id' });
+        if (instructionError) {
+            mallAssistantSettings = { ...DEFAULT_MALL_SETTINGS, ...data };
+            settingsByCode.set(MALL_ASSISTANT_CODE, mallAssistantSettings);
+            setMallAssistantStatus(`La configuración general se guardó, pero no las instrucciones: ${instructionError.message}`, 'warning');
             return;
         }
         mallAssistantSettings = { ...DEFAULT_MALL_SETTINGS, ...data };
