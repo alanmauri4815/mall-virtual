@@ -20,6 +20,7 @@
         })
     });
     const hostMallSlugs = Object.freeze({
+        'mallcreaciones.maucore.cl': 'providencia',
         'maucore.cl': 'providencia',
         'www.maucore.cl': 'providencia',
         'mall-virtual-one-mu.vercel.app': 'ensayo'

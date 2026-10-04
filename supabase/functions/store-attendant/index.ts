@@ -2,6 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import { buildMallCatalogKnowledge, sanitizePublicTraining } from "./mall-catalog-knowledge.mjs";
 
 const allowedOrigins = new Set([
+  "https://mallcreaciones.maucore.cl",
   "https://maucore.cl",
   "https://www.maucore.cl",
   "https://staging.maucore.cl",

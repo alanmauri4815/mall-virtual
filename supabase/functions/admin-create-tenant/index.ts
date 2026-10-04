@@ -7,6 +7,7 @@ const productionOrigin =
   "https://mall-virtual-one-ten.vercel.app";
 const allowedOrigins = new Set([
   productionOrigin,
+  "https://mallcreaciones.maucore.cl",
   "https://maucore.cl",
   "https://www.maucore.cl",
   "https://staging.maucore.cl",

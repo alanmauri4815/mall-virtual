@@ -8,6 +8,7 @@ const configuredOrigins = (Deno.env.get("MALL_ALLOWED_ORIGINS") ?? "")
   .filter(Boolean);
 const allowedOrigins = new Set([
   productionOrigin,
+  "https://mallcreaciones.maucore.cl",
   "https://maucore.cl",
   "https://www.maucore.cl",
   "https://staging.maucore.cl",
