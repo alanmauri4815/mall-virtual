@@ -610,16 +610,30 @@
             closeControlsMenu();
         };
 
+        window.setMallThirdPersonView = function (enabled) {
+            if (!hasEnteredMall) return;
+            const shouldUseThirdPerson = enabled === true;
+            if (shouldUseThirdPerson && !isWalking) {
+                window.toggleWalkMode({ preservePosition: true });
+                if (!isWalking) return;
+            }
+            if (isThirdPersonView === shouldUseThirdPerson) {
+                syncThirdPersonViewButton();
+                return;
+            }
+            isThirdPersonView = shouldUseThirdPerson;
+            thirdPersonCameraInitialized = false;
+            window.updateMallThirdPersonAvatar?.(performance.now());
+            syncThirdPersonViewButton();
+        };
+
         window.toggleThirdPersonView = function () {
             if (!hasEnteredMall) return;
             if (!isWalking) {
                 window.toggleWalkMode();
                 if (!isWalking) return;
             }
-            isThirdPersonView = !isThirdPersonView;
-            thirdPersonCameraInitialized = false;
-            window.updateMallThirdPersonAvatar?.(performance.now());
-            syncThirdPersonViewButton();
+            window.setMallThirdPersonView?.(!isThirdPersonView);
             closeControlsMenu();
         };
 

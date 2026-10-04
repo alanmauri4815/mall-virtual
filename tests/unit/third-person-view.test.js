@@ -16,6 +16,8 @@ assert.match(html, /id="third-person-view-menu-item"[^>]*data-mall-action="toggl
 assert.match(boot, /toggleThirdPersonView:\s*\(\)\s*=>\s*callGlobal\('toggleThirdPersonView'\)/);
 assert.match(constants, /const thirdPersonCamera = new THREE\.PerspectiveCamera/);
 assert.match(constants, /window\.getMallRenderCamera = \(\) => isThirdPersonView \? thirdPersonCamera : camera/);
+assert.match(constants, /window\.setMallThirdPersonView = function \(enabled\)/);
+assert.match(constants, /isThirdPersonView = shouldUseThirdPerson;[\s\S]*?window\.updateMallThirdPersonAvatar\?\./);
 assert.match(constants, /window\.toggleThirdPersonView = function/);
 assert.match(constants, /window\.checkCollision\(/);
 assert.match(ui, /localThirdPersonAvatar = createGameReadyAvatar/);
