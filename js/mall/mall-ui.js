@@ -2270,7 +2270,6 @@
             const memberPanel = document.getElementById('member-entry-panel');
             const tenantPanel = document.getElementById('tenant-entry-panel');
             const guestButton = document.getElementById('guest-entry-button');
-            const avatarSelection = normalizeAvatarSelectionPanels();
             const secondaryActions = document.getElementById('entry-secondary-actions');
             const accountCard = document.getElementById('entry-account-card');
             const accountTitle = document.getElementById('welcome-access-title');
@@ -2287,7 +2286,6 @@
             const isGuest = (mode === 'guest');
             if (accountCard) accountCard.hidden = isGuest;
             if (guestButton) guestButton.style.display = isGuest ? 'inline-block' : 'none';
-            if (avatarSelection) avatarSelection.style.display = isGuest ? 'block' : 'none';
             if (secondaryActions) secondaryActions.style.display = isGuest ? 'flex' : 'none';
             if (accountTitle) accountTitle.textContent = mode === 'login-choice'
                 ? '¿Cómo quieres ingresar?'
@@ -2308,6 +2306,8 @@
         window.openAvatarCustomizer = function() {
             const modal = document.getElementById('avatar-customizer-modal');
             if (!modal) return;
+            const avatarSelection = normalizeAvatarSelectionPanels();
+            avatarSelection?.style.removeProperty('display');
             modal.hidden = false;
             avatarCustomizerDraft = getCommittedAvatarProfile();
             document.getElementById('member-pedometer')?.classList.add('member-pedometer--suspended');
