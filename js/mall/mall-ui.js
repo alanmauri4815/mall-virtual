@@ -8559,23 +8559,23 @@ speed: Number(myMoveSpeed.toFixed(3)),
         // Each dressed body must use skinned clothing against this same Mixamo rig.
         // The neutral body remains the fallback for body variants not exported yet.
         const GAME_READY_AVATAR_URLS = {
-            "male-casual": "assets/avatars/mall-persona-masculino-casual-v7-mejorada.glb?v=20260926-staging-avatar-rig-v1",
-            "male-elegant": "assets/avatars/mall-persona-masculino-elegant-v7-mejorada.glb?v=20260926-staging-avatar-rig-v1",
-            "male-work": "assets/avatars/mall-persona-masculino-work-v7-mejorada.glb?v=20260926-staging-avatar-rig-v1",
-            "female-casual": "assets/avatars/mall-persona-femenino-casual-v5-mejorada.glb?v=20260926-staging-avatar-rig-v1",
-            "female-elegant": "assets/avatars/mall-persona-femenino-elegant-v5-mejorada.glb?v=20260926-staging-avatar-rig-v1",
-            "female-sport": "assets/avatars/mall-persona-femenino-sport-v5-mejorada.glb?v=20260926-staging-avatar-rig-v1"
+            "male-casual": "assets/avatars/mall-persona-masculino-casual-v7-mejorada.glb?v=20261004-avatar-customizer-model-traits-v2",
+            "male-elegant": "assets/avatars/mall-persona-masculino-elegant-v7-mejorada.glb?v=20261004-avatar-customizer-model-traits-v2",
+            "male-work": "assets/avatars/mall-persona-masculino-work-v7-mejorada.glb?v=20261004-avatar-customizer-model-traits-v2",
+            "female-casual": "assets/avatars/mall-persona-femenino-casual-v5-mejorada.glb?v=20261004-avatar-customizer-model-traits-v2",
+            "female-elegant": "assets/avatars/mall-persona-femenino-elegant-v5-mejorada.glb?v=20261004-avatar-customizer-model-traits-v2",
+            "female-sport": "assets/avatars/mall-persona-femenino-sport-v5-mejorada.glb?v=20261004-avatar-customizer-model-traits-v2"
         };
         const GAME_READY_AVATAR_ACTION_URLS = {
             // This is the walk clip already calibrated for the mall. Do not use an
             // animation embedded in a cosmetic body: it may be authored differently.
-            walk: "assets/avatars/hombre-caminando-2.glb?v=20260926-staging-avatar-rig-v1",
-            walkFemale: "assets/avatars/animations/female-walk.glb?v=20260926-staging-avatar-rig-v1",
-            idle: "assets/avatars/animations/standing-idle.glb?v=20260926-staging-avatar-rig-v1",
-            backward: "assets/avatars/animations/backward.glb?v=20260926-staging-avatar-rig-v1",
-            turnLeft: "assets/avatars/animations/turn-left.glb?v=20260926-staging-avatar-rig-v1",
-            sit: "assets/avatars/animations/sitting.glb?v=20260926-staging-avatar-rig-v1",
-            stand: "assets/avatars/animations/stand.glb?v=20260926-staging-avatar-rig-v1"
+            walk: "assets/avatars/hombre-caminando-2.glb?v=20261004-avatar-customizer-model-traits-v2",
+            walkFemale: "assets/avatars/animations/female-walk.glb?v=20261004-avatar-customizer-model-traits-v2",
+            idle: "assets/avatars/animations/standing-idle.glb?v=20261004-avatar-customizer-model-traits-v2",
+            backward: "assets/avatars/animations/backward.glb?v=20261004-avatar-customizer-model-traits-v2",
+            turnLeft: "assets/avatars/animations/turn-left.glb?v=20261004-avatar-customizer-model-traits-v2",
+            sit: "assets/avatars/animations/sitting.glb?v=20261004-avatar-customizer-model-traits-v2",
+            stand: "assets/avatars/animations/stand.glb?v=20261004-avatar-customizer-model-traits-v2"
         };
         // Shared reference scale for every local and remote neutral-rig avatar.
         const GAME_READY_AVATAR_BASE_SCALE = 1.25;
@@ -8593,10 +8593,10 @@ speed: Number(myMoveSpeed.toFixed(3)),
             actionClips: null
         };
         const GAME_READY_EYE_TEXTURES = Object.freeze({
-            brown: "assets/avatars/eyes/brown_eye.png",
-            hazel: "assets/avatars/eyes/bluegreen_eye.png",
-            green: "assets/avatars/eyes/green_eye.png",
-            blue: "assets/avatars/eyes/blue_eye.png"
+            brown: "assets/avatars/eyes/brown_eye.png?v=20261004-avatar-customizer-model-traits-v2",
+            hazel: "assets/avatars/eyes/bluegreen_eye.png?v=20261004-avatar-customizer-model-traits-v2",
+            green: "assets/avatars/eyes/green_eye.png?v=20261004-avatar-customizer-model-traits-v2",
+            blue: "assets/avatars/eyes/blue_eye.png?v=20261004-avatar-customizer-model-traits-v2"
         });
         const gameReadyEyeTextureCache = {};
 
