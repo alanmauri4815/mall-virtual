@@ -177,6 +177,7 @@ window.addEventListener('DOMContentLoaded', () => {
         closeCompactRouteMap: () => callGlobal('closeCompactRouteMap'),
         teleportFromCompactRoute: () => callGlobal('teleportFromCompactRoute'),
         toggleWalkMode: () => callGlobal('toggleWalkMode'),
+        toggleThirdPersonView: () => callGlobal('toggleThirdPersonView'),
         toggleAvatarLabelMode: () => callGlobal('toggleAvatarLabelMode'),
         openMemberBenefits: () => callGlobal('openMemberBenefits'),
         closeMemberBenefits: () => callGlobal('closeMemberBenefits'),

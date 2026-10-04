@@ -53,19 +53,22 @@
 
         const camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 1500);
         camera.position.set(45, 45, 45);
+        const thirdPersonCamera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 1500);
 
         const renderer = new THREE.WebGLRenderer({
             antialias: !IS_LOW_END_MOBILE,
             powerPreference: IS_LOW_END_MOBILE ? 'low-power' : 'high-performance',
             preserveDrawingBuffer: false
         });
-        window.mallPublicDisplayRuntime = { scene, camera, renderer };
+        window.mallPublicDisplayRuntime = { scene, camera, thirdPersonCamera, renderer };
         const getPreferredPixelRatio = () => {
             return Math.min(window.devicePixelRatio || 1, MALL_PERFORMANCE_PROFILE.pixelRatioCap);
         };
         const syncRendererViewport = () => {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
+            thirdPersonCamera.aspect = window.innerWidth / window.innerHeight;
+            thirdPersonCamera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.setPixelRatio(getPreferredPixelRatio());
         };
@@ -236,6 +239,7 @@
         });
 
         let isWalking = false;
+        let isThirdPersonView = false;
         let controlsMenuOpen = false;
         let currentModalStoreCode = "";
         let currentModalStoreId = "";
@@ -450,6 +454,80 @@
             btn.setAttribute('aria-disabled', isWalking && !canUseAerialView ? 'true' : 'false');
         }
 
+        function syncThirdPersonViewButton() {
+            const btn = document.getElementById('third-person-view-menu-item');
+            if (!btn) return;
+            btn.innerText = isThirdPersonView ? 'Volver a vista de paseo' : 'Vista en tercera persona';
+            btn.setAttribute('aria-pressed', String(isThirdPersonView));
+        }
+
+        const thirdPersonHeading = new THREE.Vector3();
+        const thirdPersonFocus = new THREE.Vector3();
+        const thirdPersonDesiredPosition = new THREE.Vector3();
+        const thirdPersonProbePosition = new THREE.Vector3();
+        let thirdPersonCameraInitialized = false;
+        let lastThirdPersonCameraAt = 0;
+        let lastThirdPersonOcclusionCheckAt = 0;
+        let thirdPersonSafeDistance = 4.35;
+
+        function updateThirdPersonCamera(nowMs = performance.now()) {
+            if (!isThirdPersonView) return;
+
+            camera.getWorldDirection(thirdPersonHeading);
+            thirdPersonHeading.y = 0;
+            if (thirdPersonHeading.lengthSq() < 0.0001) thirdPersonHeading.set(0, 0, -1);
+            else thirdPersonHeading.normalize();
+
+            thirdPersonFocus.copy(camera.position)
+                .addScaledVector(thirdPersonHeading, 0.34);
+            thirdPersonFocus.y -= 0.5;
+
+            if (nowMs - lastThirdPersonOcclusionCheckAt >= 100) {
+                lastThirdPersonOcclusionCheckAt = nowMs;
+                if (typeof window.checkCollision === 'function') {
+                    for (let distance = 4.35; distance >= 1.2; distance -= 0.45) {
+                        thirdPersonProbePosition.copy(thirdPersonFocus)
+                            .addScaledVector(thirdPersonHeading, -distance);
+                        thirdPersonProbePosition.y = thirdPersonFocus.y + 1.65;
+                        const blocked = window.checkCollision(
+                            thirdPersonProbePosition.x,
+                            thirdPersonProbePosition.y,
+                            thirdPersonProbePosition.z,
+                            {
+                                includeActors: false,
+                                collisionRadius: 0.12,
+                                bodyMinY: thirdPersonProbePosition.y - 0.12,
+                                bodyMaxY: thirdPersonProbePosition.y + 0.12
+                            }
+                        );
+                        if (!blocked) {
+                            thirdPersonSafeDistance = distance;
+                            break;
+                        }
+                        thirdPersonSafeDistance = Math.max(0.9, distance - 0.45);
+                    }
+                }
+            }
+
+            thirdPersonDesiredPosition.copy(thirdPersonFocus)
+                .addScaledVector(thirdPersonHeading, -thirdPersonSafeDistance);
+            thirdPersonDesiredPosition.y = thirdPersonFocus.y + 1.65;
+
+            if (!thirdPersonCameraInitialized) {
+                thirdPersonCamera.position.copy(thirdPersonDesiredPosition);
+                thirdPersonCameraInitialized = true;
+            } else {
+                const deltaSec = THREE.MathUtils.clamp((nowMs - lastThirdPersonCameraAt) / 1000, 1 / 120, 1 / 20);
+                thirdPersonCamera.position.lerp(thirdPersonDesiredPosition, 1 - Math.exp(-14 * deltaSec));
+            }
+            lastThirdPersonCameraAt = nowMs;
+            thirdPersonCamera.lookAt(thirdPersonFocus);
+        }
+
+        window.isMallThirdPersonView = () => isThirdPersonView;
+        window.getMallRenderCamera = () => isThirdPersonView ? thirdPersonCamera : camera;
+        window.updateMallThirdPersonCamera = updateThirdPersonCamera;
+
         function isElementActuallyVisible(element) {
             if (!element) return false;
             const style = window.getComputedStyle(element);
@@ -490,6 +568,8 @@
                 return;
             }
             isWalking = !isWalking;
+            isThirdPersonView = false;
+            thirdPersonCameraInitialized = false;
             lockWalkModePreference = isWalking;
             if (isWalking) {
                 scene.fog = new THREE.Fog(0xaabbcc, FOG_PROFILE_OUTSIDE.near, FOG_PROFILE_OUTSIDE.far);
@@ -526,6 +606,20 @@
                 document.getElementById('mobile-controls-container').style.display = 'none';
             }
             syncWalkModeButton();
+            syncThirdPersonViewButton();
+            closeControlsMenu();
+        };
+
+        window.toggleThirdPersonView = function () {
+            if (!hasEnteredMall) return;
+            if (!isWalking) {
+                window.toggleWalkMode();
+                if (!isWalking) return;
+            }
+            isThirdPersonView = !isThirdPersonView;
+            thirdPersonCameraInitialized = false;
+            window.updateMallThirdPersonAvatar?.(performance.now());
+            syncThirdPersonViewButton();
             closeControlsMenu();
         };
 

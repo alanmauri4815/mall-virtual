@@ -10410,6 +10410,83 @@ speed: Number(myMoveSpeed.toFixed(3)),
         window.commitGameReadySeatRootOffset = commitGameReadySeatRootOffset;
         window.updateAvatarLabelPosition = updateAvatarLabelPosition;
 
+        let localThirdPersonAvatar = null;
+        let localThirdPersonPreviousPosition = null;
+        let localThirdPersonPreviousYaw = null;
+        let localThirdPersonPreviousAt = 0;
+        function updateMallThirdPersonAvatar(nowMs = performance.now()) {
+            if (!window.isMallThirdPersonView?.() || !hasEnteredMall) {
+                if (localThirdPersonAvatar?.mesh) localThirdPersonAvatar.mesh.visible = false;
+                if (localThirdPersonAvatar?.label) localThirdPersonAvatar.label.style.display = 'none';
+                return;
+            }
+
+            if (!localThirdPersonAvatar) {
+                localThirdPersonAvatar = createGameReadyAvatar(myNickname || 'Visitante', myAvatarStyle);
+                localThirdPersonAvatar.playerId = myPresenceId;
+                localThirdPersonAvatar.nickname = myNickname || 'Visitante';
+                localThirdPersonAvatar.isRemotePlayer = true;
+                localThirdPersonAvatar.role = currentAccessRole || 'guest';
+                localThirdPersonAvatar.mesh.userData.mallLocalThirdPersonAvatar = true;
+                if (localThirdPersonAvatar.label) localThirdPersonAvatar.label.style.display = 'none';
+            }
+
+            const actor = localThirdPersonAvatar;
+            if (actor.styleCode !== myAvatarStyle) updateRemoteAvatarStyle(actor, myAvatarStyle);
+            actor.role = currentAccessRole || 'guest';
+            actor.mesh.visible = true;
+            if (actor.label) actor.label.style.display = 'none';
+
+            const isSeated = Boolean(window.mallMotionSeated);
+            const seatedPosition = isSeated ? window.mallSeatInteraction?.position : null;
+            const groundY = seatedPosition
+                ? seatedPosition.y + AVATAR_FLOOR_OFFSET
+                : camera.position.y - (isSeated ? MALL_SEATED_EYE_HEIGHT : PLAYER_EYE_HEIGHT) + AVATAR_FLOOR_OFFSET;
+            actor.mesh.position.set(
+                seatedPosition?.x ?? camera.position.x,
+                groundY,
+                seatedPosition?.z ?? camera.position.z
+            );
+
+            const direction = camera.getWorldDirection(new THREE.Vector3());
+            direction.y = 0;
+            if (direction.lengthSq() < 0.0001) direction.set(0, 0, -1);
+            else direction.normalize();
+            const yaw = seatedPosition && Number.isFinite(window.mallSeatInteraction?.yaw)
+                ? window.mallSeatInteraction.yaw
+                : Math.atan2(direction.x, direction.z);
+            actor.mesh.rotation.y = yaw;
+            actor.targetPos.copy(actor.mesh.position);
+            actor.targetRot = yaw;
+
+            const deltaSec = localThirdPersonPreviousAt
+                ? THREE.MathUtils.clamp((nowMs - localThirdPersonPreviousAt) / 1000, 1 / 120, 1 / 20)
+                : 1 / 60;
+            const distance = localThirdPersonPreviousPosition
+                ? localThirdPersonPreviousPosition.distanceTo(actor.mesh.position)
+                : 0;
+            const yawDelta = localThirdPersonPreviousYaw === null
+                ? 0
+                : Math.atan2(Math.sin(yaw - localThirdPersonPreviousYaw), Math.cos(yaw - localThirdPersonPreviousYaw));
+            const moving = !isSeated && distance > 0.002;
+            const forwardDistance = localThirdPersonPreviousPosition
+                ? (actor.mesh.position.x - localThirdPersonPreviousPosition.x) * direction.x
+                    + (actor.mesh.position.z - localThirdPersonPreviousPosition.z) * direction.z
+                : 0;
+            actor.motionMode = isSeated ? 'sit'
+                : moving ? (forwardDistance < -0.005 ? 'backward' : 'walk')
+                : Math.abs(yawDelta) > 0.008 ? (yawDelta > 0 ? 'turnLeft' : 'turnRight')
+                : 'idle';
+            actor.remoteMoving = moving;
+            actor.remoteSpeed = moving ? distance / deltaSec : 0;
+            applyAvatarPose(actor, moving ? distance / MALL_WALK_TRAVEL_SCALE : 0, nowMs);
+
+            localThirdPersonPreviousPosition = actor.mesh.position.clone();
+            localThirdPersonPreviousYaw = yaw;
+            localThirdPersonPreviousAt = nowMs;
+        }
+        window.updateMallThirdPersonAvatar = updateMallThirdPersonAvatar;
+
         function syncPlayers(state) {
             const activeIds = new Set();
             Object.entries(state || {}).forEach(([id, presences]) => {

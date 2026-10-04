@@ -135,12 +135,14 @@
                 controls.update();
                 window.keepMallSeatedCameraAnchored?.();
             });
+            runFrameStep('third-person-camera', () => window.updateMallThirdPersonCamera?.(nowMs));
+            runFrameStep('third-person-avatar', () => window.updateMallThirdPersonAvatar?.(nowMs));
             runFrameStep('analytics-attention', () => window.mallAnalytics?.updateAttention(nowMs));
             runFrameStep('member-pedometer', () => window.updateMemberPedometer?.(nowMs));
             runFrameStep('promotion-collectibles', () => window.updateMallPromotionCollectibles?.(nowMs));
             runFrameStep('store-attendants', () => window.updateStoreAttendants?.(nowMs, shouldUpdateLabels));
             runFrameStep('save-admin-position', saveAdminPosition);
-            runFrameStep('render', () => renderer.render(scene, camera));
+            runFrameStep('render', () => renderer.render(scene, window.getMallRenderCamera?.() || camera));
             window.mallRuntimeMonitor?.enter('idle');
             window.mallRuntimeMonitor?.heartbeat(Date.now());
         }

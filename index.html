@@ -17,7 +17,7 @@
     <script src="assets/vendor/three/SkeletonUtils.r128.js" defer></script>
     <script src="assets/vendor/sb-client/client-v2.min.js" defer></script>
     <script src="js/mall/mall-context.js?v=20260926-temporary-bench-seating-pause-v4" defer></script>
-    <script src="js/mall/mall-boot.js?v=20260929-guided-tour" defer></script>
+    <script src="js/mall/mall-boot.js?v=20261004-third-person-camera-v1" defer></script>
     <link rel="stylesheet" href="css/mall.css?v=20260929-guided-tour">
 </head>
 
@@ -185,6 +185,7 @@
             <div id="controls-dropdown" class="controls-dropdown">
                 <div class="controls-dropdown-title">Controles del Mall</div>
                 <button id="walk-mode-menu-item" class="controls-menu-item" data-mall-action="toggleWalkMode" data-stop-propagation="true">Cambiar a Modo Paseo</button>
+                <button id="third-person-view-menu-item" class="controls-menu-item" data-mall-action="toggleThirdPersonView" data-stop-propagation="true" aria-pressed="false">Vista en tercera persona</button>
                 <button id="avatar-customizer-menu-item" class="controls-menu-item" data-mall-action="openAvatarCustomizer" data-stop-propagation="true">Personalizar avatar</button>
                 <button id="avatar-label-mode-btn" class="controls-menu-item" data-mall-action="toggleAvatarLabelMode" data-stop-propagation="true">Nombres: Cerca</button>
                 <button id="mall-feedback-menu-item" class="controls-menu-item" data-mall-action="openMallFeedback" data-stop-propagation="true">Sugerencias y reclamos</button>
@@ -1588,7 +1589,7 @@
 <!-- Mall Modules -->
     <script src="js/mall/mall-physics.js?v=20260926-exact-collision-volume-v1" defer></script>
     <script src="js/mall/mall-furniture.js?v=20260805-physical-space-audit" defer></script>
-    <script src="js/mall/mall-constants.js?v=20261002-mobile-resolution-v2" defer></script>
+    <script src="js/mall/mall-constants.js?v=20261004-third-person-camera-v1" defer></script>
     <script src="js/mall/mall-object-editor.js?v=20260908-storage-cache-control-v1" defer></script>
     <script src="js/mall/mall-world.js?v=20261002-mobile-wall-texture-v1" defer></script>
     <script src="js/mall/mall-structural-audit.js?v=20260906-admin-only-v1" defer></script>
@@ -1602,11 +1603,11 @@
     <script src="js/mall/mall-interaction.js?v=20260820-editor-selection-fix" defer></script>
     <script src="js/mall/security/url-safety.js?v=20260815-store-contact-links" defer></script>
     <script src="js/mall/mall-catalog-themes.js?v=20260830-catalog-color-themes" defer></script>
-    <script src="js/mall/mall-ui.js?v=20261002-walk-speed-ratio-v1" defer></script>
+    <script src="js/mall/mall-ui.js?v=20261004-third-person-camera-v1" defer></script>
     <script src="js/mall/mall-analytics.js?v=20260726-presence-avatar-local" defer></script>
     <script src="js/mall/mall-assistant-catalog-search.js?v=20261003-local-catalog-search" defer></script>
     <script src="js/mall/mall-store-assistant.js?v=20261003-local-catalog-search" defer></script>
-    <script src="js/mall/mall-npc.js?v=20261002-walk-speed-ratio-v1" defer></script>
+    <script src="js/mall/mall-npc.js?v=20261004-third-person-camera-v1" defer></script>
     <script src="js/mall/mall-purchases.js?v=20260927-purchase-receipt-v1" defer></script>
     <script src="js/mall/mall-guided-tour.js?v=20260929-guided-tour" defer></script>
     <script src="js/mall/mall-main.js?v=20260929-guided-tour" defer></script>
