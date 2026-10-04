@@ -3286,6 +3286,7 @@
                 }
 
                 if (!isWalking) window.toggleWalkMode({ preservePosition: true });
+                window.setMallThirdPersonView?.(true);
                 if (window.mallMobileViewport) window.mallMobileViewport.requestLandscape();
                 if (role === "guest" || role === "member" || role === "registered_visitor") {
                     preloadStoreContent(renameStoreCode('O101'));
