@@ -2342,6 +2342,26 @@
             window.closeAvatarCustomizer();
         };
 
+        // Inline onclick attributes are blocked by the production CSP. Keep the
+        // customizer controls working through one delegated listener instead.
+        const avatarCustomizerModalElement = document.getElementById('avatar-customizer-modal');
+        avatarCustomizerModalElement?.addEventListener('click', (event) => {
+            const target = event.target instanceof Element ? event.target : null;
+            const option = target?.closest('button[data-avatar-kind]');
+            if (option && avatarCustomizerModalElement.contains(option)) {
+                const { avatarKind, avatarValue } = option.dataset;
+                if (avatarKind === 'body') window.selectAvatarBody(avatarValue, option);
+                else if (avatarKind === 'outfit') window.selectAvatarOutfit(avatarValue, option);
+                else window.selectAvatarTrait(avatarKind, avatarValue);
+                return;
+            }
+
+            const action = target?.closest('button[data-avatar-action]')?.dataset.avatarAction;
+            if (action === 'reset') window.useStandardAvatar();
+            else if (action === 'cancel') window.closeAvatarCustomizer();
+            else if (action === 'apply') window.applyAvatarCustomizer();
+        });
+
         window.openMemberRegistration = function() {
             window.openMallAccountAccess?.();
             window.setEntryMode('member');
