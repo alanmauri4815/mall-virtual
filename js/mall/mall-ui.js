@@ -8734,6 +8734,20 @@ speed: Number(myMoveSpeed.toFixed(3)),
                 .catch((error) => console.warn('No se pudo cargar la vista previa del avatar:', error));
         }
 
+        // Load packed GLBs with Fetch instead of GLTFLoader's XMLHttpRequest.
+        // Some HTTP/3 proxy paths stall the large XHR responses while Fetch can
+        // finish the same binary and hand it directly to GLTFLoader.parse().
+        function loadGameReadyAvatarGltf(url) {
+            const loader = gameReadyAvatarState.loader || (gameReadyAvatarState.loader = new THREE.GLTFLoader());
+            const basePath = loader.resourcePath || THREE.LoaderUtils.extractUrlBase(url);
+            return fetch(url, { cache: "force-cache" }).then((response) => {
+                if (!response.ok) throw new Error(`No se pudo descargar GLB (${response.status}): ${url}`);
+                return response.arrayBuffer();
+            }).then((data) => new Promise((resolve, reject) => {
+                loader.parse(data, basePath, resolve, reject);
+            }));
+        }
+
         function ensureGameReadyAvatarModel(modelKey = "male") {
             const key = GAME_READY_AVATAR_URLS[modelKey] ? modelKey : "male-casual";
             if (gameReadyAvatarState.gltfs[key]) return Promise.resolve(gameReadyAvatarState.gltfs[key]);
@@ -8744,22 +8758,16 @@ speed: Number(myMoveSpeed.toFixed(3)),
                 return Promise.reject(gameReadyAvatarState.errors[key]);
             }
 
-            gameReadyAvatarState.loader = gameReadyAvatarState.loader || new THREE.GLTFLoader();
-            gameReadyAvatarState.promises[key] = new Promise((resolve, reject) => {
-                gameReadyAvatarState.loader.load(
-                    GAME_READY_AVATAR_URLS[key],
-                    (gltf) => {
-                        gameReadyAvatarState.gltfs[key] = gltf;
-                        resolve(gltf);
-                    },
-                    undefined,
-                    (error) => {
-                        console.warn("No se pudo cargar avatar game-ready:", error);
-                        gameReadyAvatarState.errors[key] = error;
-                        reject(error);
-                    }
-                );
-            });
+            gameReadyAvatarState.promises[key] = loadGameReadyAvatarGltf(GAME_READY_AVATAR_URLS[key])
+                .then((gltf) => {
+                    gameReadyAvatarState.gltfs[key] = gltf;
+                    return gltf;
+                })
+                .catch((error) => {
+                    console.warn("No se pudo cargar avatar game-ready:", error);
+                    gameReadyAvatarState.errors[key] = error;
+                    throw error;
+                });
             return gameReadyAvatarState.promises[key];
         }
 
@@ -8768,21 +8776,15 @@ speed: Number(myMoveSpeed.toFixed(3)),
             if (gameReadyAvatarState.actionPromise) return gameReadyAvatarState.actionPromise;
             if (!THREE.GLTFLoader) return Promise.resolve({});
 
-            gameReadyAvatarState.loader = gameReadyAvatarState.loader || new THREE.GLTFLoader();
             const entries = Object.entries(GAME_READY_AVATAR_ACTION_URLS);
-            gameReadyAvatarState.actionPromise = Promise.all(entries.map(([name, url]) => new Promise((resolve) => {
-                gameReadyAvatarState.loader.load(
-                    url,
-                    (gltf) => {
-                        resolve([name, lockAnimationHorizontalRootMotion(gltf.animations?.[0] || null, name)]);
-                    },
-                    undefined,
-                    (error) => {
+            gameReadyAvatarState.actionPromise = Promise.all(entries.map(([name, url]) =>
+                loadGameReadyAvatarGltf(url)
+                    .then((gltf) => [name, lockAnimationHorizontalRootMotion(gltf.animations?.[0] || null, name)])
+                    .catch((error) => {
                         console.warn(`No se pudo cargar la accion ${name}:`, error);
-                        resolve([name, null]);
-                    }
-                );
-            }))).then((loaded) => {
+                        return [name, null];
+                    })
+            )).then((loaded) => {
                 gameReadyAvatarState.actionClips = Object.fromEntries(loaded.filter(([, clip]) => !!clip));
                 return gameReadyAvatarState.actionClips;
             });

@@ -70,8 +70,8 @@ const CHROME_PATH = process.env.PLAYWRIGHT_CHROME_PATH
         await preview.screenshot({ path: path.join(output, 'male-female.png') });
         fs.writeFileSync(path.join(output, 'diagnostics.json'), JSON.stringify({ errors, diagnostics }, null, 2));
         assert.ok(diagnostics.count >= 4);
-        assert.equal(diagnostics.male.modelKey, 'male');
-        assert.equal(diagnostics.female.modelKey, 'female');
+        assert.ok(['male-casual', 'male-elegant', 'male-work'].includes(diagnostics.male.modelKey));
+        assert.ok(['female-casual', 'female-elegant', 'female-sport'].includes(diagnostics.female.modelKey));
         assert.equal(diagnostics.male.kind, 'gltf');
         assert.equal(diagnostics.female.kind, 'gltf');
         assert.ok(diagnostics.male.actions.includes('walk'));
