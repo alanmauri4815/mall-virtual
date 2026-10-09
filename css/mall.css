@@ -1111,6 +1111,12 @@
             backdrop-filter: blur(10px);
         }
 
+        a.controls-menu-item {
+            display: block;
+            padding: 12px 16px;
+            text-decoration: none;
+        }
+
         .controls-menu-btn {
             min-width: 180px;
             padding: 12px 18px;
@@ -1951,7 +1957,11 @@
             gap: 8px;
         }
 
-        .entry-top-actions button {
+        .entry-top-actions button,
+        .entry-top-actions a {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
             min-height: 38px;
             padding: 8px 16px;
             border: 1px solid rgba(201, 166, 107, 0.48);
@@ -1963,6 +1973,14 @@
             font-weight: 700;
             letter-spacing: 1.4px;
             text-transform: uppercase;
+        }
+
+        .entry-top-actions a { text-decoration: none; }
+
+        .entry-top-actions .entry-top-actions__catalog {
+            border-color: rgba(201, 166, 107, 0.78);
+            background: #c5a059;
+            color: #15120c;
         }
 
         .entry-top-actions .entry-top-actions__register {
@@ -4606,6 +4624,9 @@
                 gap: 14px;
             }
 
+            .p-detail-grid,
+            .p-facet-grid { grid-template-columns: 1fr; }
+
             .tenant-telegram-card,
             .tenant-security-card {
                 grid-column: span 1;
@@ -6056,6 +6077,73 @@
             box-sizing: border-box;
         }
 
+        .p-details > summary {
+            color: #c5a059;
+            font-size: 10px;
+            cursor: pointer;
+        }
+
+        .p-detail-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 8px;
+            margin-top: 9px;
+        }
+
+        .p-detail-field {
+            display: grid;
+            gap: 4px;
+            min-width: 0;
+            color: #b9b2a3;
+            font-size: 9px;
+        }
+
+        .p-detail-field select,
+        .p-detail-field textarea {
+            width: 100%;
+            min-width: 0;
+            color: #e8dcc0;
+            background: #0c0c0c;
+            border: 1px solid #2a2418;
+            border-radius: 4px;
+            padding: 7px 8px;
+            font: 11px "Segoe UI", "Helvetica Neue", sans-serif;
+        }
+
+        .p-detail-description,
+        .p-delivery-fieldset { grid-column: 1 / -1; }
+        .p-detail-description textarea { min-height: 66px; resize: vertical; }
+
+        .p-metadata-fields {
+            display: grid;
+            grid-column: 1 / -1;
+            min-width: 0;
+            gap: 8px;
+            margin: 0;
+            padding: 0;
+            border: 0;
+        }
+        .p-metadata-fields:disabled { opacity: .55; }
+
+        .p-facet-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 8px;
+        }
+
+        .p-delivery-fieldset {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 7px 12px;
+            margin: 0;
+            padding: 8px;
+            border: 1px solid #2a2418;
+            border-radius: 4px;
+        }
+        .p-delivery-fieldset legend { padding: 0 4px; color: #b9b2a3; font-size: 9px; }
+        .p-delivery-fieldset label { display: inline-flex; align-items: center; gap: 4px; color: #e8dcc0; font-size: 9px; }
+        .tenant-product-facets-status { margin: -5px 0 14px; }
+
         .store-assistant-header {
             display: flex;
             align-items: flex-start;
@@ -6656,7 +6744,8 @@
                 padding-top: 48px;
             }
             .entry-top-actions { top: 0; right: 0; }
-            .entry-top-actions button { min-height: 36px; padding: 8px 12px; }
+            .entry-top-actions button,
+            .entry-top-actions a { min-height: 36px; padding: 8px 10px; font-size: 9px; }
             .welcome-stage {
                 min-height: min(520px, calc(100dvh - 98px));
                 padding: 32px 20px;

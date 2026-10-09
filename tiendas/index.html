@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#173d32">
+  <meta name="description" content="Explora productos y tiendas de Mall Providencia en una vitrina digital simple y directa.">
+  <title>Tiendas y productos | Mall Providencia</title>
+  <link rel="stylesheet" href="./catalog.css?v=20261009-storefront-v1">
+  <script defer src="../assets/vendor/sb-client/client-v2.min.js"></script>
+  <script defer src="../js/mall/mall-context.js?v=20261004-official-mall-domain-v1"></script>
+  <script defer src="./catalog.js?v=20261009-storefront-v1"></script>
+</head>
+<body>
+  <div class="topline"><span>La vitrina digital de</span><strong data-mall-context-name>Mall Providencia</strong><span class="topline-dot" aria-hidden="true"></span><span>Compra directamente a cada local</span></div>
+
+  <header class="site-header">
+    <a class="brand" href="./" aria-label="Mall Providencia, inicio">
+      <span class="brand-mark" aria-hidden="true">M</span>
+      <span class="brand-copy"><strong data-mall-context-name>Mall Providencia</strong><small>TIENDAS Y PRODUCTOS</small></span>
+    </a>
+    <nav class="main-nav" aria-label="Navegación principal">
+      <button class="nav-link is-current" type="button" data-mode-link="products">Productos</button>
+      <button class="nav-link" type="button" data-mode-link="stores">Tiendas</button>
+      <a class="nav-link nav-mall-link" href="../">Visitar el mall 3D</a>
+    </nav>
+    <a class="header-count" href="#catalog"><span class="count-number" data-store-count>--</span><span>locales</span></a>
+  </header>
+
+  <main>
+    <section class="intro" aria-labelledby="page-title">
+      <div class="intro-copy">
+        <p class="eyebrow"><span class="eyebrow-line"></span>UNA VITRINA, MUCHAS TIENDAS</p>
+        <h1 id="page-title">Encuentra algo<br class="desktop-break"> hecho para ti.</h1>
+        <p class="intro-summary">Productos y locales de <span data-mall-context-name>Mall Providencia</span>, reunidos en un solo lugar.</p>
+      </div>
+      <form class="search-form" role="search" data-search-form>
+        <label for="catalog-search">Buscar en el mall</label>
+        <div class="search-control">
+          <input id="catalog-search" name="q" type="search" placeholder="Producto, tienda o categoría" autocomplete="off">
+          <button type="submit">Buscar</button>
+        </div>
+        <p class="search-hint">Prueba con “joyas”, “hogar” o el nombre de un local.</p>
+      </form>
+      <div class="intro-stat" aria-live="polite"><strong data-product-count>--</strong><span>productos publicados</span></div>
+    </section>
+
+    <section class="catalog-section" id="catalog" aria-label="Catálogo del mall">
+      <div class="catalog-heading">
+        <div>
+          <p class="eyebrow catalog-eyebrow" data-catalog-kicker>DESCUBRE EL MALL</p>
+          <h2 data-catalog-title>Productos para explorar</h2>
+        </div>
+        <label class="sort-control" data-sort-wrap>
+          <span>Ordenar</span>
+          <select data-sort>
+            <option value="recommended">Recomendados</option>
+            <option value="newest">Más recientes</option>
+            <option value="price-asc">Precio: menor a mayor</option>
+            <option value="price-desc">Precio: mayor a menor</option>
+            <option value="name">Nombre: A a Z</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="catalog-toolbar">
+        <div class="view-switch" role="tablist" aria-label="Ver productos o tiendas">
+          <button type="button" role="tab" aria-selected="true" class="view-tab is-active" data-mode="products">Productos <span data-tab-product-count>--</span></button>
+          <button type="button" role="tab" aria-selected="false" class="view-tab" data-mode="stores">Tiendas <span data-tab-store-count>--</span></button>
+        </div>
+        <div class="category-filter-group">
+          <span class="category-filter-label" data-category-label>Tipo de producto</span>
+          <div class="category-list" aria-label="Filtrar por categoría" data-categories></div>
+        </div>
+      </div>
+
+      <div class="filter-panel" data-product-filters aria-label="Filtros de productos">
+        <div class="filter-fields">
+          <fieldset class="price-filter">
+            <legend>Precio (CLP)</legend>
+            <label>Desde <span class="price-input"><span>$</span><input type="number" inputmode="numeric" min="0" step="1000" placeholder="Mínimo" data-price-min aria-label="Precio mínimo"></span></label>
+            <label>Hasta <span class="price-input"><span>$</span><input type="number" inputmode="numeric" min="0" step="1000" placeholder="Máximo" data-price-max aria-label="Precio máximo"></span></label>
+          </fieldset>
+          <label class="store-filter">Tienda
+            <select data-store-filter aria-label="Filtrar por tienda"><option value="">Todas las tiendas</option></select>
+          </label>
+        </div>
+        <div class="price-presets" aria-label="Rangos rápidos de precio">
+          <span>Rangos rápidos</span>
+          <button type="button" data-price-range="0:10000">Hasta $10.000</button>
+          <button type="button" data-price-range="10000:25000">$10.000–$25.000</button>
+          <button type="button" data-price-range="25000:50000">$25.000–$50.000</button>
+          <button type="button" data-price-range="50000:">$50.000 o más</button>
+        </div>
+        <p class="filter-error" data-price-error aria-live="polite" hidden></p>
+      </div>
+
+      <details class="more-filters" data-structured-filter-panel hidden>
+        <summary>Más filtros</summary>
+        <div class="structured-filter-grid">
+          <label>Elaboración
+            <select data-origin-filter>
+              <option value="">Cualquiera</option>
+              <option value="own_made">Elaboración propia</option>
+              <option value="commercialized">Comercialización</option>
+            </select>
+          </label>
+          <label>Disponibilidad
+            <select data-availability-filter>
+              <option value="">Cualquiera</option>
+              <option value="in_stock">En stock</option>
+              <option value="made_to_order">Por encargo</option>
+              <option value="contact">Consultar disponibilidad</option>
+            </select>
+          </label>
+          <fieldset class="delivery-filter">
+            <legend>Entrega</legend>
+            <label><input type="checkbox" value="mall_pickup" data-delivery-filter> Retiro en mall</label>
+            <label><input type="checkbox" value="local_delivery" data-delivery-filter> Despacho local</label>
+            <label><input type="checkbox" value="nationwide_shipping" data-delivery-filter> Envíos nacionales</label>
+          </fieldset>
+        </div>
+      </details>
+
+      <div class="results-line" aria-live="polite">
+        <span data-results-count></span>
+        <button class="clear-filters" type="button" data-clear hidden>Limpiar filtros</button>
+      </div>
+
+      <div class="catalog-grid product-grid" data-grid aria-live="polite" aria-busy="true"></div>
+      <div class="empty-state" data-empty hidden>
+        <span class="empty-mark" aria-hidden="true">M</span>
+        <h3 data-empty-title>No encontramos resultados</h3>
+        <p data-empty-copy>Prueba con otra búsqueda o categoría.</p>
+        <button type="button" class="text-button" data-clear-empty>Ver todo el catálogo</button>
+      </div>
+      <div class="load-state" data-load-state role="status">Cargando la vitrina…</div>
+    </section>
+
+    <section class="closing-band">
+      <span class="closing-badge">MP</span>
+      <div><strong>Compra local, descubre más.</strong><p>Conecta directamente con las tiendas de Mall Providencia.</p></div>
+      <a href="../">Explorar el mall 3D <span aria-hidden="true">&#8599;</span></a>
+    </section>
+  </main>
+
+  <footer class="site-footer"><span data-mall-context-name>Mall Providencia</span><span>Vitrina digital de tiendas y productos</span></footer>
+
+  <div class="dialog-backdrop" data-dialog-backdrop hidden>
+    <section class="detail-dialog" role="dialog" aria-modal="true" aria-labelledby="detail-title" tabindex="-1" data-dialog>
+      <button class="dialog-close" type="button" aria-label="Cerrar detalle" data-dialog-close>&times;</button>
+      <div class="dialog-content" data-dialog-content></div>
+    </section>
+  </div>
+</body>
+</html>

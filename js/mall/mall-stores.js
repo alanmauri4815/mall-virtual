@@ -607,7 +607,15 @@
                         ? [...new Set(product.payment_methods.filter((method) => ['cash_on_delivery', 'bank_transfer', 'deposit_50'].includes(method)))]
                         : ['cash_on_delivery'],
                     slot_index: slotIndex,
-                    sort_order: slotIndex - 1
+                    sort_order: slotIndex - 1,
+                    ...(window.tenantProductFacetsAvailable === true ? {
+                        product_category: String(product.product_category || '').trim() || null,
+                        origin_type: String(product.origin_type || '').trim() || null,
+                        availability_status: String(product.availability_status || '').trim() || null,
+                        delivery_options: Array.isArray(product.delivery_options)
+                            ? [...new Set(product.delivery_options.filter((option) => ['mall_pickup', 'local_delivery', 'nationwide_shipping'].includes(option)))]
+                            : []
+                    } : {})
                     };
                 })
                 .filter(product => product.name);

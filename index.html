@@ -18,7 +18,7 @@
     <script src="assets/vendor/sb-client/client-v2.min.js" defer></script>
     <script src="js/mall/mall-context.js?v=20261004-official-mall-domain-v1" defer></script>
     <script src="js/mall/mall-boot.js?v=20261004-third-person-camera-v1" defer></script>
-    <link rel="stylesheet" href="css/mall.css?v=20261004-avatar-customizer-model-traits-v2">
+    <link rel="stylesheet" href="css/mall.css?v=20261009-flat-catalog-entry-v1">
 </head>
 
 <body>
@@ -41,6 +41,7 @@
     <div id="login-overlay">
         <div class="welcome-shell">
             <nav class="entry-top-actions" aria-label="Acceso a cuenta">
+                <a class="entry-top-actions__catalog" href="./tiendas/">Productos y tiendas</a>
                 <button type="button" data-mall-action="openLoginChooser">Login</button>
                 <button type="button" class="entry-top-actions__register" data-mall-action="entryMemberRegister">Registro</button>
             </nav>
@@ -184,6 +185,7 @@
             </button>
             <div id="controls-dropdown" class="controls-dropdown">
                 <div class="controls-dropdown-title">Controles del Mall</div>
+                <a class="controls-menu-item controls-menu-catalog-link" href="./tiendas/" data-stop-propagation="true">Ver productos y tiendas</a>
                 <button id="walk-mode-menu-item" class="controls-menu-item" data-mall-action="toggleWalkMode" data-stop-propagation="true">Cambiar a Modo Paseo</button>
                 <button id="third-person-view-menu-item" class="controls-menu-item" data-mall-action="toggleThirdPersonView" data-stop-propagation="true" aria-pressed="false">Vista en tercera persona</button>
                 <button id="avatar-customizer-menu-item" class="controls-menu-item" data-mall-action="openAvatarCustomizer" data-stop-propagation="true">Personalizar avatar</button>
@@ -1283,6 +1285,7 @@
         </section>
 
         <h3 class="tenant-section-title" id="tenant-products-title">Gestión de Inventario</h3>
+        <p id="tenant-product-facets-status" class="tenant-admin-help tenant-product-facets-status" role="status" hidden></p>
         <div id="edit-products-list">
             <!-- Generado dinámicamente -->
         </div>
@@ -1599,11 +1602,11 @@
     <script src="js/mall/mall-navigation.js?v=20261002-walk-speed-ratio-v1" defer></script>
     <script src="js/mall/mall-multiplayer.js?v=20260905-maze-validation-v1" defer></script>
     <script src="js/mall/commerce/product-capacity.js?v=20260809-tdd-product-capacity-local" defer></script>
-    <script src="js/mall/mall-stores.js?v=20260927-store-payment-options-v1" defer></script>
+    <script src="js/mall/mall-stores.js?v=20261009-store-discovery-facets-v1" defer></script>
     <script src="js/mall/mall-interaction.js?v=20260820-editor-selection-fix" defer></script>
     <script src="js/mall/security/url-safety.js?v=20260815-store-contact-links" defer></script>
     <script src="js/mall/mall-catalog-themes.js?v=20260830-catalog-color-themes" defer></script>
-    <script src="js/mall/mall-ui.js?v=20261004-avatar-fetch-csp-v1" defer></script>
+    <script src="js/mall/mall-ui.js?v=20261009-store-discovery-facets-v1" defer></script>
     <script src="js/mall/mall-analytics.js?v=20260726-presence-avatar-local" defer></script>
     <script src="js/mall/mall-assistant-catalog-search.js?v=20261003-local-catalog-search" defer></script>
     <script src="js/mall/mall-store-assistant.js?v=20261003-local-catalog-search" defer></script>

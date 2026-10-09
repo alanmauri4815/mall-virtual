@@ -6457,6 +6457,12 @@
         async function loadStoreProductsFast(storeCode) {
             if (!storeCode) return { products: [], skipped: false, error: null };
 
+            const facetsResult = await mallUiScopeQuery(supabaseClient
+                .from('store_products')
+                .select('product_category, origin_type, availability_status, delivery_options')
+                .limit(1));
+            window.tenantProductFacetsAvailable = !facetsResult.error;
+
             const queryWithColumns = async (selectColumns) => Promise.all([
                 mallUiScopeQuery(supabaseClient
                     .from('store_products')
@@ -6470,7 +6476,7 @@
                     .order('sort_order', { ascending: true }))
             ]);
 
-            const selectVariants = [
+            const baseSelectVariants = [
                 'id, store_id, local_code, name, price, image_url, description, slot_index, sort_order, payment_methods',
                 'id, store_id, local_code, name, price, image_url, description, slot_index, sort_order',
                 'id, store_id, local_code, name, price, image_url, description, sort_order, payment_methods',
@@ -6478,6 +6484,9 @@
                 'id, store_id, local_code, name, price, image_url, sort_order, payment_methods',
                 'id, store_id, local_code, name, price, image_url, sort_order'
             ];
+            const selectVariants = window.tenantProductFacetsAvailable
+                ? baseSelectVariants.map((columns) => `${columns}, product_category, origin_type, availability_status, delivery_options`)
+                : baseSelectVariants;
             let byStoreId = { data: [], error: null };
             let byLocalCode = { data: [], error: null };
             for (const columns of selectVariants) {
@@ -6508,13 +6517,31 @@
             const list = document.getElementById('edit-products-list');
             if (!list) return;
 
+            const productCategories = [
+                'Alimentos y bebidas', 'Arte y regalos', 'Belleza y cuidado', 'Deporte y bienestar',
+                'Hogar y decoración', 'Limpieza', 'Mascotas', 'Moda y accesorios',
+                'Oficina y librería', 'Servicios', 'Tecnología', 'Juguetes y bebés', 'Otros'
+            ];
+            const optionsFor = (values, selected) => values.map(([value, label]) =>
+                `<option value="${escapeHtml(value)}"${String(selected || '') === value ? ' selected' : ''}>${escapeHtml(label)}</option>`
+            ).join('');
+            const facetStatus = document.getElementById('tenant-product-facets-status');
+            if (facetStatus) {
+                facetStatus.hidden = false;
+                facetStatus.textContent = window.tenantProductFacetsAvailable === true
+                    ? 'Completa estos datos para que los clientes puedan filtrar mejor tus productos.'
+                    : 'Las opciones de clasificación no están disponibles en la base de datos. El resto del inventario se puede seguir guardando.';
+            }
+
             const slotCount = Math.max(1, Math.min(50, Number(currentTenantProductLimit) || 10));
             const normalizedProducts = typeof window.arrangeStoreProductsBySlot === 'function'
                 ? window.arrangeStoreProductsBySlot(products, slotCount)
                 : (products || []).slice(0, slotCount);
             list.innerHTML = "";
             for (let i = 0; i < slotCount; i++) {
-                const p = normalizedProducts[i] || { name: "", price: "", image_url: "", description: "", payment_methods: ['cash_on_delivery'] };
+                const p = normalizedProducts[i] || { name: "", price: "", image_url: "", description: "", payment_methods: ['cash_on_delivery'], delivery_options: [] };
+                const selectedDelivery = new Set(Array.isArray(p.delivery_options) ? p.delivery_options : []);
+                const metadataEnabled = window.tenantProductFacetsAvailable === true;
                 const selectedPaymentMethods = Array.isArray(p.payment_methods) && p.payment_methods.length
                     ? p.payment_methods
                     : ['cash_on_delivery'];
@@ -6536,7 +6563,34 @@
                         <input type="text" placeholder="Precio" value="${escapeHtml(p.price || '')}" class="p-price tenant-product-field" style="flex:1;">
                         <input type="text" placeholder="URL Foto" value="${escapeHtml(p.image_url || '')}" class="p-image tenant-product-field" style="flex:2;">
                     </div>
-                    <textarea placeholder="Descripción del producto (máx. 500 caracteres)" maxlength="${window.PRODUCT_DESCRIPTION_MAX_LENGTH || 500}" class="p-description tenant-product-field tenant-product-description" style="width:100%; min-height:66px; margin-top:6px; resize:vertical; line-height:1.35;">${escapeHtml(p.description || '')}</textarea>
+                    <details class="p-details">
+                        <summary>Descripción y filtros</summary>
+                        <div class="p-detail-grid">
+                            <label class="p-detail-field p-detail-description">Descripción
+                                <textarea class="tenant-product-description p-description" maxlength="${window.PRODUCT_DESCRIPTION_MAX_LENGTH || 500}" rows="3" placeholder="Detalles, medidas, materiales o condiciones">${escapeHtml(p.description || '')}</textarea>
+                            </label>
+                            <fieldset class="p-metadata-fields" ${metadataEnabled ? '' : 'disabled'}>
+                                <legend>Datos para facilitar la búsqueda</legend>
+                                <div class="p-facet-grid">
+                                    <label class="p-detail-field">Tipo de producto
+                                        <select class="tenant-product-field p-category">${optionsFor([['', 'Sin especificar'], ...productCategories.map(value => [value, value])], p.product_category)}</select>
+                                    </label>
+                                    <label class="p-detail-field">Elaboración
+                                        <select class="tenant-product-field p-origin">${optionsFor([['', 'Sin especificar'], ['own_made', 'Elaboración propia'], ['commercialized', 'Comercialización']], p.origin_type)}</select>
+                                    </label>
+                                    <label class="p-detail-field">Disponibilidad
+                                        <select class="tenant-product-field p-availability">${optionsFor([['', 'Sin especificar'], ['in_stock', 'En stock'], ['made_to_order', 'Por encargo'], ['contact', 'Consultar disponibilidad']], p.availability_status)}</select>
+                                    </label>
+                                    <fieldset class="p-delivery-fieldset">
+                                        <legend>Entrega</legend>
+                                        <label><input type="checkbox" class="p-delivery-option" value="mall_pickup"${selectedDelivery.has('mall_pickup') ? ' checked' : ''}>Retiro en mall</label>
+                                        <label><input type="checkbox" class="p-delivery-option" value="local_delivery"${selectedDelivery.has('local_delivery') ? ' checked' : ''}>Despacho local</label>
+                                        <label><input type="checkbox" class="p-delivery-option" value="nationwide_shipping"${selectedDelivery.has('nationwide_shipping') ? ' checked' : ''}>Envíos nacionales</label>
+                                    </fieldset>
+                                </div>
+                            </fieldset>
+                        </div>
+                    </details>
                     <fieldset class="p-payment-methods"><legend>Medios de pago habilitados para este producto</legend>${paymentOptions}</fieldset>
                     <div style="display:flex; gap:8px; align-items:center; margin-top:7px;">
                         <input type="file" accept="image/*" class="p-file" hidden aria-hidden="true" tabindex="-1">
@@ -6551,7 +6605,7 @@
             }
 
             list.querySelectorAll('.p-slot').forEach((slot) => {
-                ['.p-name', '.p-price', '.p-image', '.p-description', '.p-payment-method'].forEach((selector) => {
+                ['.p-name', '.p-price', '.p-image', '.p-description', '.p-payment-method', '.p-category', '.p-origin', '.p-availability', '.p-delivery-option'].forEach((selector) => {
                     const input = slot.querySelector(selector);
                     if (input) {
                         input.addEventListener('input', () => {
@@ -6582,7 +6636,11 @@
                     price: String(slot.querySelector('.p-price')?.value || '').trim(),
                     image_url: String(slot.querySelector('.p-image')?.value || '').trim(),
                     description: String(slot.querySelector('.p-description')?.value || '').trim().slice(0, window.PRODUCT_DESCRIPTION_MAX_LENGTH || 500),
-                    payment_methods: Array.from(slot.querySelectorAll('.p-payment-method:checked')).map((input) => input.value)
+                    payment_methods: Array.from(slot.querySelectorAll('.p-payment-method:checked')).map((input) => input.value),
+                    product_category: String(slot.querySelector('.p-category')?.value || ''),
+                    origin_type: String(slot.querySelector('.p-origin')?.value || ''),
+                    availability_status: String(slot.querySelector('.p-availability')?.value || ''),
+                    delivery_options: Array.from(slot.querySelectorAll('.p-delivery-option:checked')).map((input) => input.value)
                 });
             });
             tenantAdminProductDrafts.set(storeCode, drafts);
@@ -6607,7 +6665,7 @@
             if (!drafts?.length) return arrangedProducts;
 
             const base = Array.from({ length: slotCount }, (_, index) => {
-                const product = arrangedProducts[index] || { name: '', price: '', image_url: '', description: '', payment_methods: ['cash_on_delivery'] };
+                const product = arrangedProducts[index] || { name: '', price: '', image_url: '', description: '', payment_methods: ['cash_on_delivery'], delivery_options: [] };
                 const draft = drafts[index] || {};
                 return {
                     ...product,
@@ -6617,7 +6675,11 @@
                     price: draft.price !== undefined ? draft.price : (product.price || ''),
                     image_url: draft.image_url !== undefined ? draft.image_url : (product.image_url || ''),
                     description: draft.description !== undefined ? draft.description : (product.description || ''),
-                    payment_methods: draft.payment_methods !== undefined ? draft.payment_methods : (Array.isArray(product.payment_methods) ? product.payment_methods : ['cash_on_delivery'])
+                    payment_methods: draft.payment_methods !== undefined ? draft.payment_methods : (Array.isArray(product.payment_methods) ? product.payment_methods : ['cash_on_delivery']),
+                    product_category: draft.product_category !== undefined ? draft.product_category : (product.product_category || ''),
+                    origin_type: draft.origin_type !== undefined ? draft.origin_type : (product.origin_type || ''),
+                    availability_status: draft.availability_status !== undefined ? draft.availability_status : (product.availability_status || ''),
+                    delivery_options: draft.delivery_options !== undefined ? draft.delivery_options : (product.delivery_options || [])
                 };
             });
             return base;
@@ -6649,7 +6711,7 @@
             if (!modal) return;
 
             const marksStoreAsDirty = (target) => target.matches(
-                '.tenant-admin-input, .tenant-telegram-checkbox, .tenant-bot-input, .p-name, .p-price, .p-image, .p-description, .p-payment-method, #edit-store-logo-file, .p-file'
+                '.tenant-admin-input, .tenant-telegram-checkbox, .tenant-bot-input, .p-name, .p-price, .p-image, .p-description, .p-payment-method, .tenant-product-field, .p-delivery-option, #edit-store-logo-file, .p-file'
             );
             const markFromEvent = (event) => {
                 if (marksStoreAsDirty(event.target)) setTenantAdminDirty(true);
@@ -7010,7 +7072,13 @@
                         description,
                         payment_methods: paymentMethods,
                         slot_index: slotIndex,
-                        sort_order: slotIndex - 1
+                        sort_order: slotIndex - 1,
+                        ...(window.tenantProductFacetsAvailable === true ? {
+                            product_category: slot.querySelector('.p-category')?.value || '',
+                            origin_type: slot.querySelector('.p-origin')?.value || '',
+                            availability_status: slot.querySelector('.p-availability')?.value || '',
+                            delivery_options: Array.from(slot.querySelectorAll('.p-delivery-option:checked')).map(input => input.value)
+                        } : {})
                     });
                 }
             });
