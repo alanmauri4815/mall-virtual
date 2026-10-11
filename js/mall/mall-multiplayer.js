@@ -30,10 +30,13 @@
         syncAvatarLabelModeButton();
         syncWalkModeButton();
         syncControlsMenu();
-        const SUPABASE_URL = 'https://kcfuixvrwbnizspgtmtr.supabase.co';
-        const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_-H23KD1xJafE_DFpBFZlyA_CL9sNlpG';
+        const SUPABASE_URL = window.MALL_SUPABASE_CONFIG?.url || '';
+        const SUPABASE_PUBLISHABLE_KEY = window.MALL_SUPABASE_CONFIG?.publishableKey || '';
 
         try {
+            if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
+                throw new Error('Falta la configuración de Supabase para este entorno.');
+            }
             supabaseClient = supabase.createClient(
                 SUPABASE_URL,
                 SUPABASE_PUBLISHABLE_KEY
