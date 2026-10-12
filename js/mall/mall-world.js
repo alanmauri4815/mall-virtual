@@ -7279,9 +7279,9 @@ module.add(assistant);
             darkMat.color.setHex(DARK_METAL_NIGHT);
             darkMat.roughness = 0.34;
             darkMat.metalness = 0.68;
-            ambientLight.intensity = 0.42;
-            hemisphereLight.intensity = 0.62;
-            sun.intensity = 0.82;
+            ambientLight.intensity = 0.40;
+            hemisphereLight.intensity = 0.60;
+            sun.intensity = 0.90;
         } else {
             roofGlassMat.color.setHex(0xc9def3);
             roofGlassMat.opacity = 0.38;
@@ -7292,9 +7292,9 @@ module.add(assistant);
             darkMat.color.setHex(DARK_METAL_DAY);
             darkMat.roughness = 0.28;
             darkMat.metalness = 0.68;
-            ambientLight.intensity = 0.5;
-            hemisphereLight.intensity = 0.84;
-            sun.intensity = 1.55;
+            ambientLight.intensity = 0.46;
+            hemisphereLight.intensity = 0.78;
+            sun.intensity = 1.66;
         }
         roofGlassMat.needsUpdate = true;
         glassMat.needsUpdate = true;
@@ -7366,6 +7366,12 @@ module.add(assistant);
             ].filter(Boolean).join(' ');
 
             const wallColorPalette = [0xead9c1, 0xdce7dc, 0xe9d6cc, 0xd5e2ea];
+            const boostSurfaceSaturation = (color) => {
+                const hsl = {};
+                color.getHSL(hsl);
+                if (hsl.s < 0.025 || hsl.l < 0.16 || hsl.l > 0.97) return;
+                color.setHSL(hsl.h, hsl.s + 0.08 * (1 - hsl.s), hsl.l);
+            };
 
             const classifySurface = (mesh, material) => {
                 if (!material || material.transparent || material.opacity < 0.99 || material.transmission > 0.01) return null;
@@ -7413,6 +7419,9 @@ module.add(assistant);
                     }
                 }
                 if (kind === 'metal') material.metalness = clamp(Math.max(material.metalness || 0, 0.58), 0, 0.86);
+                if ((kind === 'wall' || kind === 'floor') && !material.map && material.color) {
+                    boostSurfaceSaturation(material.color);
+                }
                 material.needsUpdate = true;
                 mesh.material = material;
             });
