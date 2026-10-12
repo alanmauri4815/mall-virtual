@@ -1473,7 +1473,7 @@
             mouse.y = -(((event.clientY - rect.top) / rect.height) * 2 - 1);
             raycaster.near = 0;
             raycaster.far = IS_COARSE_POINTER ? 170 : Infinity;
-            raycaster.setFromCamera(mouse, camera);
+            raycaster.setFromCamera(mouse, window.getMallRenderCamera?.() || camera);
 
             // En modo edición, el clic pertenece exclusivamente al editor. Se recorre
             // toda la profundidad del rayo para no quedar bloqueado por vidrios u overlays.
