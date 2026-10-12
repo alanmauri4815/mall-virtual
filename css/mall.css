@@ -1649,6 +1649,27 @@
             color: #111;
         }
 
+        .search-item-catalog {
+            flex: 0 0 auto;
+            align-self: center;
+            min-height: 34px;
+            padding: 7px 10px;
+            border: 1px solid #8a6b2f;
+            border-radius: 5px;
+            background: #151515;
+            color: #e5c47a;
+            font: inherit;
+            font-size: 11px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .search-item-catalog:hover,
+        .search-item-catalog:focus-visible {
+            background: #c5a059;
+            color: #111;
+        }
+
         .search-item strong {
             display: block;
             color: #111;
@@ -8322,4 +8343,16 @@
         @media (prefers-reduced-motion: reduce) {
             .mall-tour-pointer__marker,
             #joystick-zone.mall-tour-target { animation: none; }
+        }
+
+        @media (max-width: 520px) {
+            .search-item {
+                gap: 8px;
+                padding-inline: 9px;
+            }
+
+            .search-item-catalog {
+                padding-inline: 8px;
+                font-size: 10px;
+            }
         }
