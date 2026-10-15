@@ -54,6 +54,15 @@
         ? window.mallContext.scopePayload(payload)
         : payload;
 
+    function createShippingRateId() {
+        if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (char) => {
+            const random = Math.random() * 16 | 0;
+            const value = char === 'x' ? random : (random & 0x3 | 0x8);
+            return value.toString(16);
+        });
+    }
+
     function createElement(tag, text = '', className = '') {
         const element = document.createElement(tag);
         if (className) element.className = className;
@@ -826,7 +835,7 @@
         if (!Number.isFinite(cost) || cost < 0) return setTenantShippingStatus('Ingresa un costo válido igual o mayor que cero.', 'error');
         const duplicate = purchaseState.tenantShippingRates.some((rate) => String(rate.commune).toLowerCase() === commune.toLowerCase());
         if (duplicate) return setTenantShippingStatus('Esa comuna ya está en la tabla.', 'error');
-        purchaseState.tenantShippingRates.push({ id: null, commune, shipping_cost: Math.round(cost), is_active: true });
+        purchaseState.tenantShippingRates.push({ id: createShippingRateId(), commune, shipping_cost: Math.round(cost), is_active: true });
         renderTenantShippingRates(purchaseState.tenantShippingRates);
         communeInput.value = '';
         costInput.value = '';
@@ -870,8 +879,12 @@
             return setTenantShippingStatus('Tarifas eliminadas. El local deberá configurar al menos una para recibir compras.', 'success');
         }
 
-        const payload = rates.map((rate) => scopePayload({
-            ...(rate.id ? { id: rate.id } : {}),
+        const preparedRates = rates.map((rate) => ({
+            ...rate,
+            id: rate.id || createShippingRateId()
+        }));
+        const payload = preparedRates.map((rate) => scopePayload({
+            id: rate.id,
             store_id: String(store.id),
             commune: rate.commune,
             shipping_cost: rate.shipping_cost,
@@ -884,7 +897,7 @@
             .select('id, commune, shipping_cost, is_active');
         if (saved.error) return setTenantShippingStatus(`No se pudieron guardar las tarifas: ${saved.error.message}`, 'error');
 
-        const retainedIds = new Set(rates.filter((rate) => rate.id).map((rate) => String(rate.id)));
+        const retainedIds = new Set(preparedRates.map((rate) => String(rate.id)));
         const removedIds = purchaseState.tenantShippingOriginal
             .filter((rate) => rate.id && !retainedIds.has(String(rate.id)))
             .map((rate) => rate.id);
