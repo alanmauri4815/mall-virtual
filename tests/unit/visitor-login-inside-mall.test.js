@@ -6,10 +6,18 @@ const vm = require('node:vm');
 const projectRoot = path.resolve(__dirname, '..', '..');
 const html = fs.readFileSync(path.join(projectRoot, 'index.html'), 'utf8');
 const uiSource = fs.readFileSync(path.join(projectRoot, 'js', 'mall', 'mall-ui.js'), 'utf8');
+const mallCss = fs.readFileSync(path.join(projectRoot, 'css', 'mall.css'), 'utf8');
 
 assert.match(
     html,
     /id="guest-account-actions"[\s\S]*?data-mall-action="openLoginChooser"[\s\S]*?Login/
+);
+const guestAccountActionsStyles = mallCss.match(/\.guest-account-actions\s*\{([^}]*)\}/);
+assert.ok(guestAccountActionsStyles, 'Anonymous visitor account actions must have a dedicated hit area.');
+assert.match(
+    guestAccountActionsStyles[1],
+    /pointer-events\s*:\s*auto\s*;/,
+    'Account buttons inside the non-interactive HUD header must receive pointer and touch input.'
 );
 assert.match(
     html,
