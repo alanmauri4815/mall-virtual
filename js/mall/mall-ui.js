@@ -2264,7 +2264,10 @@
         };
 
         window.setEntryMode = function(mode) {
-            currentAccessRole = mode;
+            const keepAnonymousRoleUntilAuthentication = hasEnteredMall
+                && currentAccessRole === 'guest'
+                && (mode === 'login-choice' || mode === 'member');
+            if (!keepAnonymousRoleUntilAuthentication) currentAccessRole = mode;
             const guestPanel = document.getElementById('guest-entry-panel');
             const loginChoicePanel = document.getElementById('login-choice-panel');
             const memberPanel = document.getElementById('member-entry-panel');
@@ -8078,6 +8081,36 @@ myIsMoving = false;
             return `Ingresaste como visitante inscrito. Tienes pendiente verificar ${pending.join(" y ")} para activar todos los beneficios.`;
         }
 
+        function applyMemberSessionToCurrentMall(user, email, memberProfile = null) {
+            const alreadyInsideMall = hasEnteredMall && mallEntryCompleted;
+            const displayName = getMemberDisplayName(user, email);
+            currentTenantUser = user;
+            hasPrivilegedMallSession = true;
+            currentAccessRole = 'member';
+            currentMemberProfile = memberProfile || currentMemberProfile;
+            const existingProfile = String(currentUserProfile?.auth_user_id || '') === String(user.id)
+                ? currentUserProfile
+                : {};
+            currentUserProfile = {
+                ...existingProfile,
+                auth_user_id: user.id,
+                email: user.email || email,
+                display_name: displayName,
+                role: 'registered_visitor'
+            };
+            myNickname = displayName;
+            window.mallMazePlayerName = displayName;
+            applyUserRole(currentUserProfile, user);
+
+            if (alreadyInsideMall) {
+                window.mallAnalytics?.startMallSession({ role: 'member', source: 'in_mall_login' });
+                void loadMemberBenefitsSummary();
+                void trackMySelf();
+                broadcastMyPosition();
+            }
+            return alreadyInsideMall;
+        }
+
         window.memberRegister = async function() {
             if (!supabaseClient) return setMemberStatus("No hay conexión con Supabase.", true);
             const email = document.getElementById('member-login-email').value.trim();
@@ -8106,17 +8139,20 @@ myIsMoving = false;
             pendingMemberPhone = phone;
             pendingMemberEmail = email;
             if (data.session && data.user) {
-                currentTenantUser = data.user;
-                hasPrivilegedMallSession = true;
                 currentMemberProfile = await upsertMemberProfile(data.user, { nickname, phone, phoneVerified: false });
                 currentUserProfile = await upsertUserProfile(data.user, "registered_visitor", currentMemberProfile?.nickname || nickname);
                 setMemberStatus("Cuenta creada. Entrando como visitante inscrito. Verifica correo y celular para activar beneficios.");
-                await enterMallWithIdentity({
-                    nickname: getMemberDisplayName(data.user, email),
-                    role: "member",
-                    user: data.user,
-                    profile: currentMemberProfile
-                });
+                const alreadyInsideMall = applyMemberSessionToCurrentMall(data.user, email, currentMemberProfile);
+                if (alreadyInsideMall) {
+                    finalizeMallEntryUi();
+                } else {
+                    await enterMallWithIdentity({
+                        nickname: getMemberDisplayName(data.user, email),
+                        role: "member",
+                        user: data.user,
+                        profile: currentMemberProfile
+                    });
+                }
             } else {
                 setMemberStatus("Cuenta creada. Revisa tu correo para confirmar propiedad. Luego podrás entrar aquí con tu correo y contraseña.");
             }
@@ -8206,6 +8242,22 @@ myIsMoving = false;
                 );
                 if (String(currentTenantUser?.id || '').trim() !== userId) return;
 
+                if (currentAccessRole === 'member') {
+                    const displayName = getMemberDisplayName(user, email);
+                    myNickname = displayName;
+                    window.mallMazePlayerName = displayName;
+                    applyUserRole(currentUserProfile || {
+                        auth_user_id: userId,
+                        email,
+                        display_name: displayName,
+                        role: 'registered_visitor'
+                    }, user);
+                    if (hasEnteredMall && mallEntryCompleted) {
+                        void trackMySelf();
+                        broadcastMyPosition();
+                    }
+                }
+
                 const notice = getMemberLoginNotice(user, currentMemberProfile);
                 if (notice) {
                     pendingMemberPhone = currentMemberProfile?.phone || user.user_metadata?.phone || fallbackPhone;
@@ -8244,24 +8296,26 @@ myIsMoving = false;
                 }
 
                 const user = data.user;
-                currentTenantUser = user;
-                hasPrivilegedMallSession = true;
-                currentMemberProfile = null;
-                currentUserProfile = null;
                 if (authoritativeAdminUserId !== String(user.id)) {
                     clearAuthoritativeAdminAccess();
                 }
+                currentMemberProfile = null;
+                const alreadyInsideMall = applyMemberSessionToCurrentMall(user, email);
 
                 // La entrada no espera perfil, beneficios ni sincronizaciones secundarias.
                 void hydrateMemberSessionAfterLogin(user, email);
 
-                const entered = await enterMallWithIdentity({
-                    nickname: getMemberDisplayName(user, email),
-                    role: "member",
-                    user,
-                    profile: null
-                });
-                if (!entered) throw new Error('No se pudo completar la transición de entrada al mall.');
+                if (alreadyInsideMall) {
+                    finalizeMallEntryUi();
+                } else {
+                    const entered = await enterMallWithIdentity({
+                        nickname: getMemberDisplayName(user, email),
+                        role: "member",
+                        user,
+                        profile: null
+                    });
+                    if (!entered) throw new Error('No se pudo completar la transición de entrada al mall.');
+                }
             } catch (error) {
                 setMemberStatus(error?.message || 'No se pudo completar el ingreso.', true);
             } finally {
