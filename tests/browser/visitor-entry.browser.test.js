@@ -46,6 +46,12 @@ const { chromium, devices } = require('playwright');
         assert.ok(state.canvasWidth > 0 && state.canvasHeight > 0);
         assert.deepEqual(errors, [], 'Entry must not throw');
         console.log('ENTRY_OK', JSON.stringify(state));
+
+        await page.locator('#guest-account-actions [data-mall-action="openLoginChooser"]').click();
+        assert.equal(await page.locator('#login-choice-panel').isVisible(), true, 'A real pointer click on Login must open the account chooser.');
+        await page.locator('#login-choice-panel [data-mall-action="entryMember"]').click();
+        assert.equal(await page.locator('#member-entry-panel').isVisible(), true, 'Registered visitor login fields must be reachable from the chooser.');
+        assert.equal(await page.evaluate(() => currentAccessRole), 'guest', 'Opening login must not authenticate or change the anonymous role.');
     } finally {
         fs.writeFileSync(path.join(output, 'diagnostics.json'), JSON.stringify({ errors, scripts, failures, state }, null, 2));
         await browser.close();
