@@ -21,6 +21,11 @@ assert.match(
 );
 assert.match(
     html,
+    /js\/mall\/mall-ui\.js\?v=20261018-visitor-login-v1/,
+    'The updated member-login flow must be served under a fresh asset URL.'
+);
+assert.match(
+    html,
     /id="login-choice-panel"[\s\S]*?data-mall-action="entryMember"[\s\S]*?data-mall-action="entryTenant"/
 );
 
