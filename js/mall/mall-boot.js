@@ -9,9 +9,18 @@
 
 window.mallMobileViewport = (() => {
     const isTouchDevice = () => window.matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0;
-    const isLandscape = () => window.innerWidth > window.innerHeight;
+    const isLandscape = () => {
+        const orientationType = window.screen?.orientation?.type || '';
+        if (orientationType.startsWith('landscape')) return true;
+        if (window.matchMedia?.('(orientation: landscape)').matches) return true;
+
+        const viewport = window.visualViewport;
+        return (Number(viewport?.width) > Number(viewport?.height))
+            || (window.innerWidth > window.innerHeight);
+    };
     let mallSessionActive = false;
     let orientationDismissed = false;
+    let orientationSyncTimer = null;
 
     const updateState = () => {
         const active = mallSessionActive && isTouchDevice();
@@ -53,11 +62,25 @@ window.mallMobileViewport = (() => {
         return true;
     };
 
-    window.addEventListener('resize', updateState);
-    window.addEventListener('orientationchange', () => {
+    const syncOrientation = () => {
         updateState();
-        setTimeout(updateState, 350);
+        if (orientationSyncTimer) clearTimeout(orientationSyncTimer);
+        orientationSyncTimer = setTimeout(updateState, 250);
+    };
+
+    window.addEventListener('resize', syncOrientation, { passive: true });
+    window.visualViewport?.addEventListener('resize', syncOrientation, { passive: true });
+    window.addEventListener('orientationchange', () => {
+        syncOrientation();
+        setTimeout(updateState, 500);
     });
+    window.screen?.orientation?.addEventListener?.('change', syncOrientation);
+    const orientationMedia = window.matchMedia?.('(orientation: landscape)');
+    if (orientationMedia?.addEventListener) {
+        orientationMedia.addEventListener('change', syncOrientation);
+    } else {
+        orientationMedia?.addListener?.(syncOrientation);
+    }
     return { activate, requestLandscape, dismissOrientation, updateState, isTouchDevice, isLandscape };
 })();
 
