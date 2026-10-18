@@ -17,10 +17,14 @@ window.mallMobileViewport = (() => {
         };
     };
     const isLandscape = () => {
+        const orientationType = window.screen?.orientation?.type || '';
+        if (orientationType.startsWith('landscape')) return true;
+        if (window.matchMedia?.('(orientation: landscape)').matches) return true;
         const viewport = getViewportSize();
         return viewport.width > viewport.height;
     };
     let mallSessionActive = false;
+    let orientationSyncTimer = null;
 
     const updateState = () => {
         const active = mallSessionActive && isTouchDevice();
@@ -34,10 +38,26 @@ window.mallMobileViewport = (() => {
         updateState();
     };
 
-    window.addEventListener('resize', updateState, { passive: true });
-    window.visualViewport?.addEventListener('resize', updateState, { passive: true });
-    window.addEventListener('orientationchange', updateState, { passive: true });
-    window.screen?.orientation?.addEventListener?.('change', updateState);
+    const syncOrientation = () => {
+        updateState();
+        if (orientationSyncTimer) clearTimeout(orientationSyncTimer);
+        orientationSyncTimer = setTimeout(updateState, 250);
+    };
+
+    window.addEventListener('resize', syncOrientation, { passive: true });
+    window.visualViewport?.addEventListener('resize', syncOrientation, { passive: true });
+    window.addEventListener('orientationchange', () => {
+        syncOrientation();
+        setTimeout(updateState, 500);
+    }, { passive: true });
+    window.screen?.orientation?.addEventListener?.('change', syncOrientation);
+    const orientationMedia = window.matchMedia?.('(orientation: landscape)');
+    if (orientationMedia?.addEventListener) {
+        orientationMedia.addEventListener('change', syncOrientation);
+    } else {
+        orientationMedia?.addListener?.(syncOrientation);
+    }
+
     return { activate, updateState, isTouchDevice, isLandscape };
 })();
 
