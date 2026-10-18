@@ -5,6 +5,7 @@ const viewportListeners = new Map();
 const screenOrientationListeners = new Map();
 const mediaListeners = new Map();
 const bodyClasses = new Set();
+let legacyOrientationGateRemoved = false;
 
 let mediaIsLandscape = false;
 const orientationMedia = {
@@ -15,6 +16,10 @@ const orientationMedia = {
 
 global.navigator = { maxTouchPoints: 1 };
 global.document = {
+    getElementById(id) {
+        if (id !== 'mobile-orientation-helper') return null;
+        return { remove() { legacyOrientationGateRemoved = true; } };
+    },
     body: {
         classList: {
             toggle(name, active) {
@@ -47,6 +52,8 @@ global.window = {
 };
 
 require('../../js/mall/mall-boot.js');
+assert.equal(legacyOrientationGateRemoved, true,
+    'A cached legacy orientation gate must be removed without requiring visitor input.');
 window.mallMobileViewport.activate();
 assert.equal(bodyClasses.has('mobile-portrait'), true);
 

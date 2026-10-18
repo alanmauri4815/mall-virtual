@@ -24,7 +24,7 @@ assert.match(page, /href="https:\/\/mallcreaciones\.maucore\.cl\/">Visitar el ma
 assert.match(page, /catalog\.js\?v=20261015-mallvirtual-catalog-v1/);
 assert.match(catalog, /window\.supabase\?\.createClient\(supabaseConfig\.url, supabaseConfig\.publishableKey\)/);
 assert.doesNotMatch(catalog, /https:\/\/[^'"\s]+\.supabase\.co/);
-assert.match(nginx, /location = \/ \{\s*if \(\$host = mallvirtual\.maucore\.cl\) \{\s*return 302 \/tiendas\//);
+assert.match(nginx, /location = \/ \{[\s\S]*?if \(\$host = mallvirtual\.maucore\.cl\) \{\s*return 302 \/tiendas\//);
 assert.match(nginx, /try_files \/index\.html =404;/);
 
 console.log('mallvirtual.maucore.cl serves the catalog with Hostinger Supabase configuration and preserves the 3D mall entrypoint.');

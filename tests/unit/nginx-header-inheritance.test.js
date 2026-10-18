@@ -13,7 +13,9 @@ test('nginx 1.27 inherits security headers in cached asset locations', () => {
     assert.match(dockerfile, /^FROM nginx:1\.27-alpine/m);
     assert.match(dockerfile, /COPY nginx\/security-headers\.inc \/etc\/nginx\/security-headers\.inc/);
     assert.doesNotMatch(config, /add_header_inherit/);
-    assert.equal((config.match(/include \/etc\/nginx\/security-headers\.inc;/g) || []).length, 4);
+    assert.equal((config.match(/include \/etc\/nginx\/security-headers\.inc;/g) || []).length, 7);
+    assert.match(config, /location = \/ \{[\s\S]*?Cache-Control "no-store, no-cache, must-revalidate, max-age=0"/);
+    assert.match(config, /location = \/index\.html \{[\s\S]*?Cache-Control "no-store, no-cache, must-revalidate, max-age=0"/);
     assert.match(headers, /Content-Security-Policy/);
     assert.match(headers, /X-Content-Type-Options/);
 });

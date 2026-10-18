@@ -8,6 +8,7 @@
 })();
 
 window.mallMobileViewport = (() => {
+    document.getElementById('mobile-orientation-helper')?.remove();
     const isTouchDevice = () => window.matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0;
     const getViewportSize = () => {
         const viewport = window.visualViewport;
