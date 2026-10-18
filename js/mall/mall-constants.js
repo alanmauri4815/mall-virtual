@@ -61,16 +61,34 @@
             preserveDrawingBuffer: false
         });
         window.mallPublicDisplayRuntime = { scene, camera, thirdPersonCamera, renderer };
+        const rendererViewportContainer = document.getElementById('canvas-container');
         const getPreferredPixelRatio = () => {
             return Math.min(window.devicePixelRatio || 1, MALL_PERFORMANCE_PROFILE.pixelRatioCap);
         };
         const syncRendererViewport = () => {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            thirdPersonCamera.aspect = window.innerWidth / window.innerHeight;
-            thirdPersonCamera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.setPixelRatio(getPreferredPixelRatio());
+            const rect = rendererViewportContainer?.getBoundingClientRect?.();
+            const width = Math.max(1, Math.round(rect?.width || window.visualViewport?.width || window.innerWidth));
+            const height = Math.max(1, Math.round(rect?.height || window.visualViewport?.height || window.innerHeight));
+            const aspect = width / height;
+            if (camera.aspect !== aspect) {
+                camera.aspect = aspect;
+                camera.updateProjectionMatrix();
+            }
+            if (thirdPersonCamera.aspect !== aspect) {
+                thirdPersonCamera.aspect = aspect;
+                thirdPersonCamera.updateProjectionMatrix();
+            }
+            const pixelRatio = getPreferredPixelRatio();
+            if (Math.abs(renderer.getPixelRatio() - pixelRatio) > 0.01) renderer.setPixelRatio(pixelRatio);
+            renderer.setSize(width, height);
+        };
+        let rendererResizeFrame = 0;
+        const queueRendererViewportSync = () => {
+            if (rendererResizeFrame) cancelAnimationFrame(rendererResizeFrame);
+            rendererResizeFrame = requestAnimationFrame(() => {
+                rendererResizeFrame = 0;
+                syncRendererViewport();
+            });
         };
         // A filmic response preserves the bright roof while retaining contrast in the mall interior.
         if (THREE.SRGBColorSpace && 'outputColorSpace' in renderer) renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -104,7 +122,10 @@
             });
         };
         syncRendererViewport();
-        document.getElementById('canvas-container').appendChild(renderer.domElement);
+        rendererViewportContainer.appendChild(renderer.domElement);
+        if (typeof ResizeObserver === 'function' && rendererViewportContainer) {
+            new ResizeObserver(queueRendererViewportSync).observe(rendererViewportContainer);
+        }
         renderer.domElement.setAttribute('tabindex', '0');
         renderer.domElement.style.outline = 'none';
         let mallWebGLContextLost = false;
@@ -232,11 +253,14 @@
                 setTimeout(() => notice.remove(), 12000);
             }, 800);
         }
-        window.addEventListener('resize', syncRendererViewport);
+        window.addEventListener('resize', queueRendererViewportSync, { passive: true });
+        window.visualViewport?.addEventListener('resize', queueRendererViewportSync, { passive: true });
         window.addEventListener('orientationchange', () => {
-            setTimeout(syncRendererViewport, 250);
-            setTimeout(syncRendererViewport, 700);
-        });
+            queueRendererViewportSync();
+            setTimeout(queueRendererViewportSync, 250);
+            setTimeout(queueRendererViewportSync, 700);
+        }, { passive: true });
+        window.screen?.orientation?.addEventListener?.('change', queueRendererViewportSync);
 
         let isWalking = false;
         let isThirdPersonView = false;

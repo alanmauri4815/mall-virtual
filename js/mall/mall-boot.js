@@ -9,37 +9,24 @@
 
 window.mallMobileViewport = (() => {
     const isTouchDevice = () => window.matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0;
-    const isLandscape = () => window.innerWidth > window.innerHeight;
+    const getViewportSize = () => {
+        const viewport = window.visualViewport;
+        return {
+            width: Number(viewport?.width) || window.innerWidth,
+            height: Number(viewport?.height) || window.innerHeight
+        };
+    };
+    const isLandscape = () => {
+        const viewport = getViewportSize();
+        return viewport.width > viewport.height;
+    };
     let mallSessionActive = false;
-    let orientationDismissed = false;
 
     const updateState = () => {
         const active = mallSessionActive && isTouchDevice();
         document.body.classList.toggle('mobile-session-active', active);
         document.body.classList.toggle('mobile-landscape', active && isLandscape());
         document.body.classList.toggle('mobile-portrait', active && !isLandscape());
-        document.body.classList.toggle('mobile-orientation-dismissed', orientationDismissed);
-    };
-
-    const requestLandscape = async () => {
-        if (!isTouchDevice()) return false;
-        updateState();
-        try {
-            if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
-                await document.documentElement.requestFullscreen({ navigationUI: 'hide' });
-            }
-        } catch (_) {}
-
-        try {
-            if (screen.orientation && screen.orientation.lock) {
-                await screen.orientation.lock('landscape');
-                updateState();
-                return true;
-            }
-        } catch (_) {}
-
-        updateState();
-        return isLandscape();
     };
 
     const activate = () => {
@@ -47,18 +34,11 @@ window.mallMobileViewport = (() => {
         updateState();
     };
 
-    const dismissOrientation = () => {
-        orientationDismissed = true;
-        updateState();
-        return true;
-    };
-
-    window.addEventListener('resize', updateState);
-    window.addEventListener('orientationchange', () => {
-        updateState();
-        setTimeout(updateState, 350);
-    });
-    return { activate, requestLandscape, dismissOrientation, updateState, isTouchDevice, isLandscape };
+    window.addEventListener('resize', updateState, { passive: true });
+    window.visualViewport?.addEventListener('resize', updateState, { passive: true });
+    window.addEventListener('orientationchange', updateState, { passive: true });
+    window.screen?.orientation?.addEventListener?.('change', updateState);
+    return { activate, updateState, isTouchDevice, isLandscape };
 })();
 
 // One page load needs the public catalog in several features. Share the
@@ -139,8 +119,6 @@ window.addEventListener('DOMContentLoaded', () => {
     };
 
     const entryActions = {
-        requestLandscape: () => window.mallMobileViewport && window.mallMobileViewport.requestLandscape(),
-        dismissOrientation: () => window.mallMobileViewport && window.mallMobileViewport.dismissOrientation(),
         recoverMember: () => callGlobal('openPasswordRecovery', 'member'),
         recoverTenant: () => callGlobal('openPasswordRecovery', 'tenant'),
         memberLogin: () => callGlobal('memberLogin'),
@@ -294,8 +272,18 @@ window.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    let lastEntryLandscape = window.mallMobileViewport?.isLandscape?.() ?? window.innerWidth > window.innerHeight;
+    let entryResizeTimer = null;
+    const syncEntryAfterOrientationChange = () => {
+        const nextLandscape = window.mallMobileViewport?.isLandscape?.() ?? window.innerWidth > window.innerHeight;
+        if (nextLandscape === lastEntryLandscape) return;
+        lastEntryLandscape = nextLandscape;
+        if (entryResizeTimer) clearTimeout(entryResizeTimer);
+        entryResizeTimer = setTimeout(showMobileEntry, 180);
+    };
+
     setTimeout(showMobileEntry, 2400);
-    window.addEventListener('orientationchange', () => {
-        setTimeout(showMobileEntry, 600);
-    });
+    window.addEventListener('resize', syncEntryAfterOrientationChange, { passive: true });
+    window.visualViewport?.addEventListener('resize', syncEntryAfterOrientationChange, { passive: true });
+    window.addEventListener('orientationchange', syncEntryAfterOrientationChange, { passive: true });
 });
