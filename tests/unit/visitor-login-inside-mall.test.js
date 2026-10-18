@@ -70,7 +70,8 @@ function createEntryContext(overrides = {}) {
     const elementIds = [
         'guest-entry-panel', 'login-choice-panel', 'member-entry-panel', 'tenant-entry-panel',
         'guest-entry-button', 'entry-secondary-actions', 'entry-account-card',
-        'welcome-access-title', 'welcome-access-copy', 'member-login-email', 'member-login-pass'
+        'welcome-access-title', 'welcome-access-copy', 'member-login-email', 'member-login-pass',
+        'member-register-pass-confirm', 'member-register-nick', 'member-register-phone'
     ];
     const elements = new Map(elementIds.map((id) => [id, {
         hidden: false,
@@ -161,6 +162,85 @@ assert.equal(successfulLoginState.currentAccessRole, 'member', JSON.stringify({ 
 assert.equal(successfulLoginState.memberTransitionCalls, 1);
 assert.equal(successfulLoginState.finalizeCalls, 1);
 assert.equal(successfulLoginState.reentryCalls, 0);
+
+const outsideLoginState = { memberTransitionCalls: 0, reentryCalls: 0, identity: null };
+const outsideLoginContext = createEntryContext({
+    hasEnteredMall: false,
+    mallEntryCompleted: false,
+    getMemberDisplayName: () => 'Socio Uno',
+    applyMemberSessionToCurrentMall() {
+        outsideLoginState.memberTransitionCalls += 1;
+        return false;
+    },
+    hydrateMemberSessionAfterLogin: async () => {},
+    enterMallWithIdentity(identity) {
+        outsideLoginState.reentryCalls += 1;
+        outsideLoginState.identity = identity;
+        return Promise.resolve(true);
+    }
+});
+outsideLoginContext.supabaseClient = {
+    auth: {
+        async signInWithPassword() {
+            return { data: { user: { id: 'member-2', email: 'visitor@example.invalid' } }, error: null };
+        }
+    }
+};
+outsideLoginContext.document.getElementById('member-login-pass').value = 'valid-password';
+const outsideLoginPromise = vm.runInNewContext(
+    `${memberLoginSource}\nwindow.memberLogin();`,
+    outsideLoginContext
+);
+await outsideLoginPromise;
+assert.equal(outsideLoginState.memberTransitionCalls, 1);
+assert.equal(outsideLoginState.reentryCalls, 1);
+assert.equal(outsideLoginState.identity.role, 'member');
+
+const outsideRegistrationState = { memberTransitionCalls: 0, reentryCalls: 0, identity: null };
+const outsideRegistrationContext = createEntryContext({
+    hasEnteredMall: false,
+    mallEntryCompleted: false,
+    window: { location: { href: 'https://mall.example.invalid/' } },
+    normalizePhone: (value) => value,
+    getMemberDisplayName: () => 'Socio Nuevo',
+    upsertMemberProfile: async () => ({ nickname: 'Socio Nuevo' }),
+    upsertUserProfile: async () => ({ role: 'registered_visitor' }),
+    applyMemberSessionToCurrentMall() {
+        outsideRegistrationState.memberTransitionCalls += 1;
+        return false;
+    },
+    enterMallWithIdentity(identity) {
+        outsideRegistrationState.reentryCalls += 1;
+        outsideRegistrationState.identity = identity;
+        return Promise.resolve(true);
+    }
+});
+outsideRegistrationContext.document.getElementById('member-login-email').value = 'new-visitor@example.invalid';
+outsideRegistrationContext.document.getElementById('member-login-pass').value = 'valid-password';
+outsideRegistrationContext.document.getElementById('member-register-pass-confirm').value = 'valid-password';
+outsideRegistrationContext.document.getElementById('member-register-nick').value = 'Socio Nuevo';
+outsideRegistrationContext.document.getElementById('member-register-phone').value = '+56912345678';
+outsideRegistrationContext.supabaseClient = {
+    auth: {
+        async signUp() {
+            return {
+                data: {
+                    session: {},
+                    user: { id: 'member-3', email: 'new-visitor@example.invalid' }
+                },
+                error: null
+            };
+        }
+    }
+};
+const outsideRegistrationPromise = vm.runInNewContext(
+    `${memberRegister}\nwindow.memberRegister();`,
+    outsideRegistrationContext
+);
+await outsideRegistrationPromise;
+assert.equal(outsideRegistrationState.memberTransitionCalls, 1);
+assert.equal(outsideRegistrationState.reentryCalls, 1);
+assert.equal(outsideRegistrationState.identity.role, 'member');
 
 const memberTransitionSource = uiSource.slice(memberTransitionStart, memberRegisterStart);
 const transitionState = { benefitLoads: 0, presenceTracks: 0, positionBroadcasts: 0 };
