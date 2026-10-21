@@ -4291,8 +4291,70 @@
             updateSlidingDoorCollection(corridorSlidingDoors, corridorDoorPrevActors, nowMs, CORRIDOR_DOOR_OPEN_HOLD_MS, 0.2, 0.12);
         }
 
+        const STORE_NEAR_IMAGE_EXPANSION_DISTANCE = 2;
+        const STORE_NEAR_IMAGE_EXPANSION_RELEASE_DISTANCE = 2.4;
+        const STORE_NEAR_IMAGE_EXPANSION_CHECK_INTERVAL_MS = 200;
+        let expandedNearbyStoreCode = '';
+        let nextNearbyStoreImageExpansionCheck = 0;
+        const getNearbyImageStoreCode = (shop) => String(
+            shop?.userData?.plateCode || shop?.userData?.shopCode || shop?.userData?.displayCode || ''
+        ).trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+
+        function syncNearbyStoreProductImageExpansion(nowMs = performance.now()) {
+            if (nowMs < nextNearbyStoreImageExpansionCheck) return;
+            nextNearbyStoreImageExpansionCheck = nowMs + STORE_NEAR_IMAGE_EXPANSION_CHECK_INTERVAL_MS;
+
+            const canExpandImages = Boolean(window.mallPerformanceProfile?.isLowEndMobile && isWalking);
+            const distanceByStoreCode = new Map();
+            let nearestStoreCode = '';
+            let nearestStoreDistance = STORE_NEAR_IMAGE_EXPANSION_DISTANCE;
+
+            if (canExpandImages) {
+                allStoreGroups.forEach((shop) => {
+                    if (!shop?.userData?.isBoutique) return;
+                    const storeCode = getNearbyImageStoreCode(shop);
+                    if (!storeCode) return;
+
+                    const distance = Math.min(
+                        getDistanceToBoutiqueVolume(shop, camera.position),
+                        getDistanceToBoutiqueFront(shop, camera.position)
+                    );
+                    const currentDistance = distanceByStoreCode.get(storeCode);
+                    if (currentDistance === undefined || distance < currentDistance) {
+                        distanceByStoreCode.set(storeCode, distance);
+                    }
+                    if (distance < nearestStoreDistance) {
+                        nearestStoreCode = storeCode;
+                        nearestStoreDistance = distance;
+                    }
+                });
+            }
+
+            const expandedStoreDistance = distanceByStoreCode.get(expandedNearbyStoreCode) ?? Infinity;
+            const nextExpandedStoreCode = nearestStoreCode || (
+                expandedStoreDistance < STORE_NEAR_IMAGE_EXPANSION_RELEASE_DISTANCE
+                    ? expandedNearbyStoreCode
+                    : ''
+            );
+            if (nextExpandedStoreCode === expandedNearbyStoreCode) return;
+
+            expandedNearbyStoreCode = nextExpandedStoreCode;
+            allStoreGroups.forEach((shop) => {
+                if (!shop?.userData?.isBoutique) return;
+                const storeCode = getNearbyImageStoreCode(shop);
+                const shouldExpand = Boolean(nextExpandedStoreCode && storeCode === nextExpandedStoreCode);
+                if (shop.userData.nearbyProductImagesExpanded === shouldExpand) return;
+
+                shop.userData.nearbyProductImagesExpanded = shouldExpand;
+                if (shop.userData.storeVisualPayload && (shop.userData.facadeVisualRevision || shouldExpand)) {
+                    shop.userData.ensureFacadeStoreVisuals?.();
+                }
+            });
+        }
+
         const boutiqueStreamProbe = new THREE.Vector3();
         function updateBoutiqueInteriorStreaming() {
+            syncNearbyStoreProductImageExpansion();
             allStoreGroups.forEach((shop) => {
                 if (!shop?.userData?.isBoutique) return;
 
@@ -4479,6 +4541,7 @@
                 isCornerBoutique: Boolean(physicalMeta?.isCorner),
                 cornerFacade: physicalMeta?.cornerFacade || '',
                 cornerChamferSide,
+                nearbyProductImagesExpanded: false,
                 imageDisplaySurfaces: [],
                 imageDisplaySlots: [],
                 doorFacadeVisualGroups: []
@@ -5347,8 +5410,14 @@
                     && sh.userData.cornerFacade === 'vertical'
                     ? 6
                     : 0;
-                const storefrontImageLimit = window.mallPerformanceProfile?.isLowEndMobile ? 4 : (sh.userData.isCornerBoutique ? 6 : 10);
-                const productsWithImages = storefrontProducts.slice(cornerProductOffset, cornerProductOffset + storefrontImageLimit);
+                const getProductsWithImages = () => {
+                    const isLowEndMobile = window.mallPerformanceProfile?.isLowEndMobile;
+                    const isNearbyExpanded = isLowEndMobile && sh.userData.nearbyProductImagesExpanded;
+                    const imageLimit = isLowEndMobile && !isNearbyExpanded
+                        ? 4
+                        : (sh.userData.isCornerBoutique ? 6 : 10);
+                    return storefrontProducts.slice(cornerProductOffset, cornerProductOffset + imageLimit);
+                };
                 const productPanelMat = new THREE.MeshBasicMaterial({
                     color: 0xffffff,
                     transparent: true,
@@ -5532,6 +5601,7 @@
                     const facade = new THREE.Group();
                     facade.name = "facadeProductPanels";
                     facade.renderOrder = 24;
+                    const productsWithImages = getProductsWithImages();
                     const slots = Array.isArray(sh.userData.imageDisplaySlots) ? sh.userData.imageDisplaySlots : [];
                     slots.forEach((slot, index) => {
                         const product = productsWithImages[index];
@@ -5582,7 +5652,10 @@
                     const doorProductOffset = sh.userData.isCornerBoutique
                         ? (sh.userData.cornerFacade === 'vertical' ? 16 : 12)
                         : 6;
-                    const doorImageLimit = window.mallPerformanceProfile?.isLowEndMobile ? 2 : 4;
+                    const doorImageLimit = window.mallPerformanceProfile?.isLowEndMobile
+                        && !sh.userData.nearbyProductImagesExpanded
+                        ? 2
+                        : 4;
                     const doorProducts = storefrontProducts.slice(doorProductOffset, doorProductOffset + doorImageLimit);
                     const slidingDoorLeaves = sh.userData.slidingDoorLeaves || {};
                     const doorLeaves = [slidingDoorLeaves.left, slidingDoorLeaves.right];
@@ -5610,7 +5683,14 @@
 
                 sh.userData.ensureFacadeStoreVisuals = function () {
                     if (!sh.userData.storeVisualPayload) return;
-                    if (sh.userData.facadeVisualRevision === sh.userData.storeVisualRevision) return;
+                    const expandedImageState = Boolean(
+                        window.mallPerformanceProfile?.isLowEndMobile
+                        && sh.userData.nearbyProductImagesExpanded
+                    );
+                    if (
+                        sh.userData.facadeVisualRevision === sh.userData.storeVisualRevision
+                        && sh.userData.facadeVisualExpandedImageState === expandedImageState
+                    ) return;
                     window.mallRuntimeMonitor?.enter('store-visual-apply', { storeCode: code }, true);
                     clearStoreVisualGroup(showcase);
                     (sh.userData.doorFacadeVisualGroups || []).forEach((group) => {
@@ -5619,6 +5699,7 @@
                     sh.userData.doorFacadeVisualGroups = [];
                     addFacadeProductPanels();
                     sh.userData.facadeVisualRevision = sh.userData.storeVisualRevision;
+                    sh.userData.facadeVisualExpandedImageState = expandedImageState;
                 };
 
                 sh.userData.disposeFacadeStoreVisuals = function () {
@@ -5628,9 +5709,11 @@
                     (sh.userData.doorFacadeVisualGroups || []).forEach(disposeStoreVisualObject);
                     sh.userData.doorFacadeVisualGroups = [];
                     sh.userData.facadeVisualRevision = 0;
+                    sh.userData.facadeVisualExpandedImageState = undefined;
                 };
 
                 const addInteriorProductGallery = () => {
+                    const productsWithImages = getProductsWithImages();
                     if (!productsWithImages.length) return;
                     const gallery = new THREE.Group();
                     gallery.name = "interiorProductGallery";
