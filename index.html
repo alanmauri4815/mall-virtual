@@ -17,8 +17,8 @@
     <script src="assets/vendor/three/SkeletonUtils.r128.js" defer></script>
     <script src="assets/vendor/sb-client/client-v2.min.js" defer></script>
     <script src="js/mall/mall-context.js?v=20261004-official-mall-domain-v1" defer></script>
-    <script src="js/mall/mall-boot.js?v=20261018-orientation-auto-v2" defer></script>
-    <link rel="stylesheet" href="css/mall.css?v=20261018-orientation-auto-v2">
+    <script src="js/mall/mall-boot.js?v=20261022-staging-catalog-picker-v1" defer></script>
+    <link rel="stylesheet" href="css/mall.css?v=20261022-staging-catalog-picker-v1">
 </head>
 
 <body>
@@ -176,6 +176,7 @@
             <div id="controls-dropdown" class="controls-dropdown">
                 <div class="controls-dropdown-title">Controles del Mall</div>
                 <a class="controls-menu-item controls-menu-catalog-link" href="./tiendas/" data-stop-propagation="true">Ver productos y tiendas</a>
+                <button id="store-catalog-picker-menu-item" class="controls-menu-item" type="button" data-mall-action="openStoreCatalogPicker" data-stop-propagation="true">Elegir local y ver catálogo</button>
                 <button id="walk-mode-menu-item" class="controls-menu-item" data-mall-action="toggleWalkMode" data-stop-propagation="true">Cambiar a Modo Paseo</button>
                 <button id="third-person-view-menu-item" class="controls-menu-item" data-mall-action="toggleThirdPersonView" data-stop-propagation="true" aria-pressed="false">Vista en tercera persona</button>
                 <button id="avatar-customizer-menu-item" class="controls-menu-item" data-mall-action="openAvatarCustomizer" data-stop-propagation="true">Personalizar avatar</button>
@@ -1603,7 +1604,7 @@
     <script src="js/mall/mall-npc.js?v=20261004-third-person-camera-v1" defer></script>
     <script src="js/mall/mall-purchases.js?v=20261014-shipping-rate-id-guard-v1" defer></script>
     <script src="js/mall/mall-guided-tour.js?v=20260929-guided-tour" defer></script>
-    <script src="js/mall/mall-quick-store-picker.js?v=20261011-third-person-store-catalog-v1" defer></script>
+    <script src="js/mall/mall-quick-store-picker.js?v=20261022-staging-catalog-picker-v1" defer></script>
     <script src="js/mall/mall-main.js?v=20260929-guided-tour" defer></script>
 </body>
 

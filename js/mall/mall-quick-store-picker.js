@@ -152,6 +152,7 @@
     };
 
     window.openQuickSearch = function (kind = "product") {
+        window.closeControlsMenu?.();
         if (kind !== "store") {
             pickerOpen = false;
             return originalOpenQuickSearch?.call(this, kind);

@@ -2,6 +2,12 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
+const root = path.resolve(__dirname, '..', '..');
+const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+const boot = fs.readFileSync(path.join(root, 'js', 'mall', 'mall-boot.js'), 'utf8');
+
+assert.match(html, /id="store-catalog-picker-menu-item"[^>]*data-mall-action="openStoreCatalogPicker"/);
+assert.match(boot, /openStoreCatalogPicker:\s*\(\)\s*=>\s*callGlobal\('openQuickSearch',\s*'store'\)/);
 
 class Element {
     constructor(tag = 'div') {
@@ -56,6 +62,7 @@ async function main() {
     const openedCatalogs = [];
     let originalQuickSearchCalls = 0;
     let originalFilterCalls = 0;
+    let controlsMenuCloseCalls = 0;
     const document = {
         getElementById: (id) => nodes[id] || null,
         createElement: (tag) => new Element(tag),
@@ -75,16 +82,20 @@ async function main() {
         closeSearchModal() {},
         openQuickSearch() { originalQuickSearchCalls += 1; },
         openPublicStoreCatalog: (code) => openedCatalogs.push(code),
+        closeControlsMenu: () => { controlsMenuCloseCalls += 1; },
+        isMallThirdPersonView: () => true,
         dismissMallQuickStart() {},
         closeCompactRouteMap() {}
     };
     document.defaultView = window;
 
-    const sourcePath = path.resolve(__dirname, '..', '..', 'js/mall/mall-quick-store-picker.js');
+    const sourcePath = path.join(root, 'js/mall/mall-quick-store-picker.js');
     vm.runInNewContext(fs.readFileSync(sourcePath, 'utf8'), { window, document, console });
 
     window.openQuickSearch('store');
     await window.filterStores();
+    assert.equal(window.isMallThirdPersonView(), true);
+    assert.equal(controlsMenuCloseCalls, 1);
     assert.equal(nodes['search-modal'].style.display, 'block');
     assert.equal(nodes['modal-overlay'].style.display, 'block');
     assert.equal(nodes['search-results'].children.length, 2);

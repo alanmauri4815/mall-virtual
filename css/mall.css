@@ -1311,6 +1311,10 @@
             top: calc(100% + 12px);
             right: 0;
             min-width: 280px;
+            max-height: min(70vh, 620px);
+            overflow-y: auto;
+            overflow-x: hidden;
+            overscroll-behavior: contain;
             display: none;
             flex-direction: column;
             gap: 10px;

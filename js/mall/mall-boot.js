@@ -169,6 +169,7 @@ window.addEventListener('DOMContentLoaded', () => {
         toggleControlsMenu: () => callGlobal('toggleControlsMenu'),
         toggleQuickNavigator: () => callGlobal('toggleQuickNavigator'),
         openQuickSearch: (element) => callGlobal('openQuickSearch', element.dataset.mallValue),
+        openStoreCatalogPicker: () => callGlobal('openQuickSearch', 'store'),
         openMallOrientation: () => callGlobal('openMallOrientation'),
         openMallFeedback: () => callGlobal('openMallFeedback'),
         dismissMallQuickStart: () => callGlobal('dismissMallQuickStart'),
