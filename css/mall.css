@@ -1630,6 +1630,7 @@
         .search-results {
             max-height: 185px;
             overflow-y: auto;
+            overflow-x: hidden;
             background: #f7f7f7;
             border-radius: 8px;
             margin-bottom: 16px;
@@ -1638,6 +1639,8 @@
 
         .search-item {
             width: 100%;
+            min-width: 0;
+            box-sizing: border-box;
             padding: 12px 14px;
             cursor: pointer;
             border: none;
@@ -1649,6 +1652,21 @@
             color: #202020;
             text-align: left;
             font: inherit;
+        }
+
+        .search-store-picker-item {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto auto;
+            align-items: center;
+        }
+
+        .search-store-picker-label {
+            min-width: 0;
+            overflow-wrap: anywhere;
+        }
+
+        .search-store-picker-code {
+            white-space: nowrap;
         }
 
         .search-item:hover,
@@ -8353,6 +8371,20 @@
             .search-item {
                 gap: 8px;
                 padding-inline: 9px;
+            }
+
+            .search-store-picker-item {
+                grid-template-columns: minmax(0, 1fr) auto;
+            }
+
+            .search-store-picker-code {
+                grid-column: 1;
+                grid-row: 2;
+            }
+
+            .search-store-picker-item .search-item-catalog {
+                grid-column: 2;
+                grid-row: 1 / span 2;
             }
 
             .search-item-catalog {

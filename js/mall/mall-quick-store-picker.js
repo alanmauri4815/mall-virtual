@@ -96,8 +96,7 @@
 
         const query = normalize(input.value);
         const matches = stores
-            .filter((store) => !query || normalize(`${store.name} ${store.category} ${store.shopCode}`).includes(query))
-            .slice(0, 12);
+            .filter((store) => !query || normalize(`${store.name} ${store.category} ${store.shopCode}`).includes(query));
         results.innerHTML = "";
 
         if (!matches.length) {
@@ -109,15 +108,17 @@
 
         matches.forEach((store) => {
             const item = document.createElement("div");
-            item.className = "search-item";
+            item.className = "search-item search-store-picker-item";
 
             const label = document.createElement("span");
+            label.className = "search-store-picker-label";
             const name = document.createElement("strong");
             name.textContent = store.name;
             label.appendChild(name);
             label.appendChild(document.createTextNode(store.category));
 
             const code = document.createElement("small");
+            code.className = "search-store-picker-code";
             code.textContent = store.shopCode;
 
             const button = document.createElement("button");
