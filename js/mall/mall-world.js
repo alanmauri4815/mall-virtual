@@ -4291,8 +4291,8 @@
             updateSlidingDoorCollection(corridorSlidingDoors, corridorDoorPrevActors, nowMs, CORRIDOR_DOOR_OPEN_HOLD_MS, 0.2, 0.12);
         }
 
-        const STORE_NEAR_IMAGE_EXPANSION_DISTANCE = 3;
-        const STORE_NEAR_IMAGE_EXPANSION_RELEASE_DISTANCE = 3.4;
+        const STORE_NEAR_IMAGE_EXPANSION_DISTANCE = 6;
+        const STORE_NEAR_IMAGE_EXPANSION_RELEASE_DISTANCE = 6.4;
         const STORE_NEAR_IMAGE_EXPANSION_CHECK_INTERVAL_MS = 200;
         let expandedNearbyStoreCode = '';
         let nextNearbyStoreImageExpansionCheck = 0;

@@ -8,6 +8,6 @@ const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 
 assert.match(world, /ambientLight\.intensity = 0\.40;[\s\S]*?hemisphereLight\.intensity = 0\.60;[\s\S]*?sun\.intensity = 0\.90;/);
 assert.match(world, /ambientLight\.intensity = 0\.46;[\s\S]*?hemisphereLight\.intensity = 0\.78;[\s\S]*?sun\.intensity = 1\.66;/);
-assert.match(html, /mall-world\.js\?v=20261021-nearby-store-image-streaming-3m-v1/);
+assert.match(html, /mall-world\.js\?v=20261022-nearby-store-image-streaming-6m-v1/);
 
 console.log('Day/night light balance is active with a fresh mall-world asset version.');
