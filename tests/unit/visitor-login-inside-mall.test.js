@@ -21,7 +21,7 @@ assert.match(
 );
 assert.match(
     html,
-    /js\/mall\/mall-ui\.js\?v=20261018-mobile-viewport-v1/,
+    /js\/mall\/mall-ui\.js\?v=20261024-context-notice-idle-dismiss-v1/,
     'The updated member-login flow must be served under a fresh asset URL.'
 );
 assert.match(

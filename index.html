@@ -17,8 +17,8 @@
     <script src="assets/vendor/three/SkeletonUtils.r128.js" defer></script>
     <script src="assets/vendor/sb-client/client-v2.min.js" defer></script>
     <script src="js/mall/mall-context.js?v=20261004-official-mall-domain-v1" defer></script>
-    <script src="js/mall/mall-boot.js?v=20261022-staging-catalog-picker-v1" defer></script>
-    <link rel="stylesheet" href="css/mall.css?v=20261022-staging-catalog-picker-all-stores-v1">
+    <script src="js/mall/mall-boot.js?v=20261024-context-notice-idle-dismiss-v1" defer></script>
+    <link rel="stylesheet" href="css/mall.css?v=20261024-context-notice-idle-dismiss-v1">
 </head>
 
 <body>
@@ -334,6 +334,9 @@
             <small id="proximity-context-description"></small>
         </div>
         <button id="proximity-context-action" type="button" data-mall-action="openProximityContextAction" hidden></button>
+        <button id="proximity-context-dismiss" class="proximity-context__dismiss" type="button" data-mall-action="dismissProximityContext" aria-label="Cerrar aviso">
+            <span class="material-symbols-outlined" aria-hidden="true">close</span>
+        </button>
     </section>
 
     <div id="member-benefits-backdrop" data-mall-action="closeMemberBenefits"></div>
@@ -1597,7 +1600,7 @@
     <script src="js/mall/mall-interaction.js?v=20260820-editor-selection-fix" defer></script>
     <script src="js/mall/security/url-safety.js?v=20260815-store-contact-links" defer></script>
     <script src="js/mall/mall-catalog-themes.js?v=20260830-catalog-color-themes" defer></script>
-    <script src="js/mall/mall-ui.js?v=20261018-mobile-viewport-v1" defer></script>
+    <script src="js/mall/mall-ui.js?v=20261024-context-notice-idle-dismiss-v1" defer></script>
     <script src="js/mall/mall-analytics.js?v=20260726-presence-avatar-local" defer></script>
     <script src="js/mall/mall-assistant-catalog-search.js?v=20261003-local-catalog-search" defer></script>
     <script src="js/mall/mall-store-assistant.js?v=20261003-local-catalog-search" defer></script>

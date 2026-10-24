@@ -174,6 +174,7 @@ window.addEventListener('DOMContentLoaded', () => {
         openMallFeedback: () => callGlobal('openMallFeedback'),
         dismissMallQuickStart: () => callGlobal('dismissMallQuickStart'),
         openProximityContextAction: () => callGlobal('openProximityContextAction'),
+        dismissProximityContext: () => callGlobal('dismissProximityContext'),
         closeCompactRouteMap: () => callGlobal('closeCompactRouteMap'),
         teleportFromCompactRoute: () => callGlobal('teleportFromCompactRoute'),
         toggleWalkMode: () => callGlobal('toggleWalkMode'),

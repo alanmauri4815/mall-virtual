@@ -1970,6 +1970,30 @@
             outline: none;
         }
 
+        .proximity-context .proximity-context__dismiss {
+            display: grid;
+            width: 40px;
+            min-width: 40px;
+            height: 40px;
+            place-items: center;
+            padding: 0;
+            border-color: transparent;
+            border-radius: 8px;
+            background: transparent;
+            color: #c8c1b4;
+        }
+
+        .proximity-context .proximity-context__dismiss:hover,
+        .proximity-context .proximity-context__dismiss:focus-visible {
+            border-color: rgba(215, 178, 95, 0.45);
+            background: rgba(197, 160, 89, 0.16);
+            color: #fff;
+        }
+
+        .proximity-context__dismiss .material-symbols-outlined {
+            font-size: 20px;
+        }
+
         #login-overlay.mall-account-access .welcome-stage,
         #login-overlay.mall-account-access .entry-top-actions {
             display: none;
