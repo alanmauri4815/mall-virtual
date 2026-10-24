@@ -15,6 +15,7 @@ assert.match(
 );
 assert.match(boot, /exitMallExperience:\s*\(\)\s*=>\s*callGlobal\('exitMallExperience'\)/);
 assert.match(boot, /navigationUI:\s*isAndroid\s*\?\s*'show'\s*:\s*'hide'/);
+assert.match(html, /mall-boot\\.js\\?v=20261024-mobile-rotation-suggestion-v1/);
 assert.match(css, /\.guest-account-actions__exit\s*\{[\s\S]*?min-height:\s*36px/);
 
 const entry = ui.match(/window\.startMallExperience = async function \(\) \{([\s\S]*?)\n        \};/);
