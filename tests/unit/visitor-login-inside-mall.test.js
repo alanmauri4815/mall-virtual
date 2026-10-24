@@ -10,7 +10,7 @@ const mallCss = fs.readFileSync(path.join(projectRoot, 'css', 'mall.css'), 'utf8
 
 assert.match(
     html,
-    /id="guest-account-actions"[\s\S]*?data-mall-action="openLoginChooser"[\s\S]*?Login/
+    /id="guest-account-actions"[\s\S]*?data-mall-action="openLoginChooser"[\s\S]*?Login[\s\S]*?data-mall-action="exitMallExperience"[\s\S]*?Salir del mall/
 );
 const guestAccountActionsStyles = mallCss.match(/\.guest-account-actions\s*\{([^}]*)\}/);
 assert.ok(guestAccountActionsStyles, 'Anonymous visitor account actions must have a dedicated hit area.');
@@ -21,7 +21,7 @@ assert.match(
 );
 assert.match(
     html,
-    /js\/mall\/mall-ui\.js\?v=20261024-context-notice-idle-dismiss-v1/,
+    /js\/mall\/mall-ui\.js\?v=20261024-mobile-fullscreen-exit-v1/,
     'The updated member-login flow must be served under a fresh asset URL.'
 );
 assert.match(

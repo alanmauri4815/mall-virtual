@@ -10,6 +10,35 @@
 window.mallMobileViewport = (() => {
     document.getElementById('mobile-orientation-helper')?.remove();
     const isTouchDevice = () => window.matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0;
+    const requestFullscreenFromGesture = () => {
+        if (!isTouchDevice() || document.fullscreenElement) return Promise.resolve(false);
+        const root = document.documentElement;
+        if (typeof root?.requestFullscreen === 'function') {
+            try {
+                return root.requestFullscreen({ navigationUI: 'hide' }).then(() => true).catch(() => false);
+            } catch {
+                return Promise.resolve(false);
+            }
+        }
+        if (typeof root?.webkitRequestFullscreen === 'function') {
+            try {
+                return Promise.resolve(root.webkitRequestFullscreen()).then(() => true).catch(() => false);
+            } catch {
+                return Promise.resolve(false);
+            }
+        }
+        return Promise.resolve(false);
+    };
+    const exitFullscreen = () => {
+        if (!document.fullscreenElement && !document.webkitFullscreenElement) return Promise.resolve(false);
+        const exit = document.exitFullscreen || document.webkitExitFullscreen;
+        if (typeof exit !== 'function') return Promise.resolve(false);
+        try {
+            return Promise.resolve(exit.call(document)).then(() => true).catch(() => false);
+        } catch {
+            return Promise.resolve(false);
+        }
+    };
     const getViewportSize = () => {
         const viewport = window.visualViewport;
         return {
@@ -59,7 +88,7 @@ window.mallMobileViewport = (() => {
         orientationMedia?.addListener?.(syncOrientation);
     }
 
-    return { activate, updateState, isTouchDevice, isLandscape };
+    return { activate, updateState, isTouchDevice, isLandscape, requestFullscreenFromGesture, exitFullscreen };
 })();
 
 // One page load needs the public catalog in several features. Share the
@@ -149,6 +178,7 @@ window.addEventListener('DOMContentLoaded', () => {
         openAvatarCustomizer: () => callGlobal('openAvatarCustomizer'),
         closeAvatarCustomizer: () => callGlobal('closeAvatarCustomizer'),
         openLoginChooser: () => callGlobal('openLoginChooser'),
+        exitMallExperience: () => callGlobal('exitMallExperience'),
         entryMember: () => callGlobal('setEntryMode', 'member'),
         entryMemberRegister: () => callGlobal('openMemberRegistration'),
         entryTenant: () => callGlobal('setEntryMode', 'tenant'),

@@ -1844,6 +1844,9 @@
             const isAnonymousGuest = hasEnteredMall && currentAccessRole === 'guest';
             const controlsMenu = document.getElementById('controls-menu');
             const accountActions = document.getElementById('guest-account-actions');
+            const loginButton = accountActions?.querySelector('[data-mall-action="openLoginChooser"]');
+            const registerButton = accountActions?.querySelector('[data-mall-action="entryMemberRegister"]');
+            const exitButton = accountActions?.querySelector('[data-mall-action="exitMallExperience"]');
             const tenantAccessItem = document.getElementById('tenant-access-btn');
             const adminMenuItem = document.getElementById('admin-manage-menu-item');
             const adminButton = document.getElementById('super-admin-btn');
@@ -1863,9 +1866,12 @@
                 if (tenantAccessItem) tenantAccessItem.style.display = '';
             }
             if (accountActions) {
-                accountActions.hidden = !isAnonymousGuest;
-                accountActions.style.display = isAnonymousGuest ? 'flex' : 'none';
+                accountActions.hidden = !hasEnteredMall;
+                accountActions.style.display = hasEnteredMall ? 'flex' : 'none';
             }
+            if (loginButton) loginButton.hidden = !isAnonymousGuest;
+            if (registerButton) registerButton.hidden = !isAnonymousGuest;
+            if (exitButton) exitButton.hidden = !hasEnteredMall;
         }
 
         const memberPedometerState = {
@@ -8390,6 +8396,8 @@ myIsMoving = false;
         }
 
         window.startMallExperience = async function () {
+            // Start fullscreen while the entry tap still counts as a user gesture.
+            void window.mallMobileViewport?.requestFullscreenFromGesture?.();
             const nicknameInput = document.getElementById('nickname-input');
             const nick = nicknameInput.value.trim();
 
@@ -8398,6 +8406,11 @@ myIsMoving = false;
             const effectiveNick = nick || buildGuestNickname();
             if (!nick && nicknameInput) nicknameInput.value = effectiveNick;
             await enterMallWithIdentity({ nickname: effectiveNick, role: "guest" });
+        };
+
+        window.exitMallExperience = async function () {
+            await window.mallMobileViewport?.exitFullscreen?.();
+            window.location.reload();
         };
 
         window.toggleEntryPreferences = function () {

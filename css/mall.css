@@ -1370,6 +1370,20 @@
             border-color: #d8b96f;
         }
 
+        .guest-account-actions [hidden] { display: none !important; }
+
+        .guest-account-actions .guest-account-actions__exit {
+            min-height: 36px;
+            padding: 7px 9px;
+            color: #ead4a8;
+            letter-spacing: 0;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .guest-account-actions__exit .material-symbols-outlined { font-size: 17px; }
+
         .guest-account-actions button:hover,
         .guest-account-actions button:focus-visible {
             border-color: #f0d58f;
