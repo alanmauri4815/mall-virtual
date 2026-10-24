@@ -15,7 +15,12 @@ window.mallMobileViewport = (() => {
         const root = document.documentElement;
         if (typeof root?.requestFullscreen === 'function') {
             try {
-                return root.requestFullscreen({ navigationUI: 'hide' }).then(() => true).catch(() => false);
+                // Android renders manual rotation suggestions in the system navigation bar.
+                const isAndroid = /Android/i.test(navigator.userAgent || '')
+                    || /Android/i.test(navigator.userAgentData?.platform || '');
+                return root.requestFullscreen({ navigationUI: isAndroid ? 'show' : 'hide' })
+                    .then(() => true)
+                    .catch(() => false);
             } catch {
                 return Promise.resolve(false);
             }
