@@ -1,8 +1,15 @@
 (() => {
   'use strict';
 
-  const supabaseConfig = window.MALL_SUPABASE_CONFIG || {};
+  const SUPABASE_URL = 'https://kcfuixvrwbnizspgtmtr.supabase.co';
+  const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_-H23KD1xJafE_DFpBFZlyA_CL9sNlpG';
+  const officialMallDomains = new Set(['mallcreaciones.maucore.cl', 'mallvirtual.maucore.cl']);
+  const stagingSupabaseConfig = window.MALL_SUPABASE_CONFIG || {};
+  const supabaseConfig = officialMallDomains.has(window.location.hostname.toLowerCase())
+    ? { url: SUPABASE_URL, publishableKey: SUPABASE_PUBLISHABLE_KEY }
+    : stagingSupabaseConfig;
   const mall = window.mallContext;
+  document.title = 'Tiendas y productos | ' + (mall?.displayName || 'Mall Creaciones');
   const client = window.supabase?.createClient(supabaseConfig.url, supabaseConfig.publishableKey);
   const state = {
     stores: [], products: [], mode: 'products', category: 'all', query: '', sort: 'recommended',
@@ -77,7 +84,7 @@
     if (contact) return { href: `tel:${contact}`, label: 'Llamar al local', external: false };
     const email = String(store?.contact_email || '').trim();
     if (email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      return { href: `mailto:${email}?subject=${encodeURIComponent('Consulta desde Mall Providencia')}`, label: 'Escribir al local', external: false };
+      return { href: `mailto:${email}?subject=${encodeURIComponent('Consulta desde el Mall')}`, label: 'Escribir al local', external: false };
     }
     return null;
   };
@@ -289,7 +296,7 @@
     if (!product) return;
     const image = safeImage(product.image_url);
     const price = formatPrice(product.price);
-    const contact = getContact(product.store, `Hola, vi ${product.name} en la vitrina de Mall Providencia. ¿Me puedes contar más?`);
+    const contact = getContact(product.store, `Hola, vi ${product.name} en la vitrina del mall. ¿Me puedes contar más?`);
     const contactAction = contact
       ? `<a class="action-primary" href="${escapeHtml(contact.href)}"${contact.external ? ' target="_blank" rel="noopener noreferrer"' : ''}>${escapeHtml(contact.label)}</a>`
       : '<span class="action-secondary">Contacto del local no disponible</span>';
@@ -319,7 +326,7 @@
   function openStore(store) {
     if (!store) return;
     const logo = safeImage(store.logo_url);
-    const contact = getContact(store, `Hola, encontré ${store.displayName} en la vitrina de Mall Providencia. ¿Me pueden ayudar?`);
+    const contact = getContact(store, `Hola, encontré ${store.displayName} en la vitrina del mall. ¿Me pueden ayudar?`);
     const contactAction = contact
       ? `<a class="action-primary" href="${escapeHtml(contact.href)}"${contact.external ? ' target="_blank" rel="noopener noreferrer"' : ''}>${escapeHtml(contact.label)}</a>`
       : '<span class="action-secondary">Contacto del local no disponible</span>';
