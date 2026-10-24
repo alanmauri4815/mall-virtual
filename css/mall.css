@@ -1948,6 +1948,30 @@
             outline: none;
         }
 
+        .proximity-context .proximity-context__dismiss {
+            display: grid;
+            width: 40px;
+            min-width: 40px;
+            height: 40px;
+            place-items: center;
+            padding: 0;
+            border-color: transparent;
+            border-radius: 8px;
+            background: transparent;
+            color: #c8c1b4;
+        }
+
+        .proximity-context .proximity-context__dismiss:hover,
+        .proximity-context .proximity-context__dismiss:focus-visible {
+            border-color: rgba(215, 178, 95, 0.45);
+            background: rgba(197, 160, 89, 0.16);
+            color: #fff;
+        }
+
+        .proximity-context__dismiss .material-symbols-outlined {
+            font-size: 20px;
+        }
+
         #login-overlay.mall-account-access .welcome-stage,
         #login-overlay.mall-account-access .entry-top-actions {
             display: none;
@@ -5145,16 +5169,16 @@
             }
 
             .controls-menu {
-                top: 16px;
+                top: max(58px, calc(env(safe-area-inset-top, 0px) + 50px));
                 right: 14px;
             }
 
             .controls-menu.is-guest-controls {
-                right: 148px;
+                right: 14px;
             }
 
             .guest-account-actions {
-                top: 16px;
+                top: max(8px, calc(env(safe-area-inset-top, 0px) + 4px));
                 right: 14px;
             }
 
@@ -5165,7 +5189,7 @@
             }
 
             .mall-quick-tools {
-                top: 16px;
+                top: max(8px, calc(env(safe-area-inset-top, 0px) + 4px));
                 left: 14px;
             }
 
@@ -5179,7 +5203,7 @@
             }
 
             .mall-quick-start {
-                top: 64px;
+                top: max(64px, calc(env(safe-area-inset-top, 0px) + 58px));
                 left: 14px;
                 width: min(292px, calc(100vw - 28px));
             }
@@ -5189,7 +5213,8 @@
             }
 
             .proximity-context {
-                bottom: max(54px, env(safe-area-inset-bottom));
+                bottom: calc(clamp(168px, 24vh, 196px) + max(8px, env(safe-area-inset-bottom)) + 10px);
+                bottom: calc(clamp(168px, 24dvh, 196px) + max(8px, env(safe-area-inset-bottom)) + 10px);
                 width: calc(100vw - 28px);
                 padding: 9px 10px;
             }
@@ -5207,18 +5232,30 @@
 
             .controls-dropdown {
                 min-width: 236px;
+                max-height: calc(100vh - max(128px, env(safe-area-inset-top, 0px) + 120px));
+                max-height: calc(100dvh - max(128px, env(safe-area-inset-top, 0px) + 120px));
+                overflow-y: auto;
                 gap: 8px;
                 padding: 12px;
                 border-radius: 18px;
             }
 
+            #mobile-control-settings {
+                max-height: calc(100vh - max(86px, env(safe-area-inset-top, 0px) + 82px));
+                max-height: calc(100dvh - max(86px, env(safe-area-inset-top, 0px) + 82px));
+                overflow-y: auto;
+                overscroll-behavior: contain;
+            }
+
             #mobile-controls-container {
                 display: none;
                 position: fixed;
-                bottom: max(18px, env(safe-area-inset-bottom));
+                bottom: max(8px, env(safe-area-inset-bottom));
                 left: 0;
                 width: 100%;
-                height: 196px;
+                height: 168px;
+                height: clamp(168px, 24vh, 196px);
+                height: clamp(168px, 24dvh, 196px);
                 z-index: 1000;
                 pointer-events: none;
                 padding: 0;
@@ -5672,8 +5709,13 @@
 
         @media(max-width: 900px) and (orientation: landscape) {
             #mobile-controls-container {
-                bottom: max(10px, env(safe-area-inset-bottom));
+                bottom: max(8px, env(safe-area-inset-bottom));
                 height: 148px;
+            }
+
+            .proximity-context,
+            .interaction-feedback {
+                bottom: calc(148px + max(8px, env(safe-area-inset-bottom)) + 10px);
             }
 
             #mobile-move-panel {
@@ -5752,73 +5794,46 @@
             }
         }
 
-        #mobile-orientation-helper {
-            display: none;
-            position: fixed;
-            inset: 0;
-            z-index: 10050;
-            background: rgba(5, 5, 5, 0.92);
-            color: #f0e3c2;
-            align-items: center;
-            justify-content: center;
-            text-align: center;
-            padding: 26px;
-            pointer-events: auto;
-        }
+        @media(max-width: 900px) and (orientation: portrait) {
+            .interaction-feedback {
+                bottom: calc(clamp(168px, 24vh, 196px) + max(8px, env(safe-area-inset-bottom)) + 10px);
+                bottom: calc(clamp(168px, 24dvh, 196px) + max(8px, env(safe-area-inset-bottom)) + 10px);
+            }
 
-        #mobile-orientation-helper .orientation-box {
-            max-width: 320px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 14px;
-        }
+            .joystick-container {
+                width: clamp(96px, 30vw, 124px);
+                height: clamp(96px, 30vw, 124px);
+            }
 
-        #mobile-orientation-helper .orientation-icon {
-            width: 68px;
-            height: 44px;
-            border: 2px solid #c5a059;
-            border-radius: 10px;
-            box-shadow: 0 0 24px rgba(197, 160, 89, 0.28);
-        }
+            .joystick-container::before {
+                inset: 14px;
+            }
 
-        #mobile-orientation-helper .orientation-title {
-            color: #c5a059;
-            font-size: 12px;
-            letter-spacing: 2px;
-            text-transform: uppercase;
-            font-weight: 700;
-        }
+            .joystick-knob {
+                width: 44px;
+                height: 44px;
+            }
 
-        #mobile-orientation-helper .orientation-text {
-            color: rgba(255, 255, 255, 0.72);
-            font-size: 12px;
-            line-height: 1.5;
-        }
+            .rotation-controls {
+                grid-template-columns: repeat(2, clamp(48px, 16vw, 62px));
+                gap: 8px;
+            }
 
-        #mobile-orientation-helper .orientation-btn {
-            border: 1px solid rgba(197, 160, 89, 0.55);
-            background: #c5a059;
-            color: #050505;
-            padding: 11px 16px;
-            border-radius: 8px;
-            font-size: 11px;
-            font-weight: 700;
-            letter-spacing: 1px;
-            text-transform: uppercase;
-        }
+            .dpad-btn {
+                width: clamp(48px, 16vw, 62px);
+                height: 54px;
+                gap: 2px;
+                border-radius: 12px;
+            }
 
-        #mobile-orientation-helper .orientation-btn-secondary {
-            background: transparent;
-            color: #f0e3c2;
-        }
+            .dpad-note,
+            .mobile-control-note {
+                display: none;
+            }
 
-        body.mobile-session-active.mobile-portrait #mobile-orientation-helper {
-            display: flex;
-        }
-
-        body.mobile-session-active.mobile-portrait.mobile-orientation-dismissed #mobile-orientation-helper {
-            display: none;
+            .mobile-control-panel {
+                gap: 8px;
+            }
         }
 
         .analytics-section {

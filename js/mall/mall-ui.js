@@ -1206,7 +1206,43 @@
 
         let activeProximityContext = null;
         let proximityContextTimer = null;
+        let proximityContextDismissTimer = null;
+        let proximityContextFocusoutTimer = null;
+        let proximityContextDismissGeneration = 0;
+        let dismissedProximityContextKey = '';
+        const PROXIMITY_CONTEXT_IDLE_DISMISS_MS = 15000;
         const proximityVector = typeof THREE !== 'undefined' ? new THREE.Vector3() : null;
+
+        function getProximityContextKey(context) {
+            return context
+                ? `${context.action || 'plaque'}:${context.storeCode || context.title}`
+                : '';
+        }
+
+        function clearProximityContextDismissTimers() {
+            proximityContextDismissGeneration += 1;
+            if (proximityContextDismissTimer !== null) {
+                window.clearTimeout(proximityContextDismissTimer);
+                proximityContextDismissTimer = null;
+            }
+            if (proximityContextFocusoutTimer !== null) {
+                window.clearTimeout(proximityContextFocusoutTimer);
+                proximityContextFocusoutTimer = null;
+            }
+        }
+
+        function scheduleProximityContextDismiss(context, bar) {
+            clearProximityContextDismissTimers();
+            if (!context || !bar || bar.hidden || bar.contains(document.activeElement)) return;
+
+            const generation = proximityContextDismissGeneration;
+            proximityContextDismissTimer = window.setTimeout(() => {
+                if (generation !== proximityContextDismissGeneration || activeProximityContext !== context) return;
+                proximityContextDismissTimer = null;
+                if (bar.contains(document.activeElement)) return;
+                window.dismissProximityContext();
+            }, PROXIMITY_CONTEXT_IDLE_DISMISS_MS);
+        }
 
         function setProximityContext(context = null) {
             const bar = document.getElementById('proximity-context');
@@ -1214,6 +1250,7 @@
             const title = document.getElementById('proximity-context-title');
             const description = document.getElementById('proximity-context-description');
             const action = document.getElementById('proximity-context-action');
+            clearProximityContextDismissTimers();
             activeProximityContext = context;
             if (!bar || !icon || !title || !description || !action) return;
             if (!context) {
@@ -1227,6 +1264,7 @@
             action.textContent = context.actionLabel || '';
             action.hidden = !context.action;
             bar.hidden = false;
+            scheduleProximityContextDismiss(context, bar);
         }
 
         function getTargetDistance(target) {
@@ -1287,10 +1325,14 @@
 
         function updateProximityContext() {
             const next = findNearbyContext();
-            const currentKey = activeProximityContext
-                ? `${activeProximityContext.action || 'plaque'}:${activeProximityContext.storeCode || activeProximityContext.title}`
-                : '';
-            const nextKey = next ? `${next.action || 'plaque'}:${next.storeCode || next.title}` : '';
+            const currentKey = getProximityContextKey(activeProximityContext);
+            const nextKey = getProximityContextKey(next);
+            if (!nextKey) dismissedProximityContextKey = '';
+            else if (dismissedProximityContextKey && nextKey !== dismissedProximityContextKey) dismissedProximityContextKey = '';
+            if (nextKey && nextKey === dismissedProximityContextKey) {
+                if (currentKey) setProximityContext(null);
+                return;
+            }
             if (currentKey !== nextKey) setProximityContext(next);
         }
 
@@ -1300,12 +1342,37 @@
             proximityContextTimer = window.setInterval(updateProximityContext, 650);
         }
 
+        window.dismissProximityContext = function () {
+            if (activeProximityContext) dismissedProximityContextKey = getProximityContextKey(activeProximityContext);
+            setProximityContext(null);
+        };
+
         window.openProximityContextAction = function () {
             const context = activeProximityContext;
             if (!context?.action) return;
+            window.dismissProximityContext();
             if (context.action === 'mall-assistant') window.openMallOrientation?.();
             if (context.action === 'store-assistant') window.openStoreAssistant?.(context.storeCode);
         };
+
+        const proximityContextBar = document.getElementById('proximity-context');
+        if (proximityContextBar) {
+            proximityContextBar.addEventListener('focusin', clearProximityContextDismissTimers);
+            proximityContextBar.addEventListener('focusout', () => {
+                if (proximityContextFocusoutTimer !== null) window.clearTimeout(proximityContextFocusoutTimer);
+                proximityContextFocusoutTimer = window.setTimeout(() => {
+                    proximityContextFocusoutTimer = null;
+                    scheduleProximityContextDismiss(activeProximityContext, proximityContextBar);
+                }, 0);
+            });
+            proximityContextBar.addEventListener('pointerenter', clearProximityContextDismissTimers);
+            proximityContextBar.addEventListener('pointerleave', () => {
+                scheduleProximityContextDismiss(activeProximityContext, proximityContextBar);
+            });
+            proximityContextBar.addEventListener('pointerdown', () => {
+                scheduleProximityContextDismiss(activeProximityContext, proximityContextBar);
+            });
+        }
 
         window.openMallIntro = function () {
             const introModal = document.getElementById('mall-intro-modal');
@@ -3310,7 +3377,6 @@
 
                 if (!isWalking) window.toggleWalkMode({ preservePosition: true });
                 window.setMallThirdPersonView?.(true);
-                if (window.mallMobileViewport) window.mallMobileViewport.requestLandscape();
                 if (role === "guest" || role === "member" || role === "registered_visitor") {
                     preloadStoreContent(renameStoreCode('O101'));
                 }
