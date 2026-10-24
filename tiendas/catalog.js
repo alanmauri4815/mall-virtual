@@ -5,11 +5,14 @@
   const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_-H23KD1xJafE_DFpBFZlyA_CL9sNlpG';
   const officialMallDomains = new Set(['mallcreaciones.maucore.cl', 'mallvirtual.maucore.cl']);
   const stagingSupabaseConfig = window.MALL_SUPABASE_CONFIG || {};
-  const supabaseConfig = officialMallDomains.has(window.location.hostname.toLowerCase())
+  const isOfficialMallDomain = officialMallDomains.has(window.location.hostname.toLowerCase());
+  const supabaseConfig = isOfficialMallDomain
     ? { url: SUPABASE_URL, publishableKey: SUPABASE_PUBLISHABLE_KEY }
     : stagingSupabaseConfig;
   const mall = window.mallContext;
-  document.title = 'Tiendas y productos | ' + (mall?.displayName || 'Mall Creaciones');
+  const mallDisplayName = isOfficialMallDomain ? 'Mall Creaciones' : (mall?.displayName || 'Mall Creaciones');
+  document.title = 'Tiendas y productos | ' + mallDisplayName;
+  document.querySelectorAll('[data-mall-context-name]').forEach((element) => { element.textContent = mallDisplayName; });
   const client = window.supabase?.createClient(supabaseConfig.url, supabaseConfig.publishableKey);
   const state = {
     stores: [], products: [], mode: 'products', category: 'all', query: '', sort: 'recommended',
