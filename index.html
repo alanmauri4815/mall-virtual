@@ -4,6 +4,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="Mall Creaciones">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title data-mall-context-name>Mall Creaciones</title>
     <!-- Google Fonts & Icons -->
     <link
@@ -17,8 +20,8 @@
     <script src="assets/vendor/three/SkeletonUtils.r128.js" defer></script>
     <script src="assets/vendor/sb-client/client-v2.min.js" defer></script>
     <script src="js/mall/mall-context.js?v=20261004-official-mall-domain-v1" defer></script>
-    <script src="js/mall/mall-boot.js?v=20261024-visitor-orientation-idle-dismiss-v1" defer></script>
-    <link rel="stylesheet" href="css/mall.css?v=20261024-visitor-orientation-idle-dismiss-v1">
+    <script src="js/mall/mall-boot.js?v=20261104-mobile-fullscreen-toggle-v1" defer></script>
+    <link rel="stylesheet" href="css/mall.css?v=20261104-mobile-fullscreen-toggle-v1">
 </head>
 
 <body>
@@ -429,7 +432,12 @@
         </div>
 
         <div class="mobile-control-panel" id="mobile-look-panel">
-            <div class="mobile-control-chip">Camara</div>
+            <div class="mobile-look-heading">
+                <div class="mobile-control-chip">Camara</div>
+                <button type="button" class="mobile-icon-btn" id="mobile-fullscreen-toggle" data-mall-action="toggleMobileFullscreen" data-stop-propagation="true" aria-label="Activar pantalla completa" aria-pressed="false" title="Activar pantalla completa" hidden>
+                    <span class="material-symbols-outlined" aria-hidden="true">fullscreen</span>
+                </button>
+            </div>
             <div class="rotation-controls">
                 <button type="button" class="dpad-btn" id="btn-rotate-left" aria-label="Girar a la izquierda" title="Girar a la izquierda">
                     <span class="dpad-icon">&#8592;</span>
@@ -477,6 +485,7 @@
             </div>
         </div>
     </div>
+    <div id="mobile-fullscreen-status" role="status" aria-live="polite" aria-atomic="true" hidden></div>
 
     <!-- MODAL DE FICHA COMERCIAL -->
     <div class="overlay" id="modal-overlay"></div>
