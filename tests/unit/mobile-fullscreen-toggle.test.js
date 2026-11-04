@@ -7,6 +7,7 @@ const root = path.resolve(__dirname, '../..');
 const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 const css = fs.readFileSync(path.join(root, 'css/mall.css'), 'utf8');
 const boot = fs.readFileSync(path.join(root, 'js/mall/mall-boot.js'), 'utf8');
+const ui = fs.readFileSync(path.join(root, 'js/mall/mall-ui.js'), 'utf8');
 
 assert.ok(html.includes('js/mall/mall-boot.js?v=20261104-mobile-fullscreen-toggle-v1'));
 assert.ok(html.includes('css/mall.css?v=20261104-mobile-fullscreen-toggle-v1'));
@@ -17,6 +18,43 @@ assert.match(boot, /toggleMobileFullscreen:\s*\(\)\s*=>\s*callGlobal\('toggleMob
 assert.match(css, /#mobile-fullscreen-toggle:focus-visible/);
 assert.match(css, /#mobile-fullscreen-toggle\[hidden\]\s*\{\s*display:\s*none;/);
 assert.match(css, /#mobile-fullscreen-status\[hidden\]\s*\{\s*display:\s*none;/);
+assert.ok(html.includes('js/mall/mall-ui.js?v=20261104-fullscreen-entry-gesture-v1'));
+
+const guestEntry = ui.match(/window\.startMallExperience = async function \(\) \{([\s\S]*?)\n        \};/);
+assert.ok(guestEntry, 'The anonymous mall entry handler must remain available.');
+assert.match(
+    guestEntry[1],
+    /requestFullscreenFromGesture\?\.\(\)[\s\S]*?await enterMallWithIdentity/,
+    'Fullscreen must be requested synchronously before guest entry awaits.'
+);
+
+async function runGuestEntry(requestFullscreenFromGesture) {
+    const callOrder = [];
+    const nicknameInput = { value: '' };
+    let enteredIdentity = null;
+    const sandbox = {
+        window: {
+            mallMobileViewport: {
+                requestFullscreenFromGesture() {
+                    callOrder.push('fullscreen-request');
+                    return requestFullscreenFromGesture();
+                }
+            }
+        },
+        document: {
+            getElementById(id) { return id === 'nickname-input' ? nicknameInput : null; }
+        },
+        buildGuestNickname() { return 'Visitante de prueba'; },
+        async enterMallWithIdentity(identity) {
+            callOrder.push('guest-entry');
+            enteredIdentity = identity;
+            return identity;
+        }
+    };
+    vm.runInNewContext(guestEntry[0], sandbox);
+    await sandbox.window.startMallExperience();
+    return { callOrder, identity: enteredIdentity, nicknameInput };
+}
 
 const viewportBlock = boot.match(/window\.mallMobileViewport = \(\(\) => \{[\s\S]*?\n\}\)\(\);/);
 assert.ok(viewportBlock, 'The mobile viewport controller must remain available.');
@@ -129,6 +167,16 @@ function createViewport({
 }
 
 (async () => {
+    const rejectedGuestEntry = await runGuestEntry(() => Promise.reject(new Error('Fullscreen denied')));
+    assert.deepEqual(rejectedGuestEntry.callOrder, ['fullscreen-request', 'guest-entry']);
+    assert.equal(rejectedGuestEntry.identity.role, 'guest', 'A rejected fullscreen request must not block anonymous entry.');
+    assert.equal(rejectedGuestEntry.identity.nickname, 'Visitante de prueba');
+    assert.equal(rejectedGuestEntry.nicknameInput.value, 'Visitante de prueba');
+
+    const unsupportedGuestEntry = await runGuestEntry(() => { throw new Error('Fullscreen unsupported'); });
+    assert.deepEqual(unsupportedGuestEntry.callOrder, ['fullscreen-request', 'guest-entry']);
+    assert.equal(unsupportedGuestEntry.identity.role, 'guest', 'A synchronous fullscreen failure must not block anonymous entry.');
+
     const mobile = createViewport();
     assert.equal(mobile.button.hidden, false);
     assert.equal(mobile.button.attributes['aria-pressed'], 'false');

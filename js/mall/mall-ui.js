@@ -8390,6 +8390,12 @@ myIsMoving = false;
         }
 
         window.startMallExperience = async function () {
+            try {
+                const fullscreenRequest = window.mallMobileViewport?.requestFullscreenFromGesture?.();
+                if (fullscreenRequest) void Promise.resolve(fullscreenRequest).catch(() => {});
+            } catch {
+                // Fullscreen is optional; a browser failure must not block mall entry.
+            }
             const nicknameInput = document.getElementById('nickname-input');
             const nick = nicknameInput.value.trim();
 
