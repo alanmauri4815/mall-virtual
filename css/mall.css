@@ -5399,6 +5399,55 @@
             box-shadow: 0 0 0 4px rgba(197, 160, 89, 0.2);
         }
 
+        .mobile-look-heading {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 8px;
+        }
+
+        #mobile-fullscreen-toggle.mobile-icon-btn {
+            width: 40px;
+            height: 40px;
+        }
+
+        #mobile-fullscreen-toggle[hidden] {
+            display: none;
+        }
+
+        #mobile-fullscreen-toggle .material-symbols-outlined {
+            font-size: 22px;
+        }
+
+        #mobile-fullscreen-toggle:focus-visible {
+            outline: 2px solid #f0d394;
+            outline-offset: 2px;
+        }
+
+        #mobile-fullscreen-status {
+            position: fixed;
+            top: max(68px, calc(env(safe-area-inset-top, 0px) + 58px));
+            left: 50%;
+            z-index: 10020;
+            width: min(380px, calc(100vw - 24px));
+            padding: 10px 12px;
+            transform: translateX(-50%);
+            border: 1px solid rgba(197, 160, 89, 0.72);
+            border-radius: 6px;
+            background: rgba(8, 10, 14, 0.96);
+            box-shadow: 0 12px 28px rgba(0, 0, 0, 0.38);
+            color: #f0dfb8;
+            font-family: 'Inter', sans-serif;
+            font-size: 12px;
+            line-height: 1.4;
+            text-align: center;
+            pointer-events: none;
+        }
+
+        #mobile-fullscreen-status[hidden] {
+            display: none;
+        }
+
         #mobile-control-settings {
             position: absolute;
             left: 50%;
