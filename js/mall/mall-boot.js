@@ -10,6 +10,125 @@
 window.mallMobileViewport = (() => {
     document.getElementById('mobile-orientation-helper')?.remove();
     const isTouchDevice = () => window.matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0;
+    const isIOS = () => /iPad|iPhone|iPod/i.test(navigator.userAgent || '')
+        || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    const isIOSStandalone = () => isIOS() && (
+        navigator.standalone === true
+        || window.matchMedia?.('(display-mode: standalone)')?.matches === true
+    );
+    const getFullscreenElement = () => document.fullscreenElement || document.webkitFullscreenElement || null;
+    const requestFullscreenFromGesture = () => {
+        if (!isTouchDevice() || getFullscreenElement()) return Promise.resolve(false);
+        const root = document.documentElement;
+        if (typeof root?.requestFullscreen === 'function') {
+            try {
+                return root.requestFullscreen({ navigationUI: 'hide' })
+                    .then(() => true)
+                    .catch(() => false);
+            } catch {
+                return Promise.resolve(false);
+            }
+        }
+        if (typeof root?.webkitRequestFullscreen === 'function') {
+            try {
+                return Promise.resolve(root.webkitRequestFullscreen()).then(() => true).catch(() => false);
+            } catch {
+                return Promise.resolve(false);
+            }
+        }
+        return Promise.resolve(false);
+    };
+    const exitFullscreen = () => {
+        if (!getFullscreenElement()) return Promise.resolve(false);
+        const exit = document.exitFullscreen || document.webkitExitFullscreen;
+        if (typeof exit !== 'function') return Promise.resolve(false);
+        try {
+            return Promise.resolve(exit.call(document)).then(() => true).catch(() => false);
+        } catch {
+            return Promise.resolve(false);
+        }
+    };
+    const fullscreenButton = document.getElementById('mobile-fullscreen-toggle');
+    const fullscreenStatus = document.getElementById('mobile-fullscreen-status');
+    const fullscreenIcon = fullscreenButton?.querySelector('.material-symbols-outlined');
+    let fullscreenStatusTimer = null;
+    let fullscreenTransitionPending = false;
+
+    const showFullscreenStatus = (message, duration = 6500) => {
+        if (!fullscreenStatus) return;
+        if (fullscreenStatusTimer) clearTimeout(fullscreenStatusTimer);
+        fullscreenStatus.textContent = message;
+        fullscreenStatus.hidden = false;
+        fullscreenStatusTimer = setTimeout(() => {
+            fullscreenStatus.hidden = true;
+            fullscreenStatusTimer = null;
+        }, duration);
+    };
+
+    const syncFullscreenButton = () => {
+        if (!fullscreenButton) return;
+        const active = Boolean(getFullscreenElement());
+        const hidden = !isTouchDevice() || isIOSStandalone();
+        const label = active ? 'Salir de pantalla completa' : 'Activar pantalla completa';
+        fullscreenButton.hidden = hidden;
+        fullscreenButton.classList.toggle('is-active', active);
+        fullscreenButton.setAttribute('aria-hidden', String(hidden));
+        fullscreenButton.setAttribute('aria-pressed', String(active));
+        fullscreenButton.setAttribute('aria-label', label);
+        fullscreenButton.title = label;
+        if (fullscreenIcon) fullscreenIcon.textContent = active ? 'fullscreen_exit' : 'fullscreen';
+    };
+
+    const toggleFullscreen = async () => {
+        if (!isTouchDevice() || fullscreenTransitionPending) return false;
+
+        if (!getFullscreenElement() && /iPhone|iPod/i.test(navigator.userAgent || '') && !isIOSStandalone()) {
+            showFullscreenStatus('En iPhone, abre el Mall en Safari, elige Compartir y luego “Añadir a pantalla de inicio”. Al abrirlo desde ese icono tendrás una vista sin las barras del navegador.');
+            return false;
+        }
+
+        fullscreenTransitionPending = true;
+        if (fullscreenButton) fullscreenButton.disabled = true;
+        try {
+            if (getFullscreenElement()) {
+                const exited = await exitFullscreen();
+                if (!exited) {
+                    showFullscreenStatus('El navegador no permitió salir de pantalla completa.');
+                    return false;
+                }
+                syncFullscreenButton();
+                showFullscreenStatus('Pantalla completa desactivada.', 2200);
+                return true;
+            }
+
+            if (
+                typeof document.documentElement?.requestFullscreen !== 'function'
+                && typeof document.documentElement?.webkitRequestFullscreen !== 'function'
+            ) {
+                showFullscreenStatus('Este navegador no admite pantalla completa para el Mall.');
+                return false;
+            }
+
+            // Invoke the browser API directly in the tap's activation window.
+            const entered = await requestFullscreenFromGesture();
+            if (!entered) {
+                showFullscreenStatus('El navegador no permitió activar pantalla completa. Vuelve a intentarlo o revisa sus permisos.');
+                return false;
+            }
+            syncFullscreenButton();
+            showFullscreenStatus('Pantalla completa activada.', 2200);
+            return true;
+        } finally {
+            fullscreenTransitionPending = false;
+            if (fullscreenButton) fullscreenButton.disabled = false;
+            syncFullscreenButton();
+        }
+    };
+
+    window.toggleMobileFullscreen = toggleFullscreen;
+    document.addEventListener?.('fullscreenchange', syncFullscreenButton);
+    document.addEventListener?.('webkitfullscreenchange', syncFullscreenButton);
+    syncFullscreenButton();
     const getViewportSize = () => {
         const viewport = window.visualViewport;
         return {
@@ -41,6 +160,7 @@ window.mallMobileViewport = (() => {
 
     const syncOrientation = () => {
         updateState();
+        syncFullscreenButton();
         if (orientationSyncTimer) clearTimeout(orientationSyncTimer);
         orientationSyncTimer = setTimeout(updateState, 250);
     };
@@ -59,7 +179,7 @@ window.mallMobileViewport = (() => {
         orientationMedia?.addListener?.(syncOrientation);
     }
 
-    return { activate, updateState, isTouchDevice, isLandscape };
+    return { activate, updateState, isTouchDevice, isLandscape, requestFullscreenFromGesture, exitFullscreen, toggleFullscreen, syncFullscreenButton };
 })();
 
 // One page load needs the public catalog in several features. Share the
@@ -156,6 +276,7 @@ window.addEventListener('DOMContentLoaded', () => {
         toggleEntryPreferences: () => callGlobal('toggleEntryPreferences'),
         entryShoppingPreference: (element) => callGlobal('setEntryShoppingPreference', element.dataset.mallValue),
         startMallExperience: () => callGlobal('startMallExperience'),
+        toggleMobileFullscreen: () => callGlobal('toggleMobileFullscreen'),
         startMallGuidedExperience: () => callGlobal('startMallGuidedExperience'),
         cancelMallGuidedExperience: () => callGlobal('cancelMallGuidedExperience'),
         confirmMallGuidedExperience: () => callGlobal('confirmMallGuidedExperience'),
