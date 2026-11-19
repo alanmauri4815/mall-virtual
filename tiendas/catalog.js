@@ -1,14 +1,9 @@
 (() => {
   'use strict';
 
-  const SUPABASE_URL = 'https://kcfuixvrwbnizspgtmtr.supabase.co';
-  const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_-H23KD1xJafE_DFpBFZlyA_CL9sNlpG';
   const officialMallDomains = new Set(['mallcreaciones.maucore.cl', 'mallvirtual.maucore.cl']);
-  const stagingSupabaseConfig = window.MALL_SUPABASE_CONFIG || {};
+  const supabaseConfig = window.MALL_SUPABASE_CONFIG || {};
   const isOfficialMallDomain = officialMallDomains.has(window.location.hostname.toLowerCase());
-  const supabaseConfig = isOfficialMallDomain
-    ? { url: SUPABASE_URL, publishableKey: SUPABASE_PUBLISHABLE_KEY }
-    : stagingSupabaseConfig;
   const mall = window.mallContext;
   const mallDisplayName = isOfficialMallDomain ? 'Mall Creaciones' : (mall?.displayName || 'Mall Creaciones');
   document.title = 'Tiendas y productos | ' + mallDisplayName;
